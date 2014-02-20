@@ -6,8 +6,9 @@ import Control.Monad.State
 import Control.Monad.Reader
 import Control.Applicative ( (<$>) )
 import Control.Monad (forever)
-import Control.Exception(bracket)
+import Control.Exception(bracket, handle, fromException)
 import Control.Concurrent
+import Control.Concurrent.Async(async, wait)
 import qualified Data.Text as T
 import qualified Data.Text.IO as TIO
 import qualified Network.WebSockets as WS
@@ -21,15 +22,6 @@ import qualified Data.Map as Map
 type Email = String
 type Name = String
 
-data Async a = Async (MVar a)
-async  :: IO a -> IO (Async a)
-async action = do
-  var <- newEmptyMVar
-  forkIO(do r <- action; putMVar var r)
-  return (Async var)
-
-wait :: Async a -> IO a
-wait (Async var) = readMVar var
 
 data AddressBook = AddressBook ! (Map.Map Email Name)
      deriving (Typeable)
@@ -72,8 +64,9 @@ handleConnection acid pending = do
   putStrLn("Accepted connection")
   sendHistory conn acid
   a1 <-   async (echo conn acid)
+  TIO.putStrLn ("Waiting for this thread to finish")
   r <- wait a1
-  putStrLn("Handling connection requests ...")
+  TIO.putStrLn("Handling connection requests ...")
 
 
 sendHistory conn acid =
@@ -82,8 +75,18 @@ sendHistory conn acid =
     mapM_ (\m -> WS.sendTextData conn (T.pack m)) messages
 
 echo conn acid =
-     forever $ do
+     handle catchDisconnect  $ forever $ do
      msg <- WS.receiveData conn
      TIO.putStrLn(msg)
      update acid $ InsertEmail (T.unpack msg)  (T.unpack msg)
      WS.sendTextData conn msg
+     where
+       catchDisconnect e =
+         case fromException e of
+           Just  WS.ConnectionClosed ->
+                 do
+                        TIO.putStrLn("Connection closed ")
+                        return ()
+           _ -> do
+            TIO.putStrLn (T.pack ("Unknown exception " ++ show e))
+            return ()
