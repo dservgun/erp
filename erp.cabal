@@ -18,16 +18,20 @@ Category: Business Application
 
 Build-type: Simple
 
-Hs-source-dirs : src/server, testsuite/tests
 cabal-version : >= 1.6
 
 library
-  build-depends : base, acid-state, websockets, mtl,
+  build-depends: base, acid-state, websockets, mtl,
                  containers, safecopy
                  , text, async
+  hs-source-dirs: ., src/server, testsuite/tests
+  exposed-modules:  ErpServer
+
 executable erp
-  main-is: src/server/server.hs
+  main-is: Main.hs
+  hs-source-dirs: ., src/server, testsuite/tests
   build-depends: base, acid-state, websockets, mtl, containers
                  , safecopy
                  , text
                  , async
+                 
