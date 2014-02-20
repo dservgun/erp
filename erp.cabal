@@ -1,0 +1,32 @@
+Name:   erp
+
+Version: 0.0.1
+
+Synopsis: Create a data model for erp
+
+Description: Create a data model for erp
+
+Homepage: TBD
+
+License: GPL
+
+Author: dg
+
+Maintainer: dinkar.ganti@gmail.com
+
+Category: Business Application
+
+Build-type: Simple
+
+Hs-source-dirs : src/server, testsuite/tests
+cabal-version : >= 1.6
+
+library
+  build-depends : base, acid-state, websockets, mtl,
+                 containers, safecopy
+                 , text
+executable erp
+  main-is: src/server/server.hs
+  build-depends: base, acid-state, websockets, mtl, containers
+                 , safecopy
+                 , text
