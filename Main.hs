@@ -1,0 +1,3 @@
+import ErpServer
+
+main = serverMain
