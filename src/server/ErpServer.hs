@@ -1,8 +1,4 @@
 
-{-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE CPP #-}
-{-# LANGUAGE DeriveDataTypeable, TypeFamilies, TemplateHaskell #-}
-
 module ErpServer(serverMain)where
 import Control.Monad.State
 import Control.Monad.Reader

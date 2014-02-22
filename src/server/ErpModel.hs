@@ -1,7 +1,3 @@
-
-{-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE CPP #-}
-{-# LANGUAGE DeriveDataTypeable, TypeFamilies, TemplateHaskell #-}
 module ErpModel where
 
 import Control.Monad.State
