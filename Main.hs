@@ -1,3 +1,3 @@
 import ErpServer
 
-main = serverMain
+main = serverMain "."
