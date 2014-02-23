@@ -8,24 +8,32 @@ import Data.Acid.Remote
 import Data.SafeCopy
 import Data.Typeable
 import qualified Data.Map as Map
-
+import GHC.Generics
+import Data.Aeson
+import Data.Text.Lazy.Encoding as E
+import qualified Data.Text.Lazy as L
 
 type Email = String
 type Name = String
 
-
-data AddressBook = AddressBook ! (Map.Map Email Name)
+data Login = Login{email :: Email, verified :: Bool} 
+	deriving (Show, Generic, Typeable)
+instance ToJSON Login
+instance FromJSON Login
+data AddressBook = AddressBook ! (Map.Map Email Login)
      deriving (Typeable)
 
+
 $(deriveSafeCopy 0 'base ''AddressBook)
+$(deriveSafeCopy 0 'base ''Login)
 
   
-insertEmail :: Email -> Name -> Update AddressBook ()  
-insertEmail email aName
+insertEmail :: Email -> Login -> Update AddressBook ()  
+insertEmail email aLogin
   = do AddressBook a <- get
-       put (AddressBook (Map.insert email aName a))
+       put (AddressBook (Map.insert email aLogin a))
 
-lookupEmail :: Email -> Query AddressBook (Maybe Name)
+lookupEmail :: Email -> Query AddressBook (Maybe Login)
 lookupEmail email =
   do AddressBook a <- ask
      return (Map.lookup email a)
@@ -37,8 +45,19 @@ viewMessages aNumber =
      
 $(makeAcidic ''AddressBook ['insertEmail, 'lookupEmail, 'viewMessages])
 
-upsertEmail acid email aName = update acid $InsertEmail email aName
+upsertEmail acid loginString = 
+	let
+		loginObject = decode((E.encodeUtf8 (L.fromStrict loginString)))
+	in
+	case loginObject of
+		-- Only update verified users
+		Just l@(Login anEmail True) -> update acid $ InsertEmail anEmail l
+		Just l@(Login anEmail False) -> return ()
+		_ -> return ()
+		
+	
 getHistory acid limit = query acid (ViewMessages limit)
 
 initializeDatabase  dbLocation = openLocalStateFrom dbLocation $ AddressBook Map.empty
 disconnect = closeAcidState
+

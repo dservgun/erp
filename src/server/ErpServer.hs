@@ -13,6 +13,8 @@ import qualified Network.WebSockets as WS
 import System.Environment(getEnv)
 import qualified Data.Map as Map
 import qualified ErpModel as M
+import GHC.Generics
+import Data.Aeson
 
 serverMain :: FilePath -> IO ()
 serverMain dbLocation =
@@ -30,9 +32,9 @@ A simple echo.
 
 handleConnection acid pending = do
   os <- getEnv("os")
-  putStrLn("Starting server on. - ." ++ os)
+  TIO.putStrLn(T.pack("Starting server on. - ."  ++ os))
   conn <- WS.acceptRequest pending
-  putStrLn("Accepted connection")
+  TIO.putStrLn("Accepted connection")
   sendHistory conn acid
   a1 <-   async (echo conn acid)
   TIO.putStrLn ("Waiting for this thread to finish")
@@ -43,15 +45,18 @@ handleConnection acid pending = do
 sendHistory conn acid =
   do
     messages <- M.getHistory acid 100
-    mapM_ (\m -> WS.sendTextData conn (T.pack m)) messages
+    mapM_ (\m -> 
+		do 
+			TIO.putStrLn(T.pack $"Server sending key " ++ m)
+			WS.sendTextData conn (T.pack m)) messages
 
 echo conn acid =
      handle catchDisconnect  $ forever $ do
      msg <- WS.receiveData conn
-     TIO.putStrLn(msg)
-     M.upsertEmail acid(T.unpack msg)  (T.unpack msg)
+     TIO.putStrLn(msg)	 
+     M.upsertEmail acid (msg)
      WS.sendTextData conn msg
-     where
+     where	   
        catchDisconnect e =
          case fromException e of
            Just  WS.ConnectionClosed ->
