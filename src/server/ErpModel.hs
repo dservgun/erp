@@ -12,6 +12,8 @@ import GHC.Generics
 import Data.Aeson
 import Data.Text.Lazy.Encoding as E
 import qualified Data.Text.Lazy as L
+import Data.Time.Clock
+import FiscalYear
 
 type Email = String
 type Name = String
@@ -20,6 +22,41 @@ data Login = Login{email :: Email, verified :: Bool}
 	deriving (Show, Generic, Typeable)
 instance ToJSON Login
 instance FromJSON Login
+
+
+data RequestType = Create | Modify | Retrieve | Delete
+data EntityState = Open | Closed
+
+-- Note about RequestType: 
+-- The initial model of Request = {r : RequestType, e : GenericDbEntity} 
+-- results in recursive types that the compiler doesnt like.
+data Currency = Currency String
+data Header = Header String
+data Footer = Footer String
+data Company = Company {party :: Party,
+						currency :: Currency,
+						alternateCurrencies :: [Currency]}
+data CompanyReport = CompanyReport {fiscalYear :: FiscalYear,
+									company :: Company,
+									header :: Header,
+									footer :: Footer,
+									publishDate :: UTCTime}
+						
+
+data Party = Party {name :: String,
+					address :: String,
+					poc		:: Contact,
+					alternatePocs  :: [Contact]}
+data ContactType = Phone | Mobile | Fax | Email | Website | 
+					Skype |
+					SIP |
+					IRC |
+					Jabber
+					
+					
+data Contact = Contact {contactType :: ContactType, 
+						value :: String}
+				
 data AddressBook = AddressBook ! (Map.Map Email Login)
      deriving (Typeable)
 

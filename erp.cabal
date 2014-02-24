@@ -27,7 +27,8 @@ library
   build-depends: base, acid-state, websockets, mtl,
                  containers, safecopy
                  , text, async, aeson
-  hs-source-dirs: ., src/server, testsuite/tests
+                 , time
+  hs-source-dirs: ., src/server, testsuite/tests, src/common, src/client
   exposed-modules:  ErpServer,ErpModel
   default-extensions: OverloadedStrings, CPP
      , DeriveDataTypeable
@@ -35,23 +36,26 @@ library
      , TemplateHaskell
      , TypeSynonymInstances
      , FlexibleInstances
+     , DataKinds
      , DeriveGeneric
 executable erp
   GHC-options: +RTS
   default-language: Haskell2010
   main-is: Main.hs
-  hs-source-dirs: ., src/server, testsuite/tests
+  hs-source-dirs: ., src/server, testsuite/tests, src/common, src/client
   build-depends: base, acid-state, websockets, mtl, containers
                  , safecopy
                  , text
                  , async
                  , aeson
+                 , time
   default-extensions: OverloadedStrings, CPP
      , DeriveDataTypeable
      , TypeFamilies
      , TemplateHaskell
      , FlexibleInstances
      , TypeSynonymInstances
+     , DataKinds
      , DeriveGeneric
 Test-suite tests
   Type: exitcode-stdio-1.0
@@ -65,6 +69,7 @@ Test-suite tests
      , TemplateHaskell
      , TypeSynonymInstances  
      , FlexibleInstances
+     , DataKinds
      , DeriveGeneric
   GHC-options: +RTS 
   Build-depends: base, acid-state, websockets, mtl, containers
@@ -77,3 +82,4 @@ Test-suite tests
                  , QuickCheck
                  , random
                  , aeson
+                 , time
