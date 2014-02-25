@@ -13,6 +13,7 @@ import qualified Network.WebSockets as WS
 import System.Environment(getEnv)
 import qualified Data.Map as Map
 import qualified ErpModel as M
+import qualified Login as L
 import GHC.Generics
 import Data.Aeson
 
@@ -44,7 +45,7 @@ handleConnection acid pending = do
 
 sendHistory conn acid =
   do
-    messages <- M.getHistory acid 100
+    messages <- L.getHistory acid 100
     mapM_ (\m -> 
 		do 
 			TIO.putStrLn(T.pack $"Server sending key " ++ m)
@@ -54,7 +55,7 @@ echo conn acid =
      handle catchDisconnect  $ forever $ do
      msg <- WS.receiveData conn
      TIO.putStrLn(msg)	 
-     M.upsertEmail acid (msg)
+     L.upsertEmail acid (msg)
      WS.sendTextData conn msg
      where	   
        catchDisconnect e =

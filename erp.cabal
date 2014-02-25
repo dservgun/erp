@@ -29,7 +29,7 @@ library
                  , text, async, aeson
                  , time
   hs-source-dirs: ., src/server, testsuite/tests, src/common, src/client
-  exposed-modules:  ErpServer,ErpModel
+  exposed-modules:  ErpServer,ErpModel, Login
   default-extensions: OverloadedStrings, CPP
      , DeriveDataTypeable
      , TypeFamilies

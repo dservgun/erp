@@ -1,5 +1,6 @@
 
 import ErpModel
+import Login
 import ErpServer(serverMain)
 import Control.Monad(forever, unless)
 import Control.Monad.Trans (liftIO)
