@@ -1,5 +1,5 @@
 
-module ErpServer(serverMain)where
+module ErpServer(serverMain, testServerMain)where
 import Control.Monad.State
 import Control.Monad.Reader
 import Control.Applicative ( (<$>) )
@@ -17,25 +17,42 @@ import qualified Login as L
 import GHC.Generics
 import Data.Aeson
 
+testServerMain :: MVar String -> FilePath -> IO()
+testServerMain m dbLocation =
+  bracket
+  (M.initializeDatabase dbLocation)
+  M.disconnect
+  (\acid -> do    
+    putStrLn $ "Listening on " ++  (show portNumber)
+    -- This is still not a very good signal..because
+    -- we could have an exception in the runServer.
+    -- But runServer is a development tool...not 
+    -- suitable for production use
+    putMVar m "Started..presumably"    
+    WS.runServer "127.0.0.1" portNumber $ handleConnection m acid
+    putStrLn "After the call to the handleConnection" 
+  )
+
 serverMain :: FilePath -> IO ()
 serverMain dbLocation =
   bracket
   (M.initializeDatabase dbLocation)
   M.disconnect
-  (\acid -> do
-    putStrLn $ "Listening on " ++  (show portNumber)
-    WS.runServer "127.0.0.1" portNumber $ handleConnection acid)
+  (\acid -> do    
+    TIO.putStrLn $ T.pack("Listening on " ++  (show portNumber))
+    m <- newEmptyMVar
+    WS.runServer "127.0.0.1" portNumber $ handleConnection m acid)
 
 portNumber = 8082
 {--
 A simple echo.
 --}
-
-handleConnection acid pending = do
-  os <- getEnv("os")
-  TIO.putStrLn(T.pack("Starting server on. - ."  ++ os))
+instance Show WS.Connection where
+    show _  = "Connection info.....WS sockets should provide some defaults??"
+handleConnection m acid pending = do
+  os <- getEnv("os")  
   conn <- WS.acceptRequest pending
-  TIO.putStrLn("Accepted connection")
+  TIO.putStrLn $ T.pack ("Accepted connection.." ++ show conn)
   sendHistory conn acid
   a1 <-   async (echo conn acid)
   TIO.putStrLn ("Waiting for this thread to finish")
@@ -47,17 +64,17 @@ sendHistory conn acid =
   do
     messages <- L.getHistory acid 100
     mapM_ (\m -> 
-		do 
-			TIO.putStrLn(T.pack $"Server sending key " ++ m)
-			WS.sendTextData conn (T.pack m)) messages
+        do 
+            TIO.putStrLn(T.pack $"Server sending key " ++ m)
+            WS.sendTextData conn (T.pack m)) messages
 
 echo conn acid =
      handle catchDisconnect  $ forever $ do
      msg <- WS.receiveData conn
-     TIO.putStrLn(msg)	 
+     TIO.putStrLn(msg)     
      L.upsertEmail acid (msg)
      WS.sendTextData conn msg
-     where	   
+     where       
        catchDisconnect e =
          case fromException e of
            Just  WS.ConnectionClosed ->
