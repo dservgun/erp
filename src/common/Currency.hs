@@ -1,4 +1,4 @@
-module ErpModel where
+module Currency where
 import Control.Monad.State
 import Control.Monad.Reader
 import qualified Control.Applicative as C
@@ -12,11 +12,11 @@ import qualified Data.Text.Lazy.Encoding as E
 import qualified Data.Text.Lazy as L
 import Data.Time.Clock
 import GHC.Generics
-import qualified Login as Lo
-import qualified Company as Co
 
-data RequestType = Create | Modify | Retrieve | Delete
 
-initializeDatabase  dbLocation = A.openLocalStateFrom dbLocation $ Lo.AddressBook M.empty
-disconnect = A.closeAcidState
+data Currency = Currency String
+    deriving (Show, Typeable, Generic)
 
+$(deriveSafeCopy 0 'base ''Currency)
+instance J.ToJSON Currency
+instance J.FromJSON Currency    
