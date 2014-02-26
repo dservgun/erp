@@ -18,16 +18,16 @@ data PeriodType = Standard | Adjustment
     deriving(Show, Enum, Bounded, Typeable, Generic)
 
 data FiscalYear = FiscalYear {fyName :: String, 
-						  fyCode :: String,
-						  startDate :: UTCTime,
-						  endDate :: UTCTime,
-						  state :: Es.EntityState}
+                          fyCode :: String,
+                          startDate :: UTCTime,
+                          endDate :: UTCTime,
+                          state :: Es.EntityState}
                           deriving (Show, Typeable, Generic)
 
 data FiscalYearPeriod = FiscalYearPeriod 
-				{period :: String,
-				 year :: FiscalYear,
-				 fyPeriodType :: PeriodType}
+                {period :: String,
+                 year :: FiscalYear,
+                 fyPeriodType :: PeriodType}
                     deriving(Show, Typeable, Generic)
 
                     

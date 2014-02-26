@@ -31,7 +31,7 @@ type Email = String
 type Name = String
 
 data Login = Login{email :: Email, verified :: Bool} 
-	deriving (Show, Generic, Typeable)
+    deriving (Show, Generic, Typeable)
 instance J.ToJSON Login
 instance J.FromJSON Login
 data AddressBook = AddressBook ! (M.Map Email Login)
@@ -61,14 +61,14 @@ $(A.makeAcidic ''AddressBook ['insertEmail, 'lookupEmail, 'viewMessages])
 
 
 upsertEmail acid loginString = 
-	let
-		loginObject = J.decode((E.encodeUtf8 (L.fromStrict loginString)))
-	in
-	case loginObject of
-		-- Only update verified users
-		Just l@(Login anEmail True) -> A.update acid $ InsertEmail anEmail l
-		Just l@(Login anEmail False) -> return ()
-		_ -> return ()
-		
-	
+    let
+        loginObject = J.decode((E.encodeUtf8 (L.fromStrict loginString)))
+    in
+    case loginObject of
+        -- Only update verified users
+        Just l@(Login anEmail True) -> A.update acid $ InsertEmail anEmail l
+        Just l@(Login anEmail False) -> return ()
+        _ -> return ()
+        
+    
 getHistory acid limit = A.query acid (ViewMessages limit)

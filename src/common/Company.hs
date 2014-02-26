@@ -23,36 +23,36 @@ data Header = Header String
 data Footer = Footer String
     deriving(Show, Typeable, Generic)
 data Company = Company {party :: Party,
-						currency :: Cu.Currency,
-						alternateCurrencies :: [Cu.Currency]}
+                        currency :: Cu.Currency,
+                        alternateCurrencies :: [Cu.Currency]}
                         deriving (Show, Typeable,Generic)
 
 data CompanyReport = CompanyReport {fiscalYear :: Fy.FiscalYear,
-									company :: Company,
-									header :: Header,
-									footer :: Footer,
-									publishDate :: UTCTime}
+                                    company :: Company,
+                                    header :: Header,
+                                    footer :: Footer,
+                                    publishDate :: UTCTime}
                         deriving (Show, Typeable,Generic)
-						
+                        
 
 data Party = Party {name :: String,
-					address :: String,
-					poc		:: Contact,
-					alternatePocs  :: [Contact],
+                    address :: String,
+                    poc        :: Contact,
+                    alternatePocs  :: [Contact],
                     primaryCategory :: Category,
                     alternateCategories :: [Category]
                     }
                     deriving (Show, Typeable,Generic)
 data ContactType = Phone | Mobile | Fax | Email | Website | 
-					Skype |
-					SIP |
-					IRC |
-					Jabber
+                    Skype |
+                    SIP |
+                    IRC |
+                    Jabber
                     deriving (Enum, Bounded, Show, Typeable,Generic)
-					
-					
+                    
+                    
 data Contact = Contact {contactType :: ContactType, 
-						value :: String}
+                        value :: String}
                     deriving(Show, Typeable,Generic)
                         
 instance J.ToJSON Company
@@ -83,4 +83,4 @@ $(deriveSafeCopy 0 'base ''CompanyReport)
 
 getContactTypes = map(\x -> (L.pack (show x),x)) ([minBound..maxBound]::[ContactType])
 
-				
+                
