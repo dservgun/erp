@@ -53,26 +53,17 @@ handleConnection m acid pending = do
   os <- getEnv("os")  
   conn <- WS.acceptRequest pending
   TIO.putStrLn $ T.pack ("Accepted connection.." ++ show conn)
-  sendHistory conn acid
+
   a1 <-   async (echo conn acid)
-  TIO.putStrLn ("Waiting for this thread to finish")
   r <- wait a1
   TIO.putStrLn("Handling connection requests ...")
 
-
-sendHistory conn acid =
-  do
-    messages <- L.getHistory acid 100
-    mapM_ (\m -> 
-        do 
-            TIO.putStrLn(T.pack $"Server sending key " ++ m)
-            WS.sendTextData conn (T.pack m)) messages
 
 echo conn acid =
      handle catchDisconnect  $ forever $ do
      msg <- WS.receiveData conn
      TIO.putStrLn(msg)     
-     L.upsertEmail acid (msg)
+     M.updateDatabase acid msg
      WS.sendTextData conn msg
      where       
        catchDisconnect e =

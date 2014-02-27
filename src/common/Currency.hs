@@ -15,7 +15,7 @@ import GHC.Generics
 
 
 data Currency = Currency String
-    deriving (Show, Typeable, Generic)
+    deriving (Show, Typeable, Generic, Eq, Ord)
 
 $(deriveSafeCopy 0 'base ''Currency)
 instance J.ToJSON Currency

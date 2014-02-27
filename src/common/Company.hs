@@ -17,7 +17,7 @@ import qualified Currency as Cu
 
 
 data Category = Category String
-    deriving(Show, Typeable, Generic)
+    deriving(Show, Typeable, Generic, Eq, Ord)
 data Header = Header String
      deriving(Show, Typeable, Generic)
 data Footer = Footer String
@@ -25,7 +25,7 @@ data Footer = Footer String
 data Company = Company {party :: Party,
                         currency :: Cu.Currency,
                         alternateCurrencies :: [Cu.Currency]}
-                        deriving (Show, Typeable,Generic)
+                        deriving (Show, Typeable,Generic, Eq, Ord)
 
 data CompanyReport = CompanyReport {fiscalYear :: Fy.FiscalYear,
                                     company :: Company,
@@ -42,18 +42,18 @@ data Party = Party {name :: String,
                     primaryCategory :: Category,
                     alternateCategories :: [Category]
                     }
-                    deriving (Show, Typeable,Generic)
+                    deriving (Show, Typeable,Generic, Eq, Ord)
 data ContactType = Phone | Mobile | Fax | Email | Website | 
                     Skype |
                     SIP |
                     IRC |
                     Jabber
-                    deriving (Enum, Bounded, Show, Typeable,Generic)
+                    deriving (Enum, Bounded, Show, Typeable,Generic, Eq, Ord)
                     
                     
 data Contact = Contact {contactType :: ContactType, 
                         value :: String}
-                    deriving(Show, Typeable,Generic)
+                    deriving(Show, Typeable,Generic, Eq, Ord)
                         
 instance J.ToJSON Company
 instance J.FromJSON Company
@@ -72,11 +72,12 @@ instance J.FromJSON Footer
 instance J.ToJSON CompanyReport
 instance J.FromJSON CompanyReport
 
+$(deriveSafeCopy 0 'base ''Category)
 $(deriveSafeCopy 0 'base ''Company)
 $(deriveSafeCopy 0 'base ''Contact)
 $(deriveSafeCopy 0 'base ''ContactType)
 $(deriveSafeCopy 0 'base ''Party)
-$(deriveSafeCopy 0 'base ''Category)
+
 $(deriveSafeCopy 0 'base ''Header)
 $(deriveSafeCopy 0 'base ''Footer)
 $(deriveSafeCopy 0 'base ''CompanyReport)

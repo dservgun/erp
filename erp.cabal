@@ -29,7 +29,7 @@ library
                  , text, async, aeson
                  , time
   hs-source-dirs: ., src/server, testsuite/tests, src/common, src/client
-  exposed-modules:  ErpServer,ErpModel, Login, Account
+  exposed-modules:  ErpServer,ErpModel, Login, Account, Company, Currency, FiscalYear, Entity
   default-extensions: OverloadedStrings, CPP
      , DeriveDataTypeable
      , TypeFamilies
@@ -57,6 +57,27 @@ executable erp
      , TypeSynonymInstances
      , DataKinds
      , DeriveGeneric
+
+executable erp_ui
+  GHC-options: +RTS
+  default-language: Haskell2010
+  main-is: Main.hs
+  hs-source-dirs: ., src/server, testsuite/tests, src/common, src/client
+  build-depends: base, acid-state, websockets, mtl, containers
+                 , safecopy
+                 , text
+                 , async
+                 , aeson
+                 , time
+  default-extensions: OverloadedStrings, CPP
+     , DeriveDataTypeable
+     , TypeFamilies
+     , TemplateHaskell
+     , FlexibleInstances
+     , TypeSynonymInstances
+     , DataKinds
+     , DeriveGeneric
+     
 Test-suite tests
   Type: exitcode-stdio-1.0
   

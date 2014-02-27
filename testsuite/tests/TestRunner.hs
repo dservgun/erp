@@ -1,6 +1,8 @@
 
-import ErpModel
-import Login
+import qualified Data.Map as Map
+import qualified ErpModel as M
+import qualified Login as L
+
 import ErpServer(testServerMain)
 import Control.Monad(forever, unless)
 import Control.Monad.Trans (liftIO)
@@ -16,14 +18,15 @@ import GHC.Generics
 
 clientTest :: WS.ClientApp ()
 clientTest conn = do
-    T.putStrLn "Client Connected...\n"
+    T.putStrLn "Connected successfully"
     tR <- async( forever $ do 
         msg <- WS.receiveData conn
-        T.putStr ("Client received...\n")
         T.putStrLn (msg :: Text)
         )    
-    WS.sendTextData conn (encode(toJSON (Login "test@test.org" True)))
-    WS.sendTextData conn (encode(toJSON (Login "testu@test.org" False)))
+    -- Send a verified user and an unverified user,
+    -- the recovery should not be showing the unverified user.
+    WS.sendTextData conn (encode(toJSON (L.Login "test@test.org" True)))
+    WS.sendTextData conn (encode(toJSON (L.Login "testu@test.org" False)))
     WS.sendClose conn ("Closing connection" :: Text)
     wait tR
 
