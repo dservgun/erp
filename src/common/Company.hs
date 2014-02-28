@@ -16,6 +16,7 @@ import FiscalYear as Fy
 import qualified Currency as Cu
 
 
+
 data Category = Category String
     deriving(Show, Typeable, Generic, Eq, Ord)
 data Header = Header String

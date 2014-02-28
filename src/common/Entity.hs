@@ -14,7 +14,7 @@ import Data.Time.Clock
 import GHC.Generics
 
 data EntityState = Open | Closed
-    deriving (Show, Typeable, Generic)
+    deriving (Show, Typeable, Generic, Eq, Ord)
     
 instance J.ToJSON EntityState
 instance J.FromJSON EntityState

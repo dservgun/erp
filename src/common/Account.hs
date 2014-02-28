@@ -22,9 +22,9 @@ type Code = String
 type Boolean = Bool
 
 data AccountType = IncomeStatement | BalanceSheet | DisplayBalance
-    deriving(Show, Enum, Bounded, Typeable, Generic)
+    deriving(Show, Enum, Bounded, Typeable, Generic, Eq, Ord)
 data AccountKind = Payable | Receivable | AkExpense | AkRevenue | View | Other
-    deriving (Show, Enum, Bounded, Typeable, Generic)
+    deriving (Show, Enum, Bounded, Typeable, Generic, Eq, Ord)
 data Account = Account {
         name :: Name,
         code :: Code,
@@ -45,13 +45,13 @@ data Account = Account {
         -- it clearer.
         taxes :: [Tax],
         note :: String}
-        deriving(Show,Typeable, Generic)
+        deriving(Show,Typeable, Generic, Eq, Ord)
 type DebitAccount = Account
 type CreditAccount = Account
 type DisplayView = String
 data JournalType = General | Revenue | Situation | Expense 
         | Cash DebitAccount CreditAccount
-        deriving (Show, Typeable, Generic)
+        deriving (Show, Typeable, Generic, Eq, Ord)
 data Journal = Journal {
     jName :: Name,
     jCode :: Code,
@@ -59,9 +59,9 @@ data Journal = Journal {
     view   :: DisplayView,
     updatePosted :: Boolean,
     journalType :: JournalType}
-    deriving (Show, Typeable, Generic)
+    deriving (Show, Typeable, Generic, Eq, Ord)
 data MoveState  = Draft | Posted 
-    deriving (Show, Typeable, Generic)
+    deriving (Show, Typeable, Generic, Eq, Ord)
 data Move = Move {
     mName :: Name,
     mReference :: String,
@@ -70,10 +70,10 @@ data Move = Move {
     effectiveDate :: UTCTime,
     postDate ::  UTCTime,
     mState :: MoveState}
-    deriving (Show, Typeable, Generic)
+    deriving (Show, Typeable, Generic, Eq, Ord)
 
 data MoveLineState = MlDraft | MlPosted | MlValid
-    deriving (Show, Typeable, Generic)
+    deriving (Show, Typeable, Generic, Eq, Ord, Enum, Bounded)
 data MoveLine = MoveLine {
     mlName :: Name,
     mlReference :: String,
@@ -85,12 +85,12 @@ data MoveLine = MoveLine {
     maturityDate :: UTCTime,
     reconciliation :: Maybe Integer,
     taxLines :: [Distribution]}
-    deriving (Show, Typeable, Generic)
+    deriving (Show, Typeable, Generic, Eq, Ord)
 
 {-- XXX: This distribution is a list of amount lins on the account chart ??--}
 type Distribution = String 
 data Sign = Positive | Negative 
-        deriving (Show, Typeable, Generic)
+        deriving (Show, Typeable, Generic, Eq , Ord, Enum, Bounded)
 type Amount = Float 
 data TaxCode = TaxCode {
     tcName :: Name,
@@ -99,11 +99,11 @@ data TaxCode = TaxCode {
     tcCompany :: Co.Company,
     parentTC:: TaxCode,
     childrenTC :: [TaxCode],
-    sum :: Amount} deriving (Show, Typeable, Generic)
+    sum :: Amount} deriving (Show, Typeable, Generic, Eq, Ord)
     
 type Sequence = String
 data TaxType = PercentTaxType Float | FixedTaxType Float
-    deriving (Show, Typeable, Generic)
+    deriving (Show, Typeable, Generic, Eq, Ord)
 data Tax = Tax {
  tName :: Name,
  tCode :: Code,
@@ -125,11 +125,43 @@ data Tax = Tax {
  creditNoteBaseSign :: Sign,
  creditNoteTaxCode :: TaxCode,
  creditNoteTaxSign :: Sign}
-    deriving(Show, Typeable, Generic)
+    deriving(Show, Typeable, Generic, Eq, Ord)
  
-data TaxAmount = Fixed Float | Percentage Float | BasisPoints Float deriving(Show, Typeable, Generic)
+data TaxAmount = Fixed Float | Percentage Float | BasisPoints Float 
+    deriving(Show, Typeable, Generic, Eq, Ord)
  
+computTaxAmount:: Amount -> TaxAmount -> Amount
+computTaxAmount a t = 
+    case t of
+    Fixed aNumber -> a + aNumber
+    Percentage pct -> a *  (1 + pct/100)
+    BasisPoints bps -> a * (1 + bps/ 10000)
     
+data Procedure = Proceure String deriving (Show, Typeable, Generic, Eq, Ord)
+type Day = Int
+data Level = Level Day deriving (Show, Typeable, Generic, Eq, Ord)
+data DunningState = DDraft | DDone deriving (Show, Typeable, Generic, Eq, Ord, Enum, Bounded)
+
+        
+data Dunning = Dunning {
+        line :: MoveLine,
+        procedure :: Procedure,
+        level :: Level,
+        -- If true, the dunning is blocked..
+        blocked :: Bool,
+        dunningState :: DunningState
+        } deriving (Show, Typeable, Generic, Eq, Ord)
+
+printDunningLetter :: Dunning -> L.Text
+printDunningLetter = (L.pack) . show
+instance J.ToJSON Dunning
+instance J.FromJSON Dunning
+instance J.ToJSON DunningState
+instance J.FromJSON DunningState
+instance J.ToJSON Procedure
+instance J.FromJSON Procedure
+instance J.ToJSON Level
+instance J.FromJSON Level        
 instance J.ToJSON JournalType
 instance J.FromJSON JournalType
 instance J.ToJSON Journal
@@ -142,6 +174,14 @@ instance J.ToJSON AccountType
 instance J.FromJSON AccountType
 instance J.ToJSON AccountKind
 instance J.FromJSON AccountKind
+instance J.ToJSON Move
+instance J.FromJSON Move
+instance J.ToJSON MoveState
+instance J.FromJSON MoveState
+instance J.ToJSON MoveLine
+instance J.FromJSON MoveLine
+instance J.ToJSON MoveLineState
+instance J.FromJSON MoveLineState
 instance J.ToJSON Sign
 instance J.FromJSON Sign
 instance J.ToJSON TaxCode
@@ -151,7 +191,10 @@ instance J.FromJSON TaxAmount
 instance J.ToJSON TaxType
 instance J.FromJSON TaxType
 
-
+$(deriveSafeCopy 0 'base ''Dunning)
+$(deriveSafeCopy 0 'base ''DunningState)
+$(deriveSafeCopy 0 'base ''Procedure)
+$(deriveSafeCopy 0 'base ''Level)
 $(deriveSafeCopy 0 'base ''JournalType)
 $(deriveSafeCopy 0 'base ''Journal)
 $(deriveSafeCopy 0 'base ''Account)    
@@ -162,6 +205,12 @@ $(deriveSafeCopy 0 'base ''Sign)
 $(deriveSafeCopy 0 'base ''TaxCode)
 $(deriveSafeCopy 0 'base ''TaxAmount)
 $(deriveSafeCopy 0 'base ''TaxType)
+
+$(deriveSafeCopy 0 'base ''Move)
+$(deriveSafeCopy 0 'base ''MoveState)
+$(deriveSafeCopy 0 'base ''MoveLine)
+$(deriveSafeCopy 0 'base ''MoveLineState)
+
 getAccountTypes = map(\x -> (L.pack (show x),x)) ([minBound..maxBound]::[AccountType])
 
 
