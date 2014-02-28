@@ -153,7 +153,7 @@ data Dunning = Dunning {
         } deriving (Show, Typeable, Generic, Eq, Ord)
 
 printDunningLetter :: Dunning -> L.Text
-printDunningLetter = (L.pack) . show
+printDunningLetter = L.pack . show
 instance J.ToJSON Dunning
 instance J.FromJSON Dunning
 instance J.ToJSON DunningState

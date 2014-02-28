@@ -23,7 +23,7 @@ testServerMain m dbLocation =
   (M.initializeDatabase dbLocation)
   M.disconnect
   (\acid -> do    
-    putStrLn $ "Listening on " ++  (show portNumber)
+    putStrLn $ "Listening on " ++  show portNumber
     -- This is still not a very good signal..because
     -- we could have an exception in the runServer.
     -- But runServer is a development tool...not 
@@ -39,7 +39,7 @@ serverMain dbLocation =
   (M.initializeDatabase dbLocation)
   M.disconnect
   (\acid -> do    
-    TIO.putStrLn $ T.pack("Listening on " ++  (show portNumber))
+    TIO.putStrLn $ T.pack("Listening on " ++  show portNumber)
     m <- newEmptyMVar
     WS.runServer "127.0.0.1" portNumber $ handleConnection m acid)
 
@@ -50,19 +50,19 @@ A simple echo.
 instance Show WS.Connection where
     show _  = "Connection info.....WS sockets should provide some defaults??"
 handleConnection m acid pending = do
-  os <- getEnv("os")  
+  os <- getEnv "os"
   conn <- WS.acceptRequest pending
   TIO.putStrLn $ T.pack ("Accepted connection.." ++ show conn)
 
   a1 <-   async (echo conn acid)
   r <- wait a1
-  TIO.putStrLn("Handling connection requests ...")
+  TIO.putStrLn "Handling connection requests ..."
 
 
 echo conn acid =
      handle catchDisconnect  $ forever $ do
      msg <- WS.receiveData conn
-     TIO.putStrLn(msg)     
+     TIO.putStrLn msg
      M.updateDatabase acid msg
      WS.sendTextData conn msg
      where       
@@ -70,7 +70,7 @@ echo conn acid =
          case fromException e of
            Just  WS.ConnectionClosed ->
                  do
-                        TIO.putStrLn("Connection closed ")
+                        TIO.putStrLn "Connection closed "
                         return ()
            _ -> do
             TIO.putStrLn (T.pack ("Unknown exception " ++ show e))

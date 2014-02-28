@@ -14,10 +14,11 @@ import Data.Time.Clock
 import GHC.Generics
 import FiscalYear as Fy
 import qualified Currency as Cu
+import qualified Login as Lo
 
 
 
-data Category = Category String
+data Category = Category {category :: String, login :: Lo.Login}
     deriving(Show, Typeable, Generic, Eq, Ord)
 data Header = Header String
      deriving(Show, Typeable, Generic)

@@ -14,9 +14,9 @@ import Data.Time.Clock
 import GHC.Generics
 import Network.URL
 
-type ISO_CODE_ALPHA_2 = String
+type IsoCodeAlpha2 = String
 
-data Country = Country { iso_code :: ISO_CODE_ALPHA_2, 
+data Country = Country { isoCode :: IsoCodeAlpha2, 
         name :: String,
         url :: String,
         description :: String}    

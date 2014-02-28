@@ -5,7 +5,7 @@
 module Login(Login (..), 
             Email,
             Name)
-    where
+where
 
 import Control.Monad.State
 import Control.Monad.Reader
@@ -20,6 +20,8 @@ import qualified Data.Text.Lazy.Encoding as E
 import qualified Data.Text.Lazy as L
 import Data.Time.Clock
 import GHC.Generics
+import Control.Exception
+
 
 type Email = String
 type Name = String
