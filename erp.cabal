@@ -41,6 +41,7 @@ library
      , FlexibleInstances
      , DataKinds
      , DeriveGeneric
+     , NoMonomorphismRestriction
 executable erp
   GHC-options: +RTS
   default-language: Haskell2010
@@ -62,6 +63,7 @@ executable erp
      , TypeSynonymInstances
      , DataKinds
      , DeriveGeneric
+     , NoMonomorphismRestriction
 
 executable erp_ui
   GHC-options: +RTS
@@ -84,6 +86,7 @@ executable erp_ui
      , TypeSynonymInstances
      , DataKinds
      , DeriveGeneric
+     , NoMonomorphismRestriction
      
 Test-suite tests
   Type: exitcode-stdio-1.0
