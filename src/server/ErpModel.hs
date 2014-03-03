@@ -12,15 +12,16 @@ import qualified Data.Set as S
 import qualified Data.Aeson as J
 import qualified Data.Text.Lazy.Encoding as E
 import qualified Data.Text.Lazy as L
+import qualified Data.Text.IO as TIO
 import Data.Dynamic
 import Data.Time.Clock
 import GHC.Generics
 import qualified Login as Lo
 import qualified Company as Co
 data LoginExists = LoginExists deriving (Show, Generic, Typeable, Eq, Ord)
-
+data LoginStaleException = LoginStaleException deriving (Show, Generic, Typeable, Eq, Ord)
 instance Exception LoginExists
-
+instance Exception LoginStaleException
 data ErpModel = ErpModel
                 {
                     partySet :: S.Set Co.Party ,
@@ -30,7 +31,7 @@ data ErpModel = ErpModel
                  
 {-- A given email id can be tied to only a single erp model, 
  though a given model can be associated with multiple email ids--}                 
-data Database = Database ! (M.Map Lo.Login ErpModel)
+data Database = Database ! (M.Map String Lo.Login)
      deriving (Show, Generic, Typeable, Eq, Ord)
 
 instance J.ToJSON ErpModel
@@ -44,14 +45,14 @@ emptyModel = ErpModel{partySet = S.empty,
               companySet = S.empty,
               categorySet = S.empty}
 
-insertLogin :: Lo.Login -> ErpModel -> A.Update Database ()
-insertLogin aLogin aModel = 
+insertLogin :: String -> Lo.Login -> A.Update Database ()
+insertLogin aString aLogin = 
     do
         Database db <- get
-        put (Database (M.insert aLogin aModel db))
+        put (Database (M.insert aString aLogin db))
 
         
-lookupLogin :: Lo.Login -> A.Query Database (Maybe ErpModel)
+lookupLogin :: String -> A.Query Database (Maybe Lo.Login)
 lookupLogin aLogin =
     do
         Database db <- ask
@@ -103,11 +104,14 @@ updateLogin acid payload =
         pObject = J.decode $ E.encodeUtf8 $ L.fromStrict payload
      in 
         case pObject of
-            Just l@(Lo.Login name email) -> do
-                    loginLookup <- A.query acid (LookupLogin l)
+            Just l@(Lo.Login name email verNum1) -> do
+                    loginLookup <- A.query acid (LookupLogin name)
                     case loginLookup of
-                        Nothing -> A.update acid (InsertLogin l emptyModel)
-                        Just l -> throw LoginExists
+                        Nothing -> A.update acid (InsertLogin name l)
+                        Just l2@(Lo.Login name email verNum2) ->do
+                            TIO.putStrLn ("Exception?")
+                            if verNum2 > verNum1 then throw LoginStaleException
+                            else throw LoginExists
             Nothing -> throw InvalidLogin 
 
 

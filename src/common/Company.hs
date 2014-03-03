@@ -7,6 +7,7 @@ import Data.Acid.Remote
 import Data.SafeCopy
 import Data.Typeable
 import qualified Data.Map as M
+import qualified Data.Tree as Tr
 import qualified Data.Aeson as J
 import qualified Data.Text.Lazy.Encoding as E
 import qualified Data.Text.Lazy as L
@@ -28,7 +29,6 @@ data Company = Company {party :: Party,
                         currency :: Cu.Currency,
                         alternateCurrencies :: [Cu.Currency]}
                         deriving (Show, Typeable,Generic, Eq, Ord)
-
 data CompanyReport = CompanyReport {fiscalYear :: Fy.FiscalYear,
                                     company :: Company,
                                     header :: Header,
@@ -40,11 +40,14 @@ data CompanyReport = CompanyReport {fiscalYear :: Fy.FiscalYear,
 data Party = Party {name :: String,
                     address :: String,
                     poc        :: Contact,
-                    alternatePocs  :: [Contact],
                     primaryCategory :: Category,
-                    alternateCategories :: [Category]
+                    alternateCategories :: [Category],
+                    alternatePocs :: [Contact]
                     }
                     deriving (Show, Typeable,Generic, Eq, Ord)
+
+
+
 data ContactType = Phone | Mobile | Fax | Email | Website | 
                     Skype |
                     SIP |

@@ -18,9 +18,10 @@ import qualified Data.Text.Lazy.Encoding as En
 import qualified Data.Text.Lazy as La
 
 
-sendRequest aPayload = encode( toJSON (M.Request "Login" $ En.decodeUtf8 aPayload))
-clientTest :: WS.ClientApp ()
-clientTest conn = do
+waitSome anInt = threadDelay $ anInt * 1000
+sendRequest aPayload  = encode( toJSON (M.Request "Login" $ En.decodeUtf8 aPayload))
+clientTest :: Int -> WS.ClientApp ()
+clientTest aVer conn = do
     T.putStrLn "Connected successfully"
     tR <- async( forever $ do 
         msg <- WS.receiveData conn
@@ -29,8 +30,8 @@ clientTest conn = do
     -- Send a verified user and an unverified user,
     -- the recovery should not be showing the unverified user.
     
-    WS.sendTextData conn $ sendRequest (encode(toJSON (L.Login "test@test.org" True)))
-    WS.sendClose conn ("Closing connection" :: Text)
+    WS.sendTextData conn $ sendRequest (encode(toJSON (L.Login "test@test.org" True aVer))) 
+    -- WS.sendClose conn ("Closing connection" :: Text)
     wait tR
 
     
@@ -42,7 +43,10 @@ main = do
     T.putStrLn "Starting client thread"
     mvarValue <- takeMVar m
     T.putStrLn $ T.pack("Mvar returned " ++ show mvarValue)
-    c <- async (WS.runClient "localhost" 8082 "/" clientTest)
-    r <- wait s
+    c <- async (WS.runClient "localhost" 8082 "/" $ clientTest 2)
+    waitSome 3000
+    c2 <- async (WS.runClient "localhost" 8082 "/" $ clientTest 1)
     rc <- wait c
+    rc2 <- wait c2
+    r <- wait s
     T.putStrLn "Waiting for connections"

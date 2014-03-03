@@ -7,6 +7,7 @@ import Data.Acid.Remote
 import Data.SafeCopy
 import Data.Typeable
 import qualified Data.Map as M
+import qualified Data.Tree as Tr
 import qualified Data.Aeson as J
 import qualified Data.Text.Lazy.Encoding as E
 import qualified Data.Text.Lazy as L
@@ -29,7 +30,6 @@ data Account = Account {
         name :: Name,
         code :: Code,
         aCompany :: Co.Company,
-        parentAccount :: Account,
         currency :: Cu.Currency,
         kind :: AccountKind,
         acType :: AccountType,
@@ -48,6 +48,7 @@ data Account = Account {
         deriving(Show,Typeable, Generic, Eq, Ord)
 type DebitAccount = Account
 type CreditAccount = Account
+type AccountTree = Tr.Tree Account
 type DisplayView = String
 data JournalType = General | Revenue | Situation | Expense 
         | Cash DebitAccount CreditAccount
@@ -97,10 +98,8 @@ data TaxCode = TaxCode {
     tcCode :: Code,
     tcActive  :: Boolean,
     tcCompany :: Co.Company,
-    parentTC:: TaxCode,
-    childrenTC :: [TaxCode],
     sum :: Amount} deriving (Show, Typeable, Generic, Eq, Ord)
-    
+type TaxCodeTree = Tr.Tree TaxCode    
 type Sequence = String
 data TaxType = PercentTaxType Float | FixedTaxType Float
     deriving (Show, Typeable, Generic, Eq, Ord)
@@ -112,8 +111,6 @@ data Tax = Tax {
  sequence ::Sequence,
  taxType :: TaxType,
  taxAmount :: TaxAmount,
- parentTax :: Tax,
- childrenTax :: [Tax],
  taxCompany :: Co.Company,
  invoiceAccount :: Account,
  creditNoteAccount :: Account,
@@ -126,7 +123,7 @@ data Tax = Tax {
  creditNoteTaxCode :: TaxCode,
  creditNoteTaxSign :: Sign}
     deriving(Show, Typeable, Generic, Eq, Ord)
- 
+type TaxTree = Tr.Tree Tax 
 data TaxAmount = Fixed Float | Percentage Float | BasisPoints Float 
     deriving(Show, Typeable, Generic, Eq, Ord)
  
