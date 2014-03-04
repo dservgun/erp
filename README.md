@@ -20,7 +20,7 @@ We need a request log to manage log for the requests : time, ip etc.
  
 ## UI design
  * Seaside or ScalaFX: My opinion is that ui has an oo bias and Smalltalk is a better solution. Need to investigate that.
- * 
  
-erp
-
+ 
+## References
+ * [Tryton](http://doc.tryton.org/3.0/index.html)
