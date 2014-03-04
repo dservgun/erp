@@ -33,6 +33,8 @@ library
   exposed-modules:  ErpServer,ErpModel, Login, Account, Company, Currency, FiscalYear, Entity
                     , AccountAsset
                     , Bank
+                    , Product
+                    , Carrier
   default-extensions: OverloadedStrings, CPP
      , DeriveDataTypeable
      , TypeFamilies

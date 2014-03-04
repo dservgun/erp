@@ -15,6 +15,7 @@ import GHC.Generics
 import FiscalYear as Fy
 import Company as Co
 import Currency as Cu
+import Country as Cou
 
 instance J.ToJSON BranchCode
 instance J.FromJSON BranchCode
@@ -32,7 +33,7 @@ primaryOffice :: BranchCode
 primaryOffice = PrimaryOffice "XXX"
 
 data BIC =  BIC { code :: BankCode,
-                  country :: Cu.Country,
+                  country :: Cou.Country,
                   location :: Location,
                   branchCode :: BranchCode} 
                   deriving (Show, Typeable, Generic, Eq, Ord)

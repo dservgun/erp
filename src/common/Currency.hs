@@ -13,25 +13,12 @@ import qualified Data.Text.Lazy as L
 import Data.Time.Clock
 import GHC.Generics
 import Network.URL
+import qualified Country as Cou
 
-type IsoCodeAlpha2 = String
-
-data Country = Country { isoCode :: IsoCodeAlpha2, 
-        name :: String,
-        url :: String,
-        description :: String}    
-    deriving (Show, Typeable, Generic, Eq, Ord)
 data Currency = Currency String
     deriving (Show, Typeable, Generic, Eq, Ord)
 
-getURL :: Country -> Maybe URL
-getURL (Country _ _ url _) = importURL url
-
-updateURL :: Country -> URL -> Country 
-updateURL aCountry aURL = aCountry {url = exportURL aURL}
 $(deriveSafeCopy 0 'base ''Currency)
-$(deriveSafeCopy 0 'base ''Country)
+
 instance J.ToJSON Currency
 instance J.FromJSON Currency    
-instance J.ToJSON Country
-instance J.FromJSON Country

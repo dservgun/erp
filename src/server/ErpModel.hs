@@ -18,6 +18,7 @@ import Data.Time.Clock
 import GHC.Generics
 import qualified Login as Lo
 import qualified Company as Co
+import qualified Product as Pr
 data LoginExists = LoginExists deriving (Show, Generic, Typeable, Eq, Ord)
 data LoginStaleException = LoginStaleException deriving (Show, Generic, Typeable, Eq, Ord)
 instance Exception LoginExists
@@ -43,7 +44,8 @@ $(deriveSafeCopy 0 'base ''ErpModel)
 
 emptyModel = ErpModel{partySet = S.empty,
               companySet = S.empty,
-              categorySet = S.empty}
+              categorySet = S.empty
+              }
 
 insertLogin :: String -> Lo.Login -> A.Update Database ()
 insertLogin aString aLogin = 
