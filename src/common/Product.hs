@@ -17,7 +17,8 @@ import qualified Currency as Cu
 
 
 
-data Category = UOMCategory String 
+data Category = UOMCategory {catName :: String,
+                            parentCat :: Category}
     deriving(Show, Generic, Typeable, Eq, Ord)
 
 data UOM = UOM {
@@ -30,6 +31,8 @@ data UOM = UOM {
         displayDigits :: Int,
         uActive :: Bool}
     deriving (Show, Generic, Typeable,Eq, Ord)
+    
+    
 data Price = Price {p :: Float,
                     cu :: Cu.Currency}
             deriving (Show, Generic, Typeable, Eq, Ord)
@@ -44,7 +47,11 @@ data ProductType = Goods | Assets | Services
 type UPCCode = Maybe String    
 data Attribute = Attribute {attributeName :: String, attrDescription:: String}
     deriving (Show, Generic, Typeable, Eq, Ord)
-type ProductAudit = (UTCTime, Product, PriceUOM)    
+type Weight = Float    
+data Dimensions = Dimensions {length :: Float, width :: Float, height :: Float, weight :: Weight}    
+    deriving (Show, Generic, Typeable, Eq, Ord)
+type ProductAudit = (UTCTime, Product, PriceUOM) 
+   
 data Product = Product {
         productUPCCode :: UPCCode,
         productDescription :: String,
@@ -57,6 +64,8 @@ data Product = Product {
         defaultUOM :: UOM,
         attributes :: S.Set Attribute,
         active :: Bool,
+        dimensions :: Dimensions,
+        parentProduct :: Product,
         productHistory:: [ProductAudit]}
         deriving (Show, Generic, Typeable, Eq, Ord)
         
@@ -83,6 +92,10 @@ instance J.ToJSON Attribute
 instance J.FromJSON Attribute
 instance J.ToJSON CPMType
 instance J.FromJSON CPMType
+instance J.ToJSON Dimensions
+instance J.FromJSON Dimensions
+
+
 
 $(deriveSafeCopy 0 'base ''UOM)
 $(deriveSafeCopy 0 'base ''Category)
@@ -92,3 +105,4 @@ $(deriveSafeCopy 0 'base ''ProductType)
 $(deriveSafeCopy 0 'base ''Attribute)
 $(deriveSafeCopy 0 'base ''CostPriceMethod)    
 $(deriveSafeCopy 0 'base ''CPMType)    
+$(deriveSafeCopy 0 'base ''Dimensions)

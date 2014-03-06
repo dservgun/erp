@@ -106,14 +106,12 @@ updateLogin acid payload =
         pObject = J.decode $ E.encodeUtf8 $ L.fromStrict payload
      in 
         case pObject of
-            Just l@(Lo.Login name email verNum1) -> do
+            Just l@(Lo.Login name email) -> do
                     loginLookup <- A.query acid (LookupLogin name)
                     case loginLookup of
                         Nothing -> A.update acid (InsertLogin name l)
-                        Just l2@(Lo.Login name email verNum2) ->do
+                        Just l2@(Lo.Login name email) ->do
                             TIO.putStrLn ("Exception?")
-                            if verNum2 > verNum1 then throw LoginStaleException
-                            else throw LoginExists
             Nothing -> throw InvalidLogin 
 
 

@@ -26,8 +26,7 @@ import Control.Exception
 type Email = String
 type Name = String
 
-data Login = Login{email :: Email, verified :: Bool
-    , verNum :: Int} 
+data Login = Login{email :: Email, verified :: Bool} 
     deriving (Show, Generic, Typeable, Eq, Ord)
 instance J.ToJSON Login
 instance J.FromJSON Login

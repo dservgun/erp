@@ -36,6 +36,7 @@ data Account = Account {
         deferral :: Boolean,
         altCurrency :: Cu.Currency,
         reconcile :: Boolean,
+        parent :: Account,
         -- A list of tax auto complete move with
         -- new moves lines corresponding to those taxes
         -- if the user create a line linked to the current account
@@ -48,8 +49,8 @@ data Account = Account {
         deriving(Show,Typeable, Generic, Eq, Ord)
 type DebitAccount = Account
 type CreditAccount = Account
-type AccountTree = Tr.Tree Account
 type DisplayView = String
+
 data JournalType = General | Revenue | Situation | Expense 
         | Cash DebitAccount CreditAccount
         deriving (Show, Typeable, Generic, Eq, Ord)
@@ -98,8 +99,9 @@ data TaxCode = TaxCode {
     tcCode :: Code,
     tcActive  :: Boolean,
     tcCompany :: Co.Company,
+    tcParent :: TaxCode,
     sum :: Amount} deriving (Show, Typeable, Generic, Eq, Ord)
-type TaxCodeTree = Tr.Tree TaxCode    
+
 type Sequence = String
 data TaxType = PercentTaxType Float | FixedTaxType Float
     deriving (Show, Typeable, Generic, Eq, Ord)
@@ -112,6 +114,7 @@ data Tax = Tax {
  taxType :: TaxType,
  taxAmount :: TaxAmount,
  taxCompany :: Co.Company,
+ parTax :: Tax,
  invoiceAccount :: Account,
  creditNoteAccount :: Account,
  invoiceBaseCode :: TaxCode,
@@ -151,6 +154,10 @@ data Dunning = Dunning {
 
 printDunningLetter :: Dunning -> L.Text
 printDunningLetter = L.pack . show
+
+getAccountTypes = map(\x -> (L.pack (show x),x)) ([minBound..maxBound]::[AccountType])
+
+
 instance J.ToJSON Dunning
 instance J.FromJSON Dunning
 instance J.ToJSON DunningState
@@ -208,7 +215,7 @@ $(deriveSafeCopy 0 'base ''MoveState)
 $(deriveSafeCopy 0 'base ''MoveLine)
 $(deriveSafeCopy 0 'base ''MoveLineState)
 
-getAccountTypes = map(\x -> (L.pack (show x),x)) ([minBound..maxBound]::[AccountType])
+
 
 
                  
