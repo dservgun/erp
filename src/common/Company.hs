@@ -53,9 +53,10 @@ data GeoLocation = GeoLocation{ uri :: URI,
                                 position :: Coordinate}
                         deriving (Show, Typeable, Generic, Eq, Ord)
                         
-type VCard = String                        
+type VCard = String  
+type Address = String                      
 data Party = Party {name :: String,
-                    address :: String,
+                    address :: Address,
                     maplocation :: GeoLocation,
                     poc        :: Contact,
                     primaryCategory :: Category,
@@ -96,21 +97,16 @@ data CompanyWorkTime = CompanyWorkTime {
                 deriving (Show, Typeable, Generic, Eq, Ord)
 instance J.ToJSON GeoLocation
 instance J.FromJSON GeoLocation
-$(deriveSafeCopy 0 'base ''GeoLocation)
 instance J.ToJSON Latitude
 instance J.FromJSON Latitude
 instance J.FromJSON Longitude
 instance J.ToJSON Longitude
-$(deriveSafeCopy 0 'base ''Latitude)
-$(deriveSafeCopy 0 'base ''Longitude)
 
 instance J.ToJSON Coordinate
 instance J.FromJSON Coordinate                
-$(deriveSafeCopy 0 'base ''Coordinate)
 
 instance J.ToJSON CompanyWorkTime
 instance J.FromJSON CompanyWorkTime            
-$(deriveSafeCopy 0 'base ''CompanyWorkTime)
 instance J.ToJSON User
 instance J.FromJSON User                  
 instance J.ToJSON Employee
@@ -137,10 +133,15 @@ $(deriveSafeCopy 0 'base ''Company)
 $(deriveSafeCopy 0 'base ''Contact)
 $(deriveSafeCopy 0 'base ''ContactType)
 $(deriveSafeCopy 0 'base ''Party)
-
+$(deriveSafeCopy 0 'base ''GeoLocation)
+$(deriveSafeCopy 0 'base ''CompanyWorkTime)
+$(deriveSafeCopy 0 'base ''Latitude)
+$(deriveSafeCopy 0 'base ''Longitude)
+$(deriveSafeCopy 0 'base ''Employee)
 $(deriveSafeCopy 0 'base ''Header)
 $(deriveSafeCopy 0 'base ''Footer)
 $(deriveSafeCopy 0 'base ''CompanyReport)
+$(deriveSafeCopy 0 'base ''Coordinate)
 
 getContactTypes = map(\x -> (L.pack (show x),x)) ([minBound..maxBound]::[ContactType])
 

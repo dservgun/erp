@@ -18,14 +18,15 @@ import Entity(EntityState)
 import qualified FiscalYear as Fy
 import qualified Company as Co
 import qualified Product as Pr
+import qualified Stock as St
 data Production = 
     Production{ product :: Pr.Product,
-                inputs :: [Move],
-                outputs :: [Move],
+                inputs :: [St.Move],
+                outputs :: [St.Move],
                 productionState :: ProductionState}
-    deriving(Show, Enum, Bounded, Typeable, Generic, Eq, Ord)
+    deriving(Show, Typeable, Generic, Eq, Ord)
 
-data ProductionState = Request | Draft | Waiting | Assigned | Running | Done
+data ProductionState = Request | Draft | Waiting | Assigned | Running | Done | Cancel
     deriving (Show, Enum, Bounded, Typeable, Generic, Eq, Ord)
 
 $(deriveSafeCopy 0 'base ''Production)

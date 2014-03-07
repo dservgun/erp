@@ -22,6 +22,8 @@ import GHC.Generics
 import qualified Login as Lo
 import qualified Company as Co
 import qualified Product as Pr
+import qualified Production as Prod
+import qualified Project as Proj
 data LoginExists = LoginExists deriving (Show, Generic, Typeable, Eq, Ord)
 data LoginStaleException = LoginStaleException deriving (Show, Generic, Typeable, Eq, Ord)
 data CategoryExists = CategoryExists deriving (Show, Generic, Typeable, Eq, Ord)
