@@ -29,6 +29,7 @@ library
                  , text, async, aeson
                  , time
                  , url
+                 , hslogger
   hs-source-dirs: ., src/server, testsuite/tests, src/common, src/client
   exposed-modules:  ErpServer,ErpModel, Login, Account, Company, Currency, FiscalYear, Entity
                     , AccountAsset
@@ -57,6 +58,7 @@ executable erp
                  , time
                  , erp
                  , url
+                 , hslogger
   default-extensions: OverloadedStrings, CPP
      , DeriveDataTypeable
      , TypeFamilies

@@ -20,17 +20,21 @@ import qualified Data.Text.Lazy.Encoding as En
 import qualified Data.Text.Lazy as La
 
 
-waitSome anInt = threadDelay $ anInt * 1000
-sendRequest aPayload  = encode( toJSON (M.Request "Login" $ En.decodeUtf8 aPayload))
 
-processResponse aRequest@(M.Request entity payload) = T.pack $ show aRequest
+testEmail = "test@test.org"
+sendLoginRequest aPayload  = encode( toJSON (M.Request "Login" testEmail $ En.decodeUtf8 aPayload))
+sendCategoryRequest aPayload = encode $ toJSON $ M.Request "Category" testEmail $ En.decodeUtf8 aPayload
+
+processResponse aRequest@(M.Request entity email payload) = T.pack $ show aRequest
 parseMessage :: T.Text -> IO ()
 parseMessage aMessage = 
     let 
         r = J.decode $ En.encodeUtf8 $ La.fromStrict aMessage
     in 
         case r of         
-        Just aRequest -> T.putStrLn $ processResponse aRequest
+        Just aRequest -> do
+            T.putStrLn "Received :: "
+            T.putStrLn $ processResponse aRequest
         _ -> throw M.InvalidRequest
 
 testLogin = L.Login "test@test.org" True        
@@ -45,18 +49,19 @@ loginTest aVer conn = do
     -- Send a verified user and an unverified user,
     -- the recovery should not be showing the unverified user.
     
-    WS.sendTextData conn $ sendRequest (encode(toJSON $ testLogin)) 
+    WS.sendTextData conn $ sendLoginRequest (encode(toJSON $ testLogin)) 
     -- WS.sendClose conn ("Closing connection" :: Text)
     wait tR
 
 categoryTest :: String -> WS.ClientApp () 
 categoryTest aString conn = 
     do
+    T.putStrLn "Connected successfully"
     tR <- async (forever $ do
             msg <- WS.receiveData conn
             parseMessage (msg :: Text)
             )
-    WS.sendTextData conn $ sendRequest (encode (toJSON (Co.Category aString testLogin )))
+    WS.sendTextData conn $ sendCategoryRequest (encode (toJSON (Co.Category aString)))
     wait tR
 main = do
     T.putStrLn "Starting server"
@@ -67,7 +72,7 @@ main = do
     mvarValue <- takeMVar m
     T.putStrLn $ T.pack("Mvar returned " ++ show mvarValue)
     c <- async (WS.runClient "localhost" 8082 "/" $ loginTest 2)
-    cat <- async(WS.runClient "localhost" 8080 "/" $ categoryTest "Test Category")
+    cat <- async(WS.runClient "localhost" 8082 "/" $ categoryTest "Test Category")
     rc <- wait c
     rCat <- wait cat
     T.putStrLn "End tests"

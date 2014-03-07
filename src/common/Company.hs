@@ -22,7 +22,7 @@ import qualified Data.Set as S
 
 
 
-data Category = Category {category :: String, login :: Lo.Login}
+data Category = Category {category :: String}
     deriving(Show, Typeable, Generic, Eq, Ord)
 data Header = Header String
      deriving(Show, Typeable, Generic)

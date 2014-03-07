@@ -4,7 +4,8 @@
 --}
 module Login(Login (..), 
             Email,
-            Name)
+            Name,
+            empty)
 where
 
 import Control.Monad.State
@@ -31,5 +32,5 @@ data Login = Login{email :: Email, verified :: Bool}
 instance J.ToJSON Login
 instance J.FromJSON Login
 
-
+empty = Login {email = "", verified = False}
 $(deriveSafeCopy 0 'base ''Login)
