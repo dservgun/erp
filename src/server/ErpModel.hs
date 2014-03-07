@@ -13,6 +13,7 @@ import qualified Data.Map as M
 import qualified Data.Set as S
 import qualified Data.Aeson as J
 import qualified Data.Text.Lazy.Encoding as E
+import qualified Data.Text as T
 import qualified Data.Text.Lazy as L
 import qualified Data.Text.IO as TIO
 import Data.Dynamic
@@ -62,7 +63,7 @@ emptyModel = ErpModel{partySet = S.empty,
               login = Lo.empty
               }
 updateModel aModel aCategory = aModel{ categorySet = S.insert aCategory (categorySet aModel)}
-
+        
 insertLogin :: String -> Lo.Login -> A.Update Database ()
 insertLogin aString aLogin = 
     do
@@ -102,8 +103,15 @@ insertCategory aLogin c@(Co.Category aCatName) =
         case erp of        
             Just exists -> put(Database (M.insert aLogin (updateModel exists c) db))
             _       -> return()
-        
-$(A.makeAcidic ''Database ['lookupLogin, 'insertLogin, 'lookupCategory, 'insertCategory])
+
+getDatabase :: String -> A.Query Database (Maybe ErpModel)
+getDatabase userEmail = do
+        Database db <- ask
+        let loginErp = M.lookup userEmail db
+        return loginErp
+            
+$(A.makeAcidic ''Database ['lookupLogin, 'insertLogin, 'lookupCategory, 'insertCategory
+            , 'getDatabase])
 
 instance Exception InvalidCategory
 instance Exception InvalidLogin
@@ -120,7 +128,7 @@ initializeDatabase  dbLocation = A.openLocalStateFrom dbLocation $ Database M.em
 disconnect = A.closeAcidState
 
 pJSON = J.decode . E.encodeUtf8 . L.fromStrict
-updateDatabase acid aMessage = 
+updateDatabase connection acid aMessage = 
     let 
         r = J.decode $ E.encodeUtf8 $ L.fromStrict aMessage
     in 
@@ -132,7 +140,7 @@ processRequest acid r@(Request entity emailId payload)  =
     case entity of
     "Login" -> updateLogin acid $ L.toStrict payload
     "Category" -> updateCategory acid emailId $ L.toStrict payload
-    "QueryDatabase" -> queryDatabase acid 
+    "QueryDatabase" -> queryDatabase acid emailId $ L.toStrict payload
     _ -> throw InvalidRequest
 
 
@@ -162,3 +170,9 @@ updateCategory acid emailId payload =
                     Nothing -> A.update acid (InsertCategory emailId c)
                     Just c@(Co.Category aCat) -> throw CategoryExists
             Nothing -> throw InvalidCategory
+
+displayText = T.pack . show            
+queryDatabase acid emailId payload = do
+    lookup <- A.query acid (GetDatabase emailId)
+    TIO.putStrLn(displayText lookup)
+    TIO.putStrLn("How does this work??")

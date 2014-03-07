@@ -63,8 +63,7 @@ echo conn acid =
      handle catchDisconnect  $ forever $ do
      msg <- WS.receiveData conn
      TIO.putStrLn msg
-     M.updateDatabase acid msg
-     WS.sendTextData conn msg
+     M.updateDatabase conn acid msg
      where       
        catchDisconnect e =
          case fromException e of

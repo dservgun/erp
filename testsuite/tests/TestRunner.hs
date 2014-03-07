@@ -22,6 +22,8 @@ import qualified Data.Text.Lazy as La
 
 
 testEmail = "test@test.org"
+sendQueryDatabaseRequest aPayload = 
+    encode $ toJSON $ M.Request "QueryDatabase" testEmail $ En.decodeUtf8 aPayload
 sendLoginRequest aPayload  = encode( toJSON (M.Request "Login" testEmail $ En.decodeUtf8 aPayload))
 sendCategoryRequest aPayload = encode $ toJSON $ M.Request "Category" testEmail $ En.decodeUtf8 aPayload
 
@@ -63,6 +65,15 @@ categoryTest aString conn =
             )
     WS.sendTextData conn $ sendCategoryRequest (encode (toJSON (Co.Category aString)))
     wait tR
+databaseTest :: String -> WS.ClientApp ()
+databaseTest aString conn =
+    do
+    tR <- async(forever $ do
+                msg <- WS.receiveData conn
+                parseMessage (msg :: Text))
+    WS.sendTextData conn $ sendQueryDatabaseRequest $ encode . toJSON $ aString
+    wait tR
+    
 main = do
     T.putStrLn "Starting server"
     m <- newEmptyMVar
@@ -73,7 +84,9 @@ main = do
     T.putStrLn $ T.pack("Mvar returned " ++ show mvarValue)
     c <- async (WS.runClient "localhost" 8082 "/" $ loginTest 2)
     cat <- async(WS.runClient "localhost" 8082 "/" $ categoryTest "Test Category")
+    db <- async (WS.runClient "localhost" 8082 "/" $ databaseTest "Test query database")
     rc <- wait c
     rCat <- wait cat
+    rdb <- wait db
     T.putStrLn "End tests"
     cancel s
