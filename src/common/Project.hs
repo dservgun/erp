@@ -26,8 +26,6 @@ XXX: Revisit
 --}
 data ProjectState = Opened | Done
     deriving(Show, Generic, Typeable, Eq, Ord)
-data InvoiceType = Manual | OnEffort | OnTimeSheet 
-    deriving(Show, Generic, Typeable, Eq, Ord)
 type Effort = Float
 type Percentage = Float
  
@@ -45,11 +43,6 @@ data Task = Task {
     effort :: Effort}
     deriving (Show, Generic, Typeable, Eq, Ord)
     
-data Invoice = Invoice {
-        project :: Project,
-        invoiceType :: InvoiceType,
-        invoiceAmount :: Amount}
-    deriving (Show, Generic, Typeable, Eq, Ord)
 
 data Allocation = Allocation {
         employee :: Co.Employee,
@@ -64,13 +57,19 @@ totalEffort aProject = 0
 
 taskLeveling :: Task -> Task
 taskLeveling = id
-
+instance J.ToJSON Project
+instance J.FromJSON Project
+instance J.ToJSON ProjectState
+instance J.FromJSON ProjectState
+instance J.ToJSON Allocation
+instance J.FromJSON Allocation
+instance J.ToJSON Task
+instance J.FromJSON Task
 $(deriveSafeCopy 0 'base ''Project)
 $(deriveSafeCopy 0 'base ''ProjectState)
 $(deriveSafeCopy 0 'base ''Allocation)
-$(deriveSafeCopy 0 'base ''Invoice)
 $(deriveSafeCopy 0 'base ''Task)
-$(deriveSafeCopy 0 'base ''InvoiceType)
+
 
 
 

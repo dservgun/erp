@@ -21,7 +21,14 @@ import qualified Data.Map as M
 import qualified Data.Set as S
 
 
-
+type SupplierReference = String
+type InternalReference = String
+type Percent = Float
+data Day = CalendarDays Int | BusinessDays Int 
+    deriving(Show, Typeable, Generic, Eq, Ord)
+data PaymentTerm = Net_Days (Day, Percent)
+    deriving (Show, Typeable, Generic, Eq, Ord)
+    
 data Category = Category {category :: String}
     deriving(Show, Typeable, Generic, Eq, Ord)
 data Header = Header String
@@ -127,6 +134,10 @@ instance J.ToJSON Footer
 instance J.FromJSON Footer
 instance J.ToJSON CompanyReport
 instance J.FromJSON CompanyReport
+instance J.ToJSON PaymentTerm
+instance J.FromJSON  PaymentTerm
+instance J.ToJSON Day
+instance J.FromJSON Day
 
 $(deriveSafeCopy 0 'base ''Category)
 $(deriveSafeCopy 0 'base ''Company)
@@ -142,6 +153,8 @@ $(deriveSafeCopy 0 'base ''Header)
 $(deriveSafeCopy 0 'base ''Footer)
 $(deriveSafeCopy 0 'base ''CompanyReport)
 $(deriveSafeCopy 0 'base ''Coordinate)
+$(deriveSafeCopy 0 'base ''PaymentTerm)
+$(deriveSafeCopy 0 'base ''Day)
 
 getContactTypes = map(\x -> (L.pack (show x),x)) ([minBound..maxBound]::[ContactType])
 

@@ -21,6 +21,7 @@ data Category = UOMCategory {catName :: String,
                             parentCat :: Category}
     deriving(Show, Generic, Typeable, Eq, Ord)
 
+{-- UOM defines the unit of measure for the product --}
 data UOM = UOM {
         name :: String,
         symbol :: String,

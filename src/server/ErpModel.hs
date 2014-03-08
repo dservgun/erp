@@ -24,6 +24,9 @@ import qualified Company as Co
 import qualified Product as Pr
 import qualified Production as Prod
 import qualified Project as Proj
+import qualified Stock as St
+import qualified Shipment as Sh
+import qualified Purchase as Pu
 data LoginExists = LoginExists deriving (Show, Generic, Typeable, Eq, Ord)
 data LoginStaleException = LoginStaleException deriving (Show, Generic, Typeable, Eq, Ord)
 data CategoryExists = CategoryExists deriving (Show, Generic, Typeable, Eq, Ord)

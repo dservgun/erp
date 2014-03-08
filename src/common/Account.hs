@@ -94,6 +94,7 @@ type Distribution = String
 data Sign = Positive | Negative 
         deriving (Show, Typeable, Generic, Eq , Ord, Enum, Bounded)
 type Amount = Float 
+type Quantity = Float
 data TaxCode = TaxCode {
     tcName :: Name,
     tcCode :: Code,

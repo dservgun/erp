@@ -17,6 +17,7 @@ import Entity(EntityState)
 import qualified FiscalYear as Fy
 import qualified Company as Co
 import qualified Product as Pr
+import qualified Account as Ac
 
 data LocationType = Storage | Warehouse | Customer | Supplier | LostAndFound
     deriving(Show, Eq, Ord, Typeable, Generic)
@@ -31,8 +32,14 @@ data Move = Move {
             product:: Pr.Product,
             sourceLocation :: Location,
             destination :: Location,
-            moveState :: MoveState
+            moveState :: MoveState,
+            moveDate :: UTCTime
         } deriving (Show, Eq, Ord, Typeable, Generic)
+
+-- XXX: Revisit
+productQuantities :: Pr.Product -> Location -> Ac.Quantity 
+productQuantities aProduct aLocation = 0
+                
         
 $(deriveSafeCopy 0 'base ''Move)
 $(deriveSafeCopy 0 'base ''MoveState)
