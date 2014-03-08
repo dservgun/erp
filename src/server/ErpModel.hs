@@ -28,6 +28,8 @@ import qualified Stock as St
 import qualified Shipment as Sh
 import qualified Purchase as Pu
 import qualified Sale as Sa
+import qualified Forecast as Fo
+import qualified Timesheet as Ts
 data LoginExists = LoginExists deriving (Show, Generic, Typeable, Eq, Ord)
 data LoginStaleException = LoginStaleException deriving (Show, Generic, Typeable, Eq, Ord)
 data CategoryExists = CategoryExists deriving (Show, Generic, Typeable, Eq, Ord)

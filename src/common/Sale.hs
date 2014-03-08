@@ -21,6 +21,7 @@ import qualified Stock as St
 import qualified Account as Ac
 import qualified Invoice as In
 import qualified Shipment as Sh
+import qualified Carrier as Ca
 
 -- Similar to Purchase Line Type with these constructors being used for 
 -- reporting purposes
@@ -61,7 +62,10 @@ data Sale = Sale {
         relatedInvoices :: [In.Invoice],
         relatedMoves ::  [Ac.Move],
         shipments :: [Sh.Shipment],
-        returnShipments :: [Sh.Shipment]
+        returnShipments :: [Sh.Shipment],
+        carrier :: Ca.Carrier,
+        shipmentCostMethod :: Sh.ShipmentCostMethod,
+        saleSupply :: Bool -- Generate a supply request regardless of stock levels.
         } deriving (Show, Ord, Eq, Typeable, Generic)
         
         

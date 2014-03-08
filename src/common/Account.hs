@@ -21,7 +21,10 @@ import qualified Company as Co
 type Name = String
 type Code = String 
 type Boolean = Bool
-
+type Lot = String
+type TimeSpent = Float
+data DaysOfWeek = Sunday | Monday | Tuesday | Wednesday | Thursday | Friday | Saturday
+    deriving (Show, Enum, Bounded, Typeable, Generic, Eq, Ord)
 data AccountType = IncomeStatement | BalanceSheet | DisplayBalance
     deriving(Show, Enum, Bounded, Typeable, Generic, Eq, Ord)
 data AccountKind = Payable | Receivable | AkExpense | AkRevenue | View | Other

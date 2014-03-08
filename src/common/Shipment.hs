@@ -21,6 +21,9 @@ import qualified Stock as St
 import qualified Account as Ac
 import qualified Carrier as Ca
 
+data ShipmentCostMethod = OnOrder | OnShipment 
+    deriving(Show, Eq, Ord, Typeable, Generic, Enum, Bounded)
+
 data ShipmentMethod = OnOrderProcessed | OnShipmentSent | Manual
     deriving(Show,Eq, Ord, Enum, Bounded, Typeable, Generic)
 data ShipmentState = Draft | Waiting | Assigned | Done | Cancel
@@ -38,7 +41,14 @@ data Shipment = Shipment {
         currency :: Cu.Currency 
         } deriving (Show, Eq, Ord, Typeable, Generic)
         
-
+data DropShipment = DropShipment {
+    dropShipmentProduct:: Pr.Product, -- name space...
+    supplier :: Co.Party,
+    customer :: Co.Party,
+    dropMoves :: [St.Move],
+    dropShipmentState :: ShipmentState
+    } deriving (Show, Eq, Ord, Typeable, Generic)
+    
 data InventoryLine = InventoryLine {
             product :: Pr.Product,
             quantity :: Ac.Quantity}
@@ -58,10 +68,13 @@ instance J.ToJSON Shipment
 instance J.FromJSON Shipment
 instance J.ToJSON ShipmentMethod
 instance J.FromJSON ShipmentMethod
-
+instance J.ToJSON ShipmentCostMethod
+instance J.FromJSON ShipmentCostMethod
+instance J.ToJSON DropShipment
+instance J.FromJSON DropShipment
 $(deriveSafeCopy 0 'base ''ShipmentState)
 $(deriveSafeCopy 0 'base ''ShipmentType)
 $(deriveSafeCopy 0 'base ''Shipment)
 $(deriveSafeCopy 0 'base ''ShipmentMethod)
-
-
+$(deriveSafeCopy 0 'base ''ShipmentCostMethod)
+$(deriveSafeCopy 0 'base ''DropShipment)

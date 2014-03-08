@@ -64,6 +64,25 @@ data Purchase = Purchase {
     returnShipments ::[Sh.Shipment]}
     deriving(Eq, Ord, Typeable, Generic, Show)
 
+data StockPurchaseState = SpDraft | SpPurchased | SpDone | SpCancel 
+    deriving (Show, Eq, Ord, Typeable, Generic)
+data StockAvailableDays = StockAvailableDays {
+        saProduct :: Pr.Product,
+        saSupplier :: Co.Party,
+        availableDays :: [Ac.DaysOfWeek]
+        } deriving(Show, Eq, Ord, Typeable, Generic)
+data StockPurchaseRequest = StockPurchaseRequest {
+    stockPurchase :: Purchase,
+    stockpurchaseState :: StockPurchaseState,
+    orderPoint :: OrderPoint} deriving (Show, Eq, Ord, Typeable, Generic)
+data OrderPointType = OPInternal | OPPurchase deriving (Show, Eq, Ord, Typeable, Generic)
+    
+data OrderPoint = OrderPoint {
+        min :: Ac.Quantity,
+        max :: Ac.Quantity,
+        orderPointType :: OrderPointType}
+        deriving (Show, Eq, Ord, Typeable, Generic)
+
 lineAmount :: PurchaseLine -> Ac.Amount
 lineAmount aPurchaseLine = (quantity aPurchaseLine) * (unitPrice aPurchaseLine)
     
@@ -75,11 +94,22 @@ instance J.ToJSON PurchaseLineType
 instance J.FromJSON PurchaseLineType
 instance J.ToJSON PurchaseState
 instance J.FromJSON PurchaseState
-
+instance J.ToJSON StockPurchaseState
+instance J.FromJSON StockPurchaseState
+instance J.ToJSON StockPurchaseRequest
+instance J.FromJSON StockPurchaseRequest
+instance J.ToJSON OrderPointType
+instance J.FromJSON OrderPointType
+instance J.ToJSON OrderPoint
+instance J.FromJSON OrderPoint
 
 $(deriveSafeCopy 0 'base ''Purchase)    
 $(deriveSafeCopy 0 'base ''PurchaseLine)
 $(deriveSafeCopy 0 'base ''PurchaseLineType)
 $(deriveSafeCopy 0 'base ''PurchaseState)    
+$(deriveSafeCopy 0 'base ''StockPurchaseState)
+$(deriveSafeCopy 0 'base ''StockPurchaseRequest)
+$(deriveSafeCopy 0 'base ''OrderPointType)
+$(deriveSafeCopy 0 'base ''OrderPoint)
     
     

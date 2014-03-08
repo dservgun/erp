@@ -19,6 +19,8 @@ import qualified Company as Co
 import qualified Product as Pr
 import qualified Account as Ac
 
+
+
 data LocationType = Storage | Warehouse | Customer | Supplier | LostAndFound
     deriving(Show, Eq, Ord, Typeable, Generic)
 
@@ -26,6 +28,7 @@ data Location = Location{
                 location :: Co.Address,
                 locationType :: LocationType
                 } deriving (Show, Eq, Ord, Typeable, Generic)
+                
 data MoveState = Draft | Assigned | Done | Cancel
     deriving (Show, Eq, Ord, Typeable, Generic)
 data Move = Move {
@@ -33,18 +36,40 @@ data Move = Move {
             sourceLocation :: Location,
             destination :: Location,
             moveState :: MoveState,
-            moveDate :: UTCTime
-        } deriving (Show, Eq, Ord, Typeable, Generic)
-
+            moveDate :: UTCTime,
+            lot :: Ac.Lot
+        } 
+        deriving (Show, Eq, Ord, Typeable, Generic)
+data StockSplit = StockSplit {
+    ssMove :: Move,
+    quantity :: Ac.Quantity,
+    counts :: Int
+    } deriving(Show, Eq, Ord, Typeable, Generic)
+    
+data StockProductLocation = StockProductLocation {
+    spProduct :: Pr.Product,
+    preferredLocations :: [Location]
+    } deriving (Show, Eq, Ord, Typeable, Generic)
 -- XXX: Revisit
-productQuantities :: Pr.Product -> Location -> Ac.Quantity 
-productQuantities aProduct aLocation = 0
-                
+
+data ProductQuantities = ProductQuantities {
+        pqProd :: Pr.Product,
+        pqLoc :: Location,
+        pqAmount :: Ac.Amount} deriving(Show, Eq, Ord, Typeable, Generic)
+        
+
+    
+        
         
 $(deriveSafeCopy 0 'base ''Move)
 $(deriveSafeCopy 0 'base ''MoveState)
 $(deriveSafeCopy 0 'base ''Location)
 $(deriveSafeCopy 0 'base ''LocationType)
+$(deriveSafeCopy 0 'base ''StockProductLocation)
+$(deriveSafeCopy 0 'base ''StockSplit)
+
+$(deriveSafeCopy 0 'base ''ProductQuantities)
+
 instance J.ToJSON Move
 instance J.FromJSON Move
 instance J.ToJSON MoveState
@@ -53,3 +78,9 @@ instance J.ToJSON Location
 instance J.FromJSON Location
 instance J.ToJSON LocationType
 instance J.FromJSON LocationType        
+instance J.ToJSON StockProductLocation
+instance J.FromJSON StockProductLocation
+instance J.ToJSON StockSplit
+instance J.FromJSON StockSplit
+instance J.ToJSON ProductQuantities
+instance J.FromJSON ProductQuantities

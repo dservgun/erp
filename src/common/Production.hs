@@ -29,10 +29,19 @@ data Production =
 data ProductionState = Request | Draft | Waiting | Assigned | Running | Done | Cancel
     deriving (Show, Enum, Bounded, Typeable, Generic, Eq, Ord)
 
+data StockProductionRequest = StockProductionRequest {
+    sprProduct :: Pr.Product,
+    productionRequest :: Production,
+    requestDate :: UTCTime
+    } deriving (Show, Eq, Ord, Typeable, Generic)
+
 $(deriveSafeCopy 0 'base ''Production)
 $(deriveSafeCopy 0 'base ''ProductionState)
+$(deriveSafeCopy 0 'base ''StockProductionRequest)
 instance J.ToJSON Production
 instance J.FromJSON Production
 instance J.ToJSON ProductionState
 instance J.FromJSON ProductionState
+instance J.ToJSON StockProductionRequest
+instance J.FromJSON StockProductionRequest
     
