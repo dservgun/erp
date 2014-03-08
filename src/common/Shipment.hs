@@ -21,6 +21,8 @@ import qualified Stock as St
 import qualified Account as Ac
 import qualified Carrier as Ca
 
+data ShipmentMethod = OnOrderProcessed | OnShipmentSent | Manual
+    deriving(Show,Eq, Ord, Enum, Bounded, Typeable, Generic)
 data ShipmentState = Draft | Waiting | Assigned | Done | Cancel
     deriving(Show, Eq, Ord, Enum, Bounded, Typeable, Generic)
 -- Avoid name collision
@@ -54,9 +56,12 @@ instance J.ToJSON ShipmentType
 instance J.FromJSON ShipmentType
 instance J.ToJSON Shipment
 instance J.FromJSON Shipment
+instance J.ToJSON ShipmentMethod
+instance J.FromJSON ShipmentMethod
 
 $(deriveSafeCopy 0 'base ''ShipmentState)
 $(deriveSafeCopy 0 'base ''ShipmentType)
-$(deriveSafeCopy 0 'base ''Shipment)        
+$(deriveSafeCopy 0 'base ''Shipment)
+$(deriveSafeCopy 0 'base ''ShipmentMethod)
 
 
