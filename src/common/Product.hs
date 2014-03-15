@@ -17,15 +17,15 @@ import qualified Currency as Cu
 
 
 
-data Category = UOMCategory {catName :: String,
-                            parentCat :: Category}
+data UOMCategory = UOMCategory {catName :: String,
+                            parentCat :: Maybe UOMCategory}
     deriving(Show, Generic, Typeable, Eq, Ord)
 
 {-- UOM defines the unit of measure for the product --}
 data UOM = UOM {
         name :: String,
         symbol :: String,
-        category :: Category,
+        category :: UOMCategory,
         rate :: Float,
         factor :: Float,
         rounding :: Int,
@@ -58,7 +58,7 @@ data Product = Product {
         productDescription :: String,
         productName :: String,
         productType :: ProductType,
-        productCategory :: Category,
+        productCategory :: UOMCategory,
         listPrice :: PriceUOM,
         costPrice :: PriceUOM,
         costPriceMethod :: CostPriceMethod,
@@ -77,8 +77,8 @@ validUOM (UOM _ _ _ rate factor _ _ active) =
         where 
             epsilon = 0.00001
 
-instance J.ToJSON Category
-instance J.FromJSON Category
+instance J.ToJSON UOMCategory
+instance J.FromJSON UOMCategory
 instance J.ToJSON UOM
 instance J.FromJSON UOM
 instance J.ToJSON Price
@@ -99,7 +99,7 @@ instance J.FromJSON Dimensions
 
 
 $(deriveSafeCopy 0 'base ''UOM)
-$(deriveSafeCopy 0 'base ''Category)
+$(deriveSafeCopy 0 'base ''UOMCategory)
 $(deriveSafeCopy 0 'base ''Price)
 $(deriveSafeCopy 0 'base ''Product)
 $(deriveSafeCopy 0 'base ''ProductType)
