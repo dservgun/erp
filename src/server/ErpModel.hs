@@ -4,6 +4,7 @@ import Data.Maybe
 import Control.Monad.State
 import Control.Monad.Reader
 import Control.Exception
+
 import qualified Control.Applicative as C
 import qualified Data.Acid as A
 import Data.Acid.Remote
@@ -16,6 +17,7 @@ import qualified Data.Text.Lazy.Encoding as E
 import qualified Data.Text as T
 import qualified Data.Text.Lazy as L
 import qualified Data.Text.IO as TIO
+import qualified Network.WebSockets.Connection as WS
 import Data.Dynamic
 import Data.Time.Clock
 import GHC.Generics
@@ -36,6 +38,12 @@ data CategoryExists = CategoryExists deriving (Show, Generic, Typeable, Eq, Ord)
 instance Exception CategoryExists
 instance Exception LoginExists
 instance Exception LoginStaleException
+
+loginConstant = "Login"
+categoryConstant = "Category"
+queryDatabaseConstant = "QueryDatabase"
+closeConnection = "CloseConnection"
+
 data ErpModel = ErpModel
                 {
                     login :: Lo.Login,
@@ -131,7 +139,6 @@ instance J.FromJSON RequestType
 instance J.ToJSON Request
 instance J.FromJSON Request
 
-
 initializeDatabase  dbLocation = A.openLocalStateFrom dbLocation $ Database M.empty
 disconnect = A.closeAcidState
 
@@ -141,14 +148,17 @@ updateDatabase connection acid aMessage =
         r = J.decode $ E.encodeUtf8 $ L.fromStrict aMessage
     in 
         case r of         
-        Just aRequest -> processRequest acid aRequest
+        Just aRequest -> processRequest connection acid aRequest
         _ -> throw InvalidRequest
 
-processRequest acid r@(Request entity emailId payload)  = 
+processRequest connection acid r@(Request entity emailId payload)  = 
     case entity of
     "Login" -> updateLogin acid $ L.toStrict payload
     "Category" -> updateCategory acid emailId $ L.toStrict payload
     "QueryDatabase" -> queryDatabase acid emailId $ L.toStrict payload
+    "CloseConnection" -> do
+                TIO.putStrLn("Closing connection??")
+                WS.sendTextData connection $ (J.encode r)
     _ -> throw InvalidRequest
 
 
