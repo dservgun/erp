@@ -71,11 +71,6 @@ data Product = Product {
         deriving (Show, Generic, Typeable, Eq, Ord)
         
 
-validUOM :: UOM -> Bool
-validUOM (UOM _ _ _ rate factor _ _ active) =
-        active && (rate - (1/factor) < epsilon)
-        where 
-            epsilon = 0.00001
 
 instance J.ToJSON UOMCategory
 instance J.FromJSON UOMCategory

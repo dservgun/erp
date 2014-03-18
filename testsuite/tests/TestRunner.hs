@@ -95,12 +95,11 @@ instance Arbitrary Pr.UOM where
         name <- arbitrary
         symbol <- arbitrary
         category <- arbitrary
-        rate <- suchThat arbitrary (\x -> x - 0.0 > 0.0001)
+        rate <- suchThat arbitrary (\x -> x - 0.0 > 0.0001)        
         rounding <- arbitrary
         displayDigits <- arbitrary
         uActive <- arbitrary
         return (Pr.UOM name symbol category rate (1/rate) displayDigits rounding uActive)
-        
     
 main = do
     T.putStrLn "Starting server"

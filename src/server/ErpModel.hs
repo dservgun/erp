@@ -35,23 +35,27 @@ import qualified Timesheet as Ts
 data LoginExists = LoginExists deriving (Show, Generic, Typeable, Eq, Ord)
 data LoginStaleException = LoginStaleException deriving (Show, Generic, Typeable, Eq, Ord)
 data CategoryExists = CategoryExists deriving (Show, Generic, Typeable, Eq, Ord)
+data LoginNotFound = LoginNotFound deriving (Show, Generic, Typeable, Eq, Ord)
 instance Exception CategoryExists
 instance Exception LoginExists
 instance Exception LoginStaleException
+instance Exception LoginNotFound
 
 loginConstant = "Login"
 categoryConstant = "Category"
 queryDatabaseConstant = "QueryDatabase"
 closeConnection = "CloseConnection"
-
+type Deleted = Bool
 data ErpModel = ErpModel
                 {
                     login :: Lo.Login,
                     partySet :: S.Set Co.Party,
                     companySet :: S.Set Co.Company,
-                    categorySet :: S.Set Co.Category
+                    categorySet :: S.Set Co.Category,
+                    deleted :: Deleted
                 } deriving (Show, Generic, Typeable, Eq, Ord)
-                 
+
+delete anErpModel = anErpModel {deleted = True}                
 {-- A given email id can be tied to only a single erp model, 
  though a given model can be associated with multiple email ids--}                 
 data Database = Database ! (M.Map String ErpModel)
@@ -76,7 +80,8 @@ $(deriveSafeCopy 0 'base ''ErpModel)
 emptyModel = ErpModel{partySet = S.empty,
               companySet = S.empty,
               categorySet = S.empty,
-              login = Lo.empty
+              login = Lo.empty,
+              deleted = False
               }
 updateModel aModel aCategory = aModel{ categorySet = S.insert aCategory (categorySet aModel)}
         
@@ -87,6 +92,16 @@ insertLogin aString aLogin =
         let loginErp = emptyModel {login = aLogin}
         put (Database (M.insert aString loginErp db))
 
+deleteLoginI :: String -> A.Update Database ()
+deleteLoginI aString  =
+    do
+        Database db <- get
+        let loginErp = M.lookup aString db
+        case loginErp of 
+            Nothing -> throw LoginNotFound
+            Just x -> put (Database (M.insert aString (delete x) db))
+            
+        
         
 lookupLogin :: String -> A.Query  Database (Maybe Lo.Login)
 lookupLogin aLogin =
@@ -126,7 +141,7 @@ getDatabase userEmail = do
         let loginErp = M.lookup userEmail db
         return loginErp
             
-$(A.makeAcidic ''Database ['lookupLogin, 'insertLogin, 'lookupCategory, 'insertCategory
+$(A.makeAcidic ''Database ['lookupLogin, 'insertLogin, 'deleteLoginI, 'lookupCategory, 'insertCategory
             , 'getDatabase])
 
 instance Exception InvalidCategory
@@ -151,17 +166,20 @@ updateDatabase connection acid aMessage =
         Just aRequest -> processRequest connection acid aRequest
         _ -> throw InvalidRequest
 
+        
 processRequest connection acid r@(Request entity emailId payload)  = 
     case entity of
     "Login" -> updateLogin acid $ L.toStrict payload
+    "DeleteLogin" -> deleteLogin acid emailId
     "Category" -> updateCategory acid emailId $ L.toStrict payload
     "QueryDatabase" -> queryDatabase acid emailId $ L.toStrict payload
     "CloseConnection" -> do
-                TIO.putStrLn("Closing connection??")
+                TIO.putStrLn((T.pack "Closing connection for " ) `T.append` (T.pack emailId))
                 WS.sendTextData connection $ (J.encode r)
     _ -> throw InvalidRequest
 
 
+deleteLogin acid anEmailId = A.update acid (DeleteLoginI anEmailId)
 updateLogin acid payload = 
      let
         pObject = J.decode $ E.encodeUtf8 $ L.fromStrict payload
@@ -189,7 +207,9 @@ updateCategory acid emailId payload =
                     Just c@(Co.Category aCat) -> throw CategoryExists
             Nothing -> throw InvalidCategory
 
-displayText = T.pack . show            
+
+displayText = T.pack . show      
+      
 queryDatabase acid emailId payload = do
     lookup <- A.query acid (GetDatabase emailId)
     TIO.putStrLn(displayText lookup)
