@@ -1,6 +1,7 @@
 module Company where
 import Control.Monad.State
 import Control.Monad.Reader
+import Control.Exception
 import qualified Control.Applicative as C
 import qualified Data.Acid as A
 import Data.Acid.Remote
@@ -19,10 +20,14 @@ import qualified Login as Lo
 import qualified Product as Pr
 import qualified Data.Map as M
 import qualified Data.Set as S
-
+import qualified Data.Set as S
 
 type SupplierReference = String
 type InternalReference = String
+data CompanyNotFound = CompanyNotFound deriving (Show, Generic, Typeable, Eq, Ord)
+data DuplicateCompaniesFound = DuplicateCompaniesFound deriving (Show, Generic, Typeable, Eq, Ord)
+instance Exception CompanyNotFound
+instance Exception DuplicateCompaniesFound
 type Percent = Float
 data Day = CalendarDays Int | BusinessDays Int 
     deriving(Show, Typeable, Generic, Eq, Ord)
@@ -40,7 +45,10 @@ data Company = Company {party :: Party,
                         currency :: Cu.Currency,
                         alternateCurrencies :: [Cu.Currency],
                         productSet :: S.Set Pr.Product}
-                        deriving (Show, Typeable,Generic, Eq, Ord)
+                        deriving (Show, Typeable,Generic, Ord)
+instance Eq Company where
+    a == b = (party a == party b)
+
 data CompanyReport = CompanyReport {fiscalYear :: Fy.FiscalYear,
                                     company :: Company,
                                     header :: Header,
@@ -49,6 +57,22 @@ data CompanyReport = CompanyReport {fiscalYear :: Fy.FiscalYear,
                         deriving (Show, Typeable,Generic)
                         
 type URI = String
+findCompany :: Party -> S.Set Company -> Maybe Company
+findCompany aParty aCompanySet = 
+    let 
+        result = S.filter (\x -> party x == aParty) aCompanySet
+    in
+        if (S.null result) then
+            Nothing
+        else
+            case (elems result) of
+                h:[] -> Just h
+                h:[t] -> throw DuplicateCompaniesFound
+             where
+                elems aSet = S.elems aSet
+            
+
+            
 data Latitude = Latitude {xpos :: Float} 
     deriving (Show, Typeable, Generic, Eq, Ord)
 data Longitude = Longitude {ypos :: Float}

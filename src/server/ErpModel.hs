@@ -84,7 +84,16 @@ emptyModel = ErpModel{partySet = S.empty,
               deleted = False
               }
 updateModel aModel aCategory = aModel{ categorySet = S.insert aCategory (categorySet aModel)}
-        
+
+lookupCompany :: String -> Co.Party -> A.Query Database (Maybe Co.Company)
+lookupCompany aLogin aParty = 
+    do
+        Database db <- ask
+        let erp = M.lookup aLogin db
+        case erp of 
+            Nothing -> throw Co.CompanyNotFound
+            Just x -> return $ Co.findCompany aParty (companySet x)
+                
 insertLogin :: String -> Lo.Login -> A.Update Database ()
 insertLogin aString aLogin = 
     do

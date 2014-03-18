@@ -124,5 +124,5 @@ main = do
     where
         acidStateTestDir = "./dist/build/tests/state"
 
-prop1 aUOM = (rate aUOM - (1.0 / factor aUOM)) < 0.0001   
+prop1 aUOM = (rate aUOM - (1.0 / factor aUOM)) < 0.000000001   
 tests = [("properties_tests" :: String, quickCheck prop1)]
