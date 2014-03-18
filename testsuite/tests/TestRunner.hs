@@ -95,7 +95,7 @@ instance Arbitrary Pr.UOM where
         name <- arbitrary
         symbol <- arbitrary
         category <- arbitrary
-        rate <- suchThat arbitrary (\x -> x - 0.0 > 0.0001)        
+        rate <- suchThat arbitrary (\x -> (x > 0.0) && (x < 100.0))        
         rounding <- arbitrary
         displayDigits <- arbitrary
         uActive <- arbitrary
@@ -124,5 +124,5 @@ main = do
     where
         acidStateTestDir = "./dist/build/tests/state"
 
-prop1 aUOM = (rate aUOM - (1.0 / factor aUOM)) < 0.000000001   
+prop1 aUOM = (abs (rate aUOM - (1.0 / factor aUOM))) < 0.001   
 tests = [("properties_tests" :: String, quickCheck prop1)]

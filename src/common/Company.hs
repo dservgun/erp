@@ -49,6 +49,11 @@ data Company = Company {party :: Party,
 instance Eq Company where
     a == b = (party a == party b)
 
+assignParty aParty aCompany = aCompany {party = aParty} 
+assignCurrency aCurrency aCompany = aCompany {currency = aCurrency}
+assignAlternateCurrencies aCurrency aCompany = aCompany {alternateCurrencies = (aCurrency : (alternateCurrencies aCompany))}   
+addProduct :: Company -> Pr.Product -> Company
+addProduct aCompany aProduct = aCompany {productSet = S.insert aProduct (productSet aCompany)}
 data CompanyReport = CompanyReport {fiscalYear :: Fy.FiscalYear,
                                     company :: Company,
                                     header :: Header,
