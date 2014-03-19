@@ -85,13 +85,47 @@ databaseTest aString conn =
     WS.sendTextData conn $ createCloseConnection testEmail $ encode $ toJSON testEmail
     wait tR
 
+instance Arbitrary Co.Category where
+    arbitrary = do
+        name <- arbitrary
+        return $ Co.Category name
+        
 instance Arbitrary Pr.UOMCategory where
     arbitrary = do
             name <- arbitrary
             cat <- arbitrary
-            return (UOMCategory name cat)
+            return (Pr.UOMCategory name cat)
             
--- How do we enforce the rate and factor relationship?            
+instance Arbitrary Co.ContactType where
+    arbitrary = elements [Co.Phone 
+                    , Co.Mobile 
+                    , Co.Fax, Co.Email 
+                    , Co.Website 
+                    , Co.Skype
+                    , Co.SIP
+                    , Co.IRC
+                    , Co.Jabber]
+instance Arbitrary Co.Contact where
+    arbitrary = do
+        contactType <- arbitrary
+        value <- arbitrary 
+        return $ Co.Contact contactType value
+        
+instance Arbitrary Co.Party where
+    arbitrary = do
+        name <- arbitrary
+        addresses <- orderedList
+        mapLocation <- arbitrary
+        poc <- arbitrary
+        primaryCategory <- arbitrary
+        vcard <- arbitrary
+        alternateCategories <- orderedList
+        alternatePocs <- orderedList
+        return $ Co.Party name addresses mapLocation poc primaryCategory vcard 
+            alternateCategories alternatePocs
+ 
+-- How do we enforce the rate and factor relationship?  
+ 
 instance Arbitrary Pr.UOM where
     arbitrary = do
         name <- arbitrary
@@ -136,14 +170,16 @@ instance Arbitrary Co.GeoLocation where
         uri <- arbitrary
         position <- arbitrary
         return $ Co.GeoLocation uri position
+instance Arbitrary Pr.Product where
 
 instance Arbitrary Co.Company where
      arbitrary = do
         party <- arbitrary
         currency <- arbitrary
         alternateCurrencies <- (orderedList)
-        productSet <- arbitrary
-        return (Co.Company party currency (S.fromList alternateCurrencies) productSet)
+        productSet <- orderedList
+        let company = (Co.Company party currency (S.fromList []) (S.fromList productSet))
+        return (foldr (\x -> Co.addAlternateCurrencies x )company alternateCurrencies) 
 main = do
     T.putStrLn "Starting server"
     T.putStrLn $ "Removing acid state directory, from previous runs."
