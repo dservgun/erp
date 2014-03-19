@@ -43,17 +43,30 @@ data Footer = Footer String
 
 data Company = Company {party :: Party,
                         currency :: Cu.Currency,
-                        alternateCurrencies :: [Cu.Currency],
+                        alternateCurrencies :: S.Set Cu.Currency,
                         productSet :: S.Set Pr.Product}
                         deriving (Show, Typeable,Generic, Ord)
 instance Eq Company where
     a == b = (party a == party b)
 
 assignParty aParty aCompany = aCompany {party = aParty} 
-assignCurrency aCurrency aCompany = aCompany {currency = aCurrency}
-assignAlternateCurrencies aCurrency aCompany = aCompany {alternateCurrencies = (aCurrency : (alternateCurrencies aCompany))}   
+assignCurrency aCurrency aCompany = 
+        if currencyExists aCurrency aCompany then
+            aCompany
+        else
+            aCompany {currency = aCurrency}
+            
+addAlternateCurrencies aCurrency aCompany = 
+    if aCurrency == (currency aCompany) then
+        aCompany
+    else
+        aCompany {alternateCurrencies = S.insert aCurrency (alternateCurrencies aCompany)}  
+currencyExists :: Cu.Currency -> Company -> Bool        
+currencyExists aCurrency aCompany = (aCurrency == (currency aCompany))
+                        || (S.member aCurrency (alternateCurrencies aCompany))
 addProduct :: Company -> Pr.Product -> Company
 addProduct aCompany aProduct = aCompany {productSet = S.insert aProduct (productSet aCompany)}
+removeAlternateCurrency aCurrency aCompany = aCompany {alternateCurrencies = S.filter (\x -> x /= aCurrency) (alternateCurrencies aCompany) }
 data CompanyReport = CompanyReport {fiscalYear :: Fy.FiscalYear,
                                     company :: Company,
                                     header :: Header,

@@ -4,6 +4,7 @@ import qualified ErpModel as M
 import qualified Login as L
 import qualified Data.Aeson as J
 import qualified Company as Co
+import qualified Currency as Cu
 import ErpServer(testServerMain)
 import Control.Monad(forever, unless)
 import Control.Monad.Trans (liftIO)
@@ -11,6 +12,7 @@ import Control.Exception
 import Control.Concurrent
 import Control.Concurrent.Async(async, wait, cancel)
 import Data.Text (Text)
+import qualified Data.Set as S
 import qualified Data.Text as T
 import qualified Data.Text.IO as T
 import qualified Network.WebSockets as WS
@@ -100,7 +102,48 @@ instance Arbitrary Pr.UOM where
         displayDigits <- arbitrary
         uActive <- arbitrary
         return (Pr.UOM name symbol category rate (1/rate) displayDigits rounding uActive)
-    
+
+instance Arbitrary Cu.Currency where
+      arbitrary = elements [
+            ( Cu.Currency "AUD"), 
+            ( Cu.Currency "USD"), 
+            ( Cu.Currency "GBP"), 
+            ( Cu.Currency "ROU"), 
+            (Cu.Currency "TST")]
+
+instance Arbitrary Pr.Price where
+     arbitrary = do
+        price <- arbitrary
+        curr <- arbitrary
+        return (Pr.Price price curr)
+
+instance Arbitrary Co.Latitude where
+     arbitrary = do
+        xpos <- arbitrary
+        return $ Co.Latitude xpos
+        
+instance Arbitrary Co.Longitude where
+    arbitrary = do
+        ypos <- arbitrary
+        return $ Co.Longitude ypos
+instance Arbitrary Co.Coordinate where
+    arbitrary = do
+        lat <- arbitrary
+        long <- arbitrary
+        return $ Co.Coordinate lat long
+instance Arbitrary Co.GeoLocation where
+     arbitrary = do
+        uri <- arbitrary
+        position <- arbitrary
+        return $ Co.GeoLocation uri position
+
+instance Arbitrary Co.Company where
+     arbitrary = do
+        party <- arbitrary
+        currency <- arbitrary
+        alternateCurrencies <- (orderedList)
+        productSet <- arbitrary
+        return (Co.Company party currency (S.fromList alternateCurrencies) productSet)
 main = do
     T.putStrLn "Starting server"
     T.putStrLn $ "Removing acid state directory, from previous runs."
@@ -125,4 +168,7 @@ main = do
         acidStateTestDir = "./dist/build/tests/state"
 
 prop1 aUOM = (abs (rate aUOM - (1.0 / factor aUOM))) < 0.001   
-tests = [("properties_tests" :: String, quickCheck prop1)]
+tests = [("properties_tests" :: String, quickCheck prop1),
+         ("currency_valid" :: String, quickCheck prop_currency)]
+
+prop_currency aCompany = S.notMember (Co.currency aCompany) (Co.alternateCurrencies aCompany)
