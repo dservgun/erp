@@ -1,4 +1,27 @@
-module Company where
+module Company (createSafeCompany, validCurrencies, 
+    Company, 
+    Employee,
+    Category(..),
+    SupplierReference,
+    InternalReference,
+    CompanyNotFound(..),
+    findCompany,
+    DuplicateCompaniesFound,
+    Percent,
+    Day, 
+    PaymentTerm,
+    Header,
+    Footer,
+    Latitude(..),
+    Longitude(..),
+    Coordinate(..),
+    GeoLocation(..),
+    VCard,
+    Address,
+    Party(..),
+    Contact(..),
+    ContactType(..)
+    ) where
 import Control.Monad.State
 import Control.Monad.Reader
 import Control.Exception
@@ -49,7 +72,13 @@ data Company = Company {party :: Party,
 instance Eq Company where
     a == b = (party a == party b)
 
-assignParty aParty aCompany = aCompany {party = aParty} 
+createSafeCompany :: Party -> Cu.Currency -> S.Set Cu.Currency -> S.Set Pr.Product -> Company 
+createSafeCompany aParty aCurrency alternateCurrencies products = 
+    let 
+        result = Company aParty aCurrency (S.fromList []) products
+    in
+        S.fold (\x -> addAlternateCurrencies x ) result alternateCurrencies
+        
 assignCurrency aCurrency aCompany = 
         if currencyExists aCurrency aCompany then
             aCompany
@@ -64,6 +93,8 @@ addAlternateCurrencies aCurrency aCompany =
 currencyExists :: Cu.Currency -> Company -> Bool        
 currencyExists aCurrency aCompany = (aCurrency == (currency aCompany))
                         || (S.member aCurrency (alternateCurrencies aCompany))
+
+validCurrencies aCompany = S.notMember (currency aCompany) (alternateCurrencies aCompany)                        
 addProduct :: Company -> Pr.Product -> Company
 addProduct aCompany aProduct = aCompany {productSet = S.insert aProduct (productSet aCompany)}
 removeAlternateCurrency aCurrency aCompany = aCompany {alternateCurrencies = S.filter (\x -> x /= aCurrency) (alternateCurrencies aCompany) }

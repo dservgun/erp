@@ -178,8 +178,7 @@ instance Arbitrary Co.Company where
         currency <- arbitrary
         alternateCurrencies <- (orderedList)
         productSet <- orderedList
-        let company = (Co.Company party currency (S.fromList []) (S.fromList productSet))
-        return (foldr (\x -> Co.addAlternateCurrencies x )company alternateCurrencies) 
+        return (Co.createSafeCompany party currency (S.fromList alternateCurrencies) (S.fromList productSet))
 main = do
     T.putStrLn "Starting server"
     T.putStrLn $ "Removing acid state directory, from previous runs."
@@ -207,4 +206,4 @@ prop1 aUOM = (abs (rate aUOM - (1.0 / factor aUOM))) < 0.001
 tests = [("properties_tests" :: String, quickCheck prop1),
          ("currency_valid" :: String, quickCheck prop_currency)]
 
-prop_currency aCompany = S.notMember (Co.currency aCompany) (Co.alternateCurrencies aCompany)
+prop_currency aCompany = Co.validCurrencies aCompany
