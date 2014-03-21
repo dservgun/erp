@@ -1,4 +1,12 @@
-module Product where
+module Product (
+    UOM, createUOM, validUOM,
+    UOMCategory, createUOMCategory, 
+    Price, createPrice,
+    PriceUOM,
+    Product)
+    
+
+where
 import Control.Monad.State
 import Control.Monad.Reader
 import qualified Control.Applicative as C
@@ -20,7 +28,8 @@ import qualified Currency as Cu
 data UOMCategory = UOMCategory {catName :: String,
                             parentCat :: Maybe UOMCategory}
     deriving(Show, Generic, Typeable, Eq, Ord)
-
+createUOMCategory :: String -> Maybe UOMCategory -> UOMCategory
+createUOMCategory aString aCat = UOMCategory aString aCat
 {-- UOM defines the unit of measure for the product --}
 data UOM = UOM {
         name :: String,
@@ -32,12 +41,22 @@ data UOM = UOM {
         displayDigits :: Int,
         uActive :: Bool}
     deriving (Show, Generic, Typeable,Eq, Ord)
-    
-    
+
+createUOM :: String -> String -> UOMCategory -> Float -> Int -> Int -> Bool -> UOM
+createUOM name symbol category rate rounding displayDigits active = 
+        UOM name symbol category adRate (1/adRate) rounding displayDigits active
+        where
+            adRate = case (abs rate) of 
+                        0.0 -> 1.0
+                        _ -> abs rate
+validUOM :: UOM -> Bool
+validUOM aUOM = True
+
 data Price = Price {p :: Float,
                     cu :: Cu.Currency}
             deriving (Show, Generic, Typeable, Eq, Ord)
-
+createPrice :: Float -> Cu.Currency -> Price
+createPrice p cu = Price p cu
 type PriceUOM = (Price, UOM)
 data CPMType = LIFO | FIFO
     deriving (Show, Generic, Typeable, Eq, Ord)

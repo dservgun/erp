@@ -1,4 +1,4 @@
-module Company (createSafeCompany, validCurrencies, 
+module Company (createCompany, validCurrencies, 
     Company, 
     Employee,
     Category(..),
@@ -72,8 +72,8 @@ data Company = Company {party :: Party,
 instance Eq Company where
     a == b = (party a == party b)
 
-createSafeCompany :: Party -> Cu.Currency -> S.Set Cu.Currency -> S.Set Pr.Product -> Company 
-createSafeCompany aParty aCurrency alternateCurrencies products = 
+createCompany :: Party -> Cu.Currency -> S.Set Cu.Currency -> S.Set Pr.Product -> Company 
+createCompany aParty aCurrency alternateCurrencies products = 
     let 
         result = Company aParty aCurrency (S.fromList []) products
     in

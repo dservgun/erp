@@ -94,7 +94,7 @@ instance Arbitrary Pr.UOMCategory where
     arbitrary = do
             name <- arbitrary
             cat <- arbitrary
-            return (Pr.UOMCategory name cat)
+            return (Pr.createUOMCategory name cat)
             
 instance Arbitrary Co.ContactType where
     arbitrary = elements [Co.Phone 
@@ -130,12 +130,12 @@ instance Arbitrary Pr.UOM where
     arbitrary = do
         name <- arbitrary
         symbol <- arbitrary
-        category <- arbitrary
-        rate <- suchThat arbitrary (\x -> (x > 0.0) && (x < 100.0))        
+        category <- arbitrary 
+        rate <- arbitrary
         rounding <- arbitrary
         displayDigits <- arbitrary
         uActive <- arbitrary
-        return (Pr.UOM name symbol category rate (1/rate) displayDigits rounding uActive)
+        return (Pr.createUOM name symbol category rate displayDigits rounding uActive)
 
 instance Arbitrary Cu.Currency where
       arbitrary = elements [
@@ -149,7 +149,7 @@ instance Arbitrary Pr.Price where
      arbitrary = do
         price <- arbitrary
         curr <- arbitrary
-        return (Pr.Price price curr)
+        return (Pr.createPrice price curr)
 
 instance Arbitrary Co.Latitude where
      arbitrary = do
@@ -178,7 +178,7 @@ instance Arbitrary Co.Company where
         currency <- arbitrary
         alternateCurrencies <- (orderedList)
         productSet <- orderedList
-        return (Co.createSafeCompany party currency (S.fromList alternateCurrencies) (S.fromList productSet))
+        return (Co.createCompany party currency (S.fromList alternateCurrencies) (S.fromList productSet))
 main = do
     T.putStrLn "Starting server"
     T.putStrLn $ "Removing acid state directory, from previous runs."
@@ -202,7 +202,7 @@ main = do
     where
         acidStateTestDir = "./dist/build/tests/state"
 
-prop1 aUOM = (abs (rate aUOM - (1.0 / factor aUOM))) < 0.001   
+prop1 aUOM = Pr.validUOM aUOM   
 tests = [("properties_tests" :: String, quickCheck prop1),
          ("currency_valid" :: String, quickCheck prop_currency)]
 
