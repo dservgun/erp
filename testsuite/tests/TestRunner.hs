@@ -154,23 +154,29 @@ instance Arbitrary Pr.Price where
 
 instance Arbitrary Co.Latitude where
      arbitrary = do
-        xpos <- arbitrary
-        return $ Co.Latitude xpos
+        degrees <- arbitrary
+        minutes <- arbitrary
+        seconds <- arbitrary
+        lDirec <- elements[Co.North, Co.South]
+        return $ Co.createLatitude degrees minutes seconds lDirec
         
 instance Arbitrary Co.Longitude where
     arbitrary = do
-        ypos <- arbitrary
-        return $ Co.Longitude ypos
+        degrees <- arbitrary
+        minutes <- arbitrary
+        seconds <- arbitrary
+        loDirec <- elements[Co.East, Co.West]
+        return $ Co.createLongitude degrees minutes seconds loDirec
 instance Arbitrary Co.Coordinate where
     arbitrary = do
         lat <- arbitrary
         long <- arbitrary
-        return $ Co.Coordinate lat long
+        return $ Co.createCoordinate lat long
 instance Arbitrary Co.GeoLocation where
      arbitrary = do
         uri <- arbitrary
         position <- arbitrary
-        return $ Co.GeoLocation uri position
+        return $ Co.createGeoLocation uri position
 instance Arbitrary Pr.Product where
 
 instance Arbitrary Co.Company where

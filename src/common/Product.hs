@@ -4,8 +4,6 @@ module Product (
     Price, createPrice,
     PriceUOM,
     Product)
-    
-
 where
 import Control.Monad.State
 import Control.Monad.Reader

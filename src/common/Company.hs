@@ -10,12 +10,14 @@ module Company (createCompany, validCurrencies,
     Percent,
     Day, 
     PaymentTerm,
-    Header,
-    Footer,
-    Latitude(..),
-    Longitude(..),
-    Coordinate(..),
-    GeoLocation(..),
+    CompanyReport,
+    Degrees, Minutes, Seconds, InvalidCoordinates,
+    LatDirection(..), 
+    LongDirection(..),
+    Latitude, createLatitude,
+    Longitude, createLongitude,
+    Coordinate, createCoordinate,
+    GeoLocation, createGeoLocation,
     VCard,
     Address,
     Party(..),
@@ -121,18 +123,53 @@ findCompany aParty aCompanySet =
                 elems aSet = S.elems aSet
             
 
-            
-data Latitude = Latitude {xpos :: Float} 
+type Degrees = Integer
+type Minutes = Integer
+type Seconds = Integer            
+data LatDirection = North | South deriving (Show, Typeable, Generic, Eq, Ord)
+data LongDirection = East | West deriving (Show, Typeable, Generic, Eq, Ord)
+data CoordinateUnit = CoordinateUnit {degrees :: Degrees,
+                        minutes :: Minutes,
+                        seconds :: Seconds}
+                    deriving (Show, Typeable, Generic, Eq, Ord)
+                    
+data Latitude = Latitude { lat :: CoordinateUnit, 
+                           latDirection :: LatDirection}
+                deriving (Show, Typeable, Generic, Eq, Ord)
+                
+invalid :: Degrees -> Bool
+invalid a = a < 0 || a > 60
+data InvalidCoordinates = InvalidCoordinates deriving (Show, Typeable, Generic, Eq, Ord)
+instance Exception InvalidCoordinates
+
+createLatitude :: Degrees -> Minutes -> Seconds -> LatDirection -> Latitude
+createLatitude d m s dir= 
+    if (invalid d || invalid m || invalid s) then
+        throw InvalidCoordinates
+    else
+        Latitude (CoordinateUnit d m s) dir
+      
+data Longitude = Longitude { longitude :: CoordinateUnit,
+                            longDirection :: LongDirection}
     deriving (Show, Typeable, Generic, Eq, Ord)
-data Longitude = Longitude {ypos :: Float}
-    deriving (Show, Typeable, Generic, Eq, Ord)
+
+createLongitude :: Degrees -> Minutes -> Seconds -> LongDirection -> Longitude
+createLongitude d m s dir = 
+    if (invalid d || invalid m || invalid s) then
+        throw InvalidCoordinates
+    else
+        Longitude (CoordinateUnit d m s) dir
+        
 data Coordinate = Coordinate { x :: Latitude, y :: Longitude} 
     deriving (Show, Typeable, Generic, Eq, Ord)
+createCoordinate :: Latitude -> Longitude -> Coordinate
+createCoordinate x y = Coordinate x y 
     
 data GeoLocation = GeoLocation{ uri :: URI, 
                                 position :: Coordinate}
                         deriving (Show, Typeable, Generic, Eq, Ord)
-                        
+createGeoLocation :: URI -> Coordinate -> GeoLocation
+createGeoLocation aURI aCoordinate = GeoLocation aURI aCoordinate                        
 type VCard = String  
 type Address = String                      
 data Party = Party {name :: String,
@@ -181,10 +218,14 @@ instance J.ToJSON Latitude
 instance J.FromJSON Latitude
 instance J.FromJSON Longitude
 instance J.ToJSON Longitude
-
+instance J.ToJSON LatDirection
+instance J.FromJSON LatDirection
+instance J.ToJSON LongDirection
+instance J.FromJSON LongDirection
 instance J.ToJSON Coordinate
 instance J.FromJSON Coordinate                
-
+instance J.ToJSON CoordinateUnit
+instance J.FromJSON CoordinateUnit
 instance J.ToJSON CompanyWorkTime
 instance J.FromJSON CompanyWorkTime            
 instance J.ToJSON User
@@ -221,6 +262,9 @@ $(deriveSafeCopy 0 'base ''GeoLocation)
 $(deriveSafeCopy 0 'base ''CompanyWorkTime)
 $(deriveSafeCopy 0 'base ''Latitude)
 $(deriveSafeCopy 0 'base ''Longitude)
+$(deriveSafeCopy 0 'base ''LongDirection)
+$(deriveSafeCopy 0 'base ''LatDirection)
+$(deriveSafeCopy 0 'base ''CoordinateUnit)
 $(deriveSafeCopy 0 'base ''Employee)
 $(deriveSafeCopy 0 'base ''Header)
 $(deriveSafeCopy 0 'base ''Footer)
