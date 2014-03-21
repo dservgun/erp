@@ -9,6 +9,7 @@ module Product (
 where
 import Control.Monad.State
 import Control.Monad.Reader
+import Control.Exception
 import qualified Control.Applicative as C
 import qualified Data.Acid as A
 import Data.Acid.Remote
@@ -22,8 +23,11 @@ import qualified Data.Text.Lazy as L
 import Data.Time.Clock
 import GHC.Generics
 import qualified Currency as Cu
+import Data.Ratio
 
+data InvalidUOMException = InvalidUOMException deriving (Show, Generic, Typeable, Eq, Ord)
 
+instance Exception InvalidUOMException
 
 data UOMCategory = UOMCategory {catName :: String,
                             parentCat :: Maybe UOMCategory}
@@ -35,20 +39,23 @@ data UOM = UOM {
         name :: String,
         symbol :: String,
         category :: UOMCategory,
-        rate :: Float,
-        factor :: Float,
+        rate :: Ratio Integer,
+        factor :: Ratio Integer,
         rounding :: Int,
         displayDigits :: Int,
         uActive :: Bool}
     deriving (Show, Generic, Typeable,Eq, Ord)
 
-createUOM :: String -> String -> UOMCategory -> Float -> Int -> Int -> Bool -> UOM
-createUOM name symbol category rate rounding displayDigits active = 
-        UOM name symbol category adRate (1/adRate) rounding displayDigits active
-        where
-            adRate = case (abs rate) of 
-                        0.0 -> 1.0
-                        _ -> abs rate
+type Numerator = Integer
+type Denominator = Integer
+createUOM :: String -> String -> UOMCategory -> Numerator -> Denominator -> Int -> Int -> Bool -> UOM
+createUOM name symbol category num den rounding displayDigits active = 
+        if den == 0 then
+            throw InvalidUOMException
+        else
+            UOM name symbol category (num % den) (den % num) rounding displayDigits active
+        
+            
 validUOM :: UOM -> Bool
 validUOM aUOM = True
 

@@ -131,11 +131,12 @@ instance Arbitrary Pr.UOM where
         name <- arbitrary
         symbol <- arbitrary
         category <- arbitrary 
-        rate <- arbitrary
+        num <- arbitrary
+        denom <- arbitrary
         rounding <- arbitrary
         displayDigits <- arbitrary
         uActive <- arbitrary
-        return (Pr.createUOM name symbol category rate displayDigits rounding uActive)
+        return (Pr.createUOM name symbol category num denom displayDigits rounding uActive)
 
 instance Arbitrary Cu.Currency where
       arbitrary = elements [
