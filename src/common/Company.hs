@@ -22,7 +22,8 @@ module Company (createCompany, validCurrencies,
     Address,
     Party(..),
     Contact(..),
-    ContactType(..)
+    ContactType(..),
+    CompanyWorkTime, createCompanyWorkTime, validHours
     ) where
 import Control.Monad.State
 import Control.Monad.Reader
@@ -202,16 +203,46 @@ data User = User {mainCompany :: Company,
                   userEmployee :: Employee}
                   deriving (Show, Typeable, Generic, Eq, Ord)
 type HoursPerDay = Int
-type HoursPerWeek = Int
-type HoursPerMonth = Int
-type HoursPerYear = Int                  
+type DaysPerWeek = Int
+type WeeksPerMonth = Int
+type MonthsPerYear = Int                  
 data CompanyWorkTime = CompanyWorkTime {
             workTime:: Company,
             hoursPerDay :: HoursPerDay,
-            hoursPerWeek :: HoursPerWeek,
-            hoursPerMonth :: HoursPerMonth,
-            hoursPerYear :: HoursPerYear}
+            daysPerWeek :: DaysPerWeek,
+            weeksPerMonth :: WeeksPerMonth,
+            monthsPerYear :: MonthsPerYear}
                 deriving (Show, Typeable, Generic, Eq, Ord)
+data InvalidWorkTime = InvalidWorkTime {h :: HoursPerDay, d :: DaysPerWeek, w :: WeeksPerMonth, m :: MonthsPerYear}
+        deriving (Show, Typeable, Generic, Eq, Ord)
+instance Exception InvalidWorkTime
+
+createCompanyWorkTime :: Company -> HoursPerDay -> DaysPerWeek -> WeeksPerMonth -> MonthsPerYear -> CompanyWorkTime
+createCompanyWorkTime aCompany hoursPerDay daysPerWeek weeksPerMonth monthsPerYear =
+    if invalidHoursPerDay hoursPerDay || 
+        invalidDaysPerWeek daysPerWeek || 
+        invalidWeeksPerMonth weeksPerMonth ||
+        invalidMonthsPerYear monthsPerYear then
+        throw $ InvalidWorkTime hoursPerDay daysPerWeek weeksPerMonth monthsPerYear 
+    else
+        CompanyWorkTime aCompany hoursPerDay daysPerWeek weeksPerMonth monthsPerYear
+invalidHoursPerDay :: Int -> Bool
+invalidHoursPerDay aNumber = aNumber < 0 || aNumber > 10
+
+invalidDaysPerWeek :: Int -> Bool
+invalidDaysPerWeek aNumber = aNumber < 0 || aNumber > 6
+
+invalidWeeksPerMonth :: Int -> Bool
+invalidWeeksPerMonth aNumber = aNumber < 0 || aNumber > 5
+
+invalidMonthsPerYear :: Int -> Bool
+invalidMonthsPerYear aNumber = aNumber < 0 || aNumber > 12
+        
+type Hours = Int
+totalDays :: CompanyWorkTime -> Hours
+totalDays aCompanyWorkTime = (hoursPerDay aCompanyWorkTime) * (daysPerWeek aCompanyWorkTime) *(weeksPerMonth  aCompanyWorkTime) * (monthsPerYear  aCompanyWorkTime)
+
+validHours aCompanyWorkTime = 2000 > (totalDays aCompanyWorkTime)
 instance J.ToJSON GeoLocation
 instance J.FromJSON GeoLocation
 instance J.ToJSON Latitude

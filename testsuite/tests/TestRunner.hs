@@ -186,6 +186,15 @@ instance Arbitrary Co.Company where
         alternateCurrencies <- (orderedList)
         productSet <- orderedList
         return (Co.createCompany party currency (S.fromList alternateCurrencies) (S.fromList productSet))
+        
+instance Arbitrary Co.CompanyWorkTime where
+    arbitrary = do
+        company <- arbitrary
+        hoursPerDay <- arbitrary
+        daysPerWeek <- arbitrary
+        weeksPerMonth <- arbitrary
+        monthsPerYear <- arbitrary
+        return (Co.createCompanyWorkTime company hoursPerDay daysPerWeek weeksPerMonth monthsPerYear)
 main = do
     T.putStrLn "Starting server"
     T.putStrLn $ "Removing acid state directory, from previous runs."
@@ -214,3 +223,4 @@ tests = [("properties_tests" :: String, quickCheck prop1),
          ("currency_valid" :: String, quickCheck prop_currency)]
 
 prop_currency aCompany = Co.validCurrencies aCompany
+prop_company_time aCompanyWorkTime = Co.validHours aCompanyWorkTime
