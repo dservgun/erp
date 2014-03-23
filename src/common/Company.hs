@@ -20,7 +20,7 @@ module Company (createCompany, validCurrencies,
     GeoLocation, createGeoLocation,
     VCard,
     Address,
-    Party(..),
+    Party, createParty, validContacts, validCategories,
     Contact(..),
     ContactType(..),
     CompanyWorkTime, createCompanyWorkTime, validHours
@@ -81,13 +81,15 @@ createCompany aParty aCurrency alternateCurrencies products =
         result = Company aParty aCurrency (S.fromList []) products
     in
         S.fold (\x -> addAlternateCurrencies x ) result alternateCurrencies
+
         
-assignCurrency aCurrency aCompany = 
+setPrimaryCurrency aCurrency aCompany = 
         if currencyExists aCurrency aCompany then
             aCompany
         else
             aCompany {currency = aCurrency}
-            
+
+addAlternateCurrencies :: Cu.Currency -> Company -> Company            
 addAlternateCurrencies aCurrency aCompany = 
     if aCurrency == (currency aCompany) then
         aCompany
@@ -101,6 +103,7 @@ validCurrencies aCompany = S.notMember (currency aCompany) (alternateCurrencies 
 addProduct :: Company -> Pr.Product -> Company
 addProduct aCompany aProduct = aCompany {productSet = S.insert aProduct (productSet aCompany)}
 removeAlternateCurrency aCurrency aCompany = aCompany {alternateCurrencies = S.filter (\x -> x /= aCurrency) (alternateCurrencies aCompany) }
+
 data CompanyReport = CompanyReport {fiscalYear :: Fy.FiscalYear,
                                     company :: Company,
                                     header :: Header,
@@ -179,11 +182,69 @@ data Party = Party {name :: String,
                     poc        :: Contact,
                     primaryCategory :: Category,
                     vcard :: VCard, 
-                    alternateCategories :: [Category],
-                    alternatePocs :: [Contact]
+                    alternateCategories :: S.Set Category,
+                    alternatePocs :: S.Set Contact
                     }
                     deriving (Show, Typeable,Generic, Eq, Ord)
+type Name = String
 
+createParty :: Name -> Address -> GeoLocation -> Contact -> Category 
+                    -> VCard -> S.Set Category -> S.Set Contact -> Party
+createParty name add loc contact cat vc categories contacts =
+    let 
+        result = Party { name = name,
+                        address = add,
+                        maplocation = loc,
+                        poc = contact,
+                        primaryCategory = cat,
+                        vcard = vc,
+                        alternateCategories = S.fromList [],
+                        alternatePocs = S.fromList[]} 
+        result2 = S.fold (\x -> addAlternateCategories x) result categories
+    in
+        S.fold (\y -> addAlternatePocs y) result2 contacts
+
+addAlternateCategories :: Category -> Party -> Party
+addAlternateCategories aCategory aParty =  
+    if categoryExists aParty aCategory then
+        aParty
+    else
+        aParty {alternateCategories = S.insert aCategory (alternateCategories aParty)}
+
+setPrimaryCategory :: Party -> Category -> Party
+setPrimaryCategory aParty aCat =
+    if categoryExists aParty aCat then
+        aParty
+    else
+        aParty {primaryCategory = aCat}
+
+categoryExists :: Party -> Category -> Bool
+categoryExists aParty aCat =
+    aCat == (primaryCategory aParty) 
+    || (S.member aCat(alternateCategories aParty))
+
+addAlternatePocs :: Contact -> Party -> Party
+addAlternatePocs aContact aParty = 
+    if contactExists aParty aContact then
+        aParty
+    else
+        aParty {alternatePocs = S.insert aContact (alternatePocs aParty)}
+
+setPOC:: Party -> Contact -> Party
+setPOC aParty aContact = 
+    if contactExists aParty aContact then
+        aParty
+    else
+        aParty {poc = aContact}
+contactExists :: Party -> Contact -> Bool
+contactExists aParty aContact =
+    (aContact == (poc aParty)) 
+    || (S.member aContact (alternatePocs aParty))
+
+validContacts :: Party -> Bool
+validContacts aParty = S.notMember (poc aParty) (alternatePocs aParty)
+validCategories :: Party -> Bool
+validCategories aParty = S.notMember (primaryCategory aParty) (alternateCategories aParty)
 
 data ContactType = Phone | Mobile | Fax | Email | Website | 
                     Skype |
@@ -223,7 +284,7 @@ createCompanyWorkTime aCompany hoursPerDay daysPerWeek weeksPerMonth monthsPerYe
         invalidDaysPerWeek daysPerWeek || 
         invalidWeeksPerMonth weeksPerMonth ||
         invalidMonthsPerYear monthsPerYear then
-        throw $ InvalidWorkTime hoursPerDay daysPerWeek weeksPerMonth monthsPerYear 
+        CompanyWorkTime aCompany 8 5 5 12 -- some defaults?? 
     else
         CompanyWorkTime aCompany hoursPerDay daysPerWeek weeksPerMonth monthsPerYear
 invalidHoursPerDay :: Int -> Bool
@@ -242,7 +303,7 @@ type Hours = Int
 totalDays :: CompanyWorkTime -> Hours
 totalDays aCompanyWorkTime = (hoursPerDay aCompanyWorkTime) * (daysPerWeek aCompanyWorkTime) *(weeksPerMonth  aCompanyWorkTime) * (monthsPerYear  aCompanyWorkTime)
 
-validHours aCompanyWorkTime = 2000 > (totalDays aCompanyWorkTime)
+validHours aCompanyWorkTime = 2500 > (totalDays aCompanyWorkTime)
 instance J.ToJSON GeoLocation
 instance J.FromJSON GeoLocation
 instance J.ToJSON Latitude

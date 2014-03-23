@@ -121,8 +121,8 @@ instance Arbitrary Co.Party where
         vcard <- arbitrary
         alternateCategories <- orderedList
         alternatePocs <- orderedList
-        return $ Co.Party name addresses mapLocation poc primaryCategory vcard 
-            alternateCategories alternatePocs
+        return $ Co.createParty name addresses mapLocation poc primaryCategory vcard 
+            (S.fromList alternateCategories) (S.fromList alternatePocs)
  
 -- How do we enforce the rate and factor relationship?  
  
@@ -220,7 +220,16 @@ main = do
 
 prop1 aUOM = Pr.validUOM aUOM   
 tests = [("properties_tests" :: String, quickCheck prop1),
-         ("currency_valid" :: String, quickCheck prop_currency)]
+         ("currency_valid" :: String, quickCheck prop_currency),
+         ("company_work_time" :: String, quickCheck prop_company_time),
+         ("party_categories" :: String, quickCheck prop_party_categories),
+         ("party_contacts" :: String, quickCheck prop_party_contacts)]
 
 prop_currency aCompany = Co.validCurrencies aCompany
 prop_company_time aCompanyWorkTime = Co.validHours aCompanyWorkTime
+
+prop_party_categories aParty = Co.validCategories aParty
+prop_party_contacts aParty = Co.validContacts aParty
+
+
+
