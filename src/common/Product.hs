@@ -55,7 +55,7 @@ createUOM name symbol category num den rounding displayDigits active =
         
             
 validUOM :: UOM -> Bool
-validUOM aUOM = True
+validUOM aUOM = ((rate aUOM) * (factor aUOM)) == 1
 
 data Price = Price {p :: Float,
                     cu :: Cu.Currency}

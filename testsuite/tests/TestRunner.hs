@@ -131,8 +131,8 @@ instance Arbitrary Pr.UOM where
         name <- arbitrary
         symbol <- arbitrary
         category <- arbitrary 
-        num <- arbitrary
-        denom <- arbitrary
+        num <- suchThat arbitrary(\x -> x /= 0) 
+        denom <- suchThat arbitrary (\x -> x /= 0) 
         rounding <- arbitrary
         displayDigits <- arbitrary
         uActive <- arbitrary
