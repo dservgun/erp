@@ -92,7 +92,7 @@ data MoveLine = MoveLine {
     taxLines :: [Distribution]}
     deriving (Show, Typeable, Generic, Eq, Ord)
 
-{-- XXX: This distribution is a list of amount lins on the account chart ??--}
+{-- XXX: This distribution is a list of amount lines on the account chart ??--}
 type Distribution = String 
 data Sign = Positive | Negative 
         deriving (Show, Typeable, Generic, Eq , Ord, Enum, Bounded)
