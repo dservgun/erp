@@ -22,6 +22,10 @@ We need a request log to manage log for the requests : time, ip etc.
  * Seaside or ScalaFX: My opinion is that ui has an oo bias and Smalltalk is a better solution. Need to investigate that.
  * For internal testing, wxPython seems to be a more suitable option. Though that is still debatable.
  
+## Notes (discrepancies between the tryton and the current model):
+The accounting method that simplifies computation of inventory and probably preferable is to manage products as batches
+ is in this (link)[http://www.oldschoolvalue.com/blog/valuation-methods/fifo-lifo-average-inventory-valuation/#fifo-method]. To handle this additional requirement, the model deviates a bit from the tryton definition.
 ## References
  * [Tryton](http://doc.tryton.org/3.0/index.html)
  * [Accounting methods](http://en.wikipedia.org/wiki/FIFO_and_LIFO_accounting)
+ * [Batch based computation](http://www.oldschoolvalue.com/blog/valuation-methods/fifo-lifo-average-inventory-valuation/#fifo-method)
