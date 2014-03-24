@@ -33,6 +33,7 @@ import qualified Data.Acid as A
 import Data.Acid.Remote
 import Data.SafeCopy
 import Data.Typeable
+import Data.Data
 import qualified Data.Map as M
 import qualified Data.Tree as Tr
 import qualified Data.Aeson as J
@@ -46,43 +47,50 @@ import qualified Login as Lo
 import qualified Product as Pr
 import qualified Data.Map as M
 import qualified Data.Set as S
-import qualified Data.Set as S
 
 type SupplierReference = String
 type InternalReference = String
-data CompanyNotFound = CompanyNotFound deriving (Show, Generic, Typeable, Eq, Ord)
-data DuplicateCompaniesFound = DuplicateCompaniesFound deriving (Show, Generic, Typeable, Eq, Ord)
+data CompanyNotFound = CompanyNotFound deriving (Show, Generic, Data, Typeable, Eq, Ord)
+data DuplicateCompaniesFound = DuplicateCompaniesFound deriving (Show, Generic, Data, Typeable, Eq, Ord)
 instance Exception CompanyNotFound
 instance Exception DuplicateCompaniesFound
 type Percent = Float
 data Day = CalendarDays Int | BusinessDays Int 
-    deriving(Show, Typeable, Generic, Eq, Ord)
+    deriving(Show, Data, Typeable, Generic, Eq, Ord)
 data PaymentTerm = Net_Days (Day, Percent)
-    deriving (Show, Typeable, Generic, Eq, Ord)
+    deriving (Show, Data, Typeable, Generic, Eq, Ord)
     
 data Category = Category {category :: String}
-    deriving(Show, Typeable, Generic, Eq, Ord)
+    deriving(Show, Data, Typeable, Generic, Eq, Ord)
 data Header = Header String
-     deriving(Show, Typeable, Generic)
+     deriving(Show, Data, Typeable, Generic)
 data Footer = Footer String
-    deriving(Show, Typeable, Generic)
+    deriving(Show, Typeable, Data, Generic)
 
 data Company = Company {party :: Party,
                         currency :: Cu.Currency,
                         alternateCurrencies :: S.Set Cu.Currency,
-                        productSet :: S.Set Pr.Product}
-                        deriving (Show, Typeable,Generic, Ord)
+                        productSet :: S.Set Pr.Product,
+                        -- The current sequence number for
+                        -- the product batch.
+                        productBatchId :: (M.Map String Integer)}
+                        deriving (Show, Data, Typeable,Generic, Ord)
 instance Eq Company where
     a == b = (party a == party b)
 
-createCompany :: Party -> Cu.Currency -> S.Set Cu.Currency -> S.Set Pr.Product -> Company 
+createCompany :: Party -> Cu.Currency -> S.Set Cu.Currency -> S.Set Pr.Product
+    -> Company 
 createCompany aParty aCurrency alternateCurrencies products = 
     let 
-        result = Company aParty aCurrency (S.fromList []) products
+        result = Company aParty aCurrency (S.fromList []) products (M.fromList 
+             (map (\x -> (show x, 0)) (S.elems products)))
     in
         S.fold (\x -> addAlternateCurrencies x ) result alternateCurrencies
 
-        
+resetCounter aCompany aProduct  = 
+    aCompany {productBatchId = M.insert (show aProduct) 0 (productBatchId aCompany)}
+incrementCounter aCompany aProduct = M.adjust ( + 1) (show aProduct) (productBatchId aCompany) 
+
 setPrimaryCurrency aCurrency aCompany = 
         if currencyExists aCurrency aCompany then
             aCompany
@@ -109,7 +117,7 @@ data CompanyReport = CompanyReport {fiscalYear :: Fy.FiscalYear,
                                     header :: Header,
                                     footer :: Footer,
                                     publishDate :: UTCTime}
-                        deriving (Show, Typeable,Generic)
+                        deriving (Show, Data, Typeable,Generic)
                         
 type URI = String
 findCompany :: Party -> S.Set Company -> Maybe Company
@@ -130,20 +138,20 @@ findCompany aParty aCompanySet =
 type Degrees = Integer
 type Minutes = Integer
 type Seconds = Integer            
-data LatDirection = North | South deriving (Show, Typeable, Generic, Eq, Ord)
-data LongDirection = East | West deriving (Show, Typeable, Generic, Eq, Ord)
+data LatDirection = North | South deriving (Show, Data, Typeable, Generic, Eq, Ord)
+data LongDirection = East | West deriving (Show, Data, Typeable, Generic, Eq, Ord)
 data CoordinateUnit = CoordinateUnit {degrees :: Degrees,
                         minutes :: Minutes,
                         seconds :: Seconds}
-                    deriving (Show, Typeable, Generic, Eq, Ord)
+                    deriving (Show, Data, Typeable, Generic, Eq, Ord)
                     
 data Latitude = Latitude { lat :: CoordinateUnit, 
                            latDirection :: LatDirection}
-                deriving (Show, Typeable, Generic, Eq, Ord)
+                deriving (Show, Typeable, Data, Generic, Eq, Ord)
                 
 invalid :: Degrees -> Bool
 invalid a = a < 0 || a > 60
-data InvalidCoordinates = InvalidCoordinates deriving (Show, Typeable, Generic, Eq, Ord)
+data InvalidCoordinates = InvalidCoordinates deriving (Show, Data, Typeable, Generic, Eq, Ord)
 instance Exception InvalidCoordinates
 
 createLatitude :: Degrees -> Minutes -> Seconds -> LatDirection -> Latitude
@@ -155,7 +163,7 @@ createLatitude d m s dir=
       
 data Longitude = Longitude { longitude :: CoordinateUnit,
                             longDirection :: LongDirection}
-    deriving (Show, Typeable, Generic, Eq, Ord)
+    deriving (Show, Data, Typeable, Generic, Eq, Ord)
 
 createLongitude :: Degrees -> Minutes -> Seconds -> LongDirection -> Longitude
 createLongitude d m s dir = 
@@ -165,13 +173,13 @@ createLongitude d m s dir =
         Longitude (CoordinateUnit d m s) dir
         
 data Coordinate = Coordinate { x :: Latitude, y :: Longitude} 
-    deriving (Show, Typeable, Generic, Eq, Ord)
+    deriving (Show, Typeable, Data, Generic, Eq, Ord)
 createCoordinate :: Latitude -> Longitude -> Coordinate
 createCoordinate x y = Coordinate x y 
     
 data GeoLocation = GeoLocation{ uri :: URI, 
                                 position :: Coordinate}
-                        deriving (Show, Typeable, Generic, Eq, Ord)
+                        deriving (Show, Data, Typeable, Generic, Eq, Ord)
 createGeoLocation :: URI -> Coordinate -> GeoLocation
 createGeoLocation aURI aCoordinate = GeoLocation aURI aCoordinate                        
 type VCard = String  
@@ -185,7 +193,7 @@ data Party = Party {name :: String,
                     alternateCategories :: S.Set Category,
                     alternatePocs :: S.Set Contact
                     }
-                    deriving (Show, Typeable,Generic, Eq, Ord)
+                    deriving (Show, Data, Typeable,Generic, Eq, Ord)
 type Name = String
 
 createParty :: Name -> Address -> GeoLocation -> Contact -> Category 
@@ -251,12 +259,12 @@ data ContactType = Phone | Mobile | Fax | Email | Website |
                     SIP |
                     IRC |
                     Jabber
-                    deriving (Enum, Bounded, Show, Typeable,Generic, Eq, Ord)
+                    deriving (Enum, Bounded, Show, Typeable,Data, Generic, Eq, Ord)
                     
                     
 data Contact = Contact {contactType :: ContactType, 
                         value :: String}
-                    deriving(Show, Typeable,Generic, Eq, Ord)
+                    deriving(Show, Data, Typeable,Generic, Eq, Ord)
 data Employee = Employee {employeeDetails :: Party, employeeCompany :: Company}                    
                     deriving (Show, Typeable, Generic, Eq, Ord)
 data User = User {mainCompany :: Company, 
@@ -344,7 +352,6 @@ instance J.ToJSON PaymentTerm
 instance J.FromJSON  PaymentTerm
 instance J.ToJSON Day
 instance J.FromJSON Day
-
 $(deriveSafeCopy 0 'base ''Category)
 $(deriveSafeCopy 0 'base ''Company)
 $(deriveSafeCopy 0 'base ''Contact)
@@ -364,7 +371,6 @@ $(deriveSafeCopy 0 'base ''CompanyReport)
 $(deriveSafeCopy 0 'base ''Coordinate)
 $(deriveSafeCopy 0 'base ''PaymentTerm)
 $(deriveSafeCopy 0 'base ''Day)
-
 getContactTypes = map(\x -> (L.pack (show x),x)) ([minBound..maxBound]::[ContactType])
 
                 

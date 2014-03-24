@@ -6,6 +6,7 @@ import qualified Data.Acid as A
 import Data.Acid.Remote
 import Data.SafeCopy
 import Data.Typeable
+import Data.Data
 import qualified Data.Map as M
 import qualified Data.Aeson as J
 import qualified Data.Text.Lazy.Encoding as E
@@ -14,7 +15,7 @@ import Data.Time.Clock
 import GHC.Generics
 
 data EntityState = Open | Closed
-    deriving (Show, Typeable, Generic, Eq, Ord)
+    deriving (Show, Data, Typeable, Generic, Eq, Ord)
     
 instance J.ToJSON EntityState
 instance J.FromJSON EntityState

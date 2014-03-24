@@ -173,8 +173,13 @@ data Batch = Batch {
                 batchDate :: UTCTime,
                 batchID :: BatchID }
                 deriving (Show, Typeable, Generic, Eq, Ord)
+                
 createBatch aDate anId = Batch aDate anId
-        
+
+createNewBatch anId = do
+    c <- getCurrentTime
+    return $ createBatch c anId
+
 data Dunning = Dunning {
         line :: MoveLine,
         procedure :: Procedure,

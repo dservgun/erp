@@ -13,6 +13,7 @@ import qualified Data.Acid as A
 import Data.Acid.Remote
 import Data.SafeCopy
 import Data.Typeable
+import Data.Data
 import qualified Data.Map as M
 import qualified Data.Set as S
 import qualified Data.Aeson as J
@@ -29,7 +30,7 @@ instance Exception InvalidUOMException
 
 data UOMCategory = UOMCategory {catName :: String,
                             parentCat :: Maybe UOMCategory}
-    deriving(Show, Generic, Typeable, Eq, Ord)
+    deriving(Show, Generic, Data, Typeable, Eq, Ord)
 createUOMCategory :: String -> Maybe UOMCategory -> UOMCategory
 createUOMCategory aString aCat = UOMCategory aString aCat
 {-- UOM defines the unit of measure for the product --}
@@ -42,7 +43,7 @@ data UOM = UOM {
         rounding :: Int,
         displayDigits :: Int,
         uActive :: Bool}
-    deriving (Show, Generic, Typeable,Eq, Ord)
+    deriving (Show, Generic, Data, Typeable,Eq, Ord)
 
 type Numerator = Integer
 type Denominator = Integer
@@ -59,25 +60,25 @@ validUOM aUOM = ((rate aUOM) * (factor aUOM)) == 1
 
 data Price = Price {p :: Float,
                     cu :: Cu.Currency}
-            deriving (Show, Generic, Typeable, Eq, Ord)
+            deriving (Show, Data, Generic, Typeable, Eq, Ord)
 createPrice :: Float -> Cu.Currency -> Price
 createPrice p cu = Price p cu
 type PriceUOM = (Price, UOM)
 data CPMType = LIFO | FIFO
-    deriving (Show, Generic, Typeable, Eq, Ord)
+    deriving (Show, Generic, Data, Typeable, Eq, Ord)
 data CostPriceMethod = Fixed | Average CPMType
-    deriving(Show, Generic, Typeable, Eq, Ord)
+    deriving(Show, Generic, Data, Typeable, Eq, Ord)
 data ProductType = Goods | Assets | Services
-    deriving(Show, Generic, Typeable, Eq, Ord)
+    deriving(Show, Generic, Data, Typeable, Eq, Ord)
 type UPCCode = Maybe String    
 data Attribute = Attribute {attributeName :: String, attrDescription:: String}
-    deriving (Show, Generic, Typeable, Eq, Ord)
+    deriving (Show, Generic, Data, Typeable, Eq, Ord)
 type Weight = Float    
 type Height = Float
 type Length = Float
 type Width = Float
 data Dimensions = Dimensions {length :: Length, width :: Width, height :: Height, weight :: Weight}    
-    deriving (Show, Generic, Typeable, Eq, Ord)
+    deriving (Show, Generic, Data, Typeable, Eq, Ord)
 type ProductAudit = (UTCTime, Product, PriceUOM) 
    
 data Product = Product {
@@ -95,7 +96,7 @@ data Product = Product {
         dimensions :: Dimensions,
         parentProduct :: Product,
         productHistory:: [ProductAudit]}
-        deriving (Show, Generic, Typeable, Eq, Ord)
+        deriving (Data,Show, Generic, Typeable, Eq, Ord)
         
 
 
