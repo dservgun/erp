@@ -24,3 +24,4 @@ We need a request log to manage log for the requests : time, ip etc.
  
 ## References
  * [Tryton](http://doc.tryton.org/3.0/index.html)
+ * [Accounting methods](http://en.wikipedia.org/wiki/FIFO_and_LIFO_accounting)
