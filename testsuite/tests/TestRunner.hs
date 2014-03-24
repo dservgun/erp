@@ -5,6 +5,7 @@ import qualified Login as L
 import qualified Data.Aeson as J
 import qualified Company as Co
 import qualified Currency as Cu
+import qualified Account as Ac
 import ErpServer(testServerMain)
 import Control.Monad(forever, unless)
 import Control.Monad.Trans (liftIO)
@@ -15,6 +16,8 @@ import Data.Text (Text)
 import qualified Data.Set as S
 import qualified Data.Text as T
 import qualified Data.Text.IO as T
+import Data.Time.Clock
+import Data.DateTime
 import qualified Network.WebSockets as WS
 import Data.Aeson
 import GHC.Generics
@@ -195,6 +198,13 @@ instance Arbitrary Co.CompanyWorkTime where
         weeksPerMonth <- arbitrary
         monthsPerYear <- arbitrary
         return (Co.createCompanyWorkTime company hoursPerDay daysPerWeek weeksPerMonth monthsPerYear)
+
+instance Arbitrary Ac.Batch where
+    arbitrary = do
+        time <- arbitrary
+        id <- arbitrary
+        return $ Ac.createBatch time id
+        
 main = do
     T.putStrLn "Starting server"
     T.putStrLn $ "Removing acid state directory, from previous runs."

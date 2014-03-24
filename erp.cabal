@@ -31,6 +31,7 @@ library
                  , url
                  , hslogger
                  , directory
+                 , datetime
   hs-source-dirs: ., src/server, testsuite/tests, src/common, src/client
   exposed-modules:  ErpServer,ErpModel, Login, Account, Company, Currency, FiscalYear, Entity
                     , AccountAsset
@@ -61,6 +62,7 @@ executable erp
                  , url
                  , hslogger
                  , directory
+                 , datetime
   default-extensions: OverloadedStrings, CPP
      , DeriveDataTypeable
      , TypeFamilies
@@ -85,6 +87,7 @@ executable erp_ui
                  , erp
                  , url
                  , directory
+                 , datetime
   default-extensions: OverloadedStrings, CPP
      , DeriveDataTypeable
      , TypeFamilies
@@ -123,3 +126,4 @@ Test-suite tests
                  , time
                  , url
                  , directory
+                 , datetime
