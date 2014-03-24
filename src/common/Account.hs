@@ -1,4 +1,27 @@
-module Account where
+module Account (
+    Name, Code,
+    Lot,
+    TimeSpent,
+    DaysOfWeek,
+    AccountType,
+    AccountKind,
+    Account,
+    CreditAccount,
+    DebitAccount,
+    JournalType,
+    Journal,
+    DisplayView,
+    Move,
+    MoveLine,
+    MoveState,
+    MoveLineState,
+    Tax,
+    TaxCode,
+    TaxType,
+    Quantity,
+    Amount,
+    Batch, createBatch
+)where
 import Control.Monad.State
 import Control.Monad.Reader
 import qualified Control.Applicative as C
@@ -145,7 +168,12 @@ data Procedure = Proceure String deriving (Show, Typeable, Generic, Eq, Ord)
 type Day = Int
 data Level = Level Day deriving (Show, Typeable, Generic, Eq, Ord)
 data DunningState = DDraft | DDone deriving (Show, Typeable, Generic, Eq, Ord, Enum, Bounded)
-
+type BatchID = String
+data Batch = Batch {
+                batchDate :: UTCTime,
+                batchID :: BatchID }
+                deriving (Show, Typeable, Generic, Eq, Ord)
+createBatch aDate anId = Batch aDate anId
         
 data Dunning = Dunning {
         line :: MoveLine,
@@ -160,6 +188,26 @@ printDunningLetter :: Dunning -> L.Text
 printDunningLetter = L.pack . show
 
 getAccountTypes = map(\x -> (L.pack (show x),x)) ([minBound..maxBound]::[AccountType])
+{--
+computing inventory costs by FIFO method, 
+apparently LIFO is a US tax haven.
+The FIFO works as follows:
+Date No. Units Price 
+d1 100          1
+d2 200          10
+d3 300          11
+
+Number of units sold:
+d4 20           
+d5 140
+d6 100
+
+cost of d4 is 20 * 1
+cost d5 is (80 * 1 + 60 * 10)
+cost d6 is (100 * 10)
+inventory cost between a period needs to adjust the journal accordingly
+--}
+
 
 
 instance J.ToJSON Dunning
@@ -198,7 +246,8 @@ instance J.ToJSON TaxAmount
 instance J.FromJSON TaxAmount
 instance J.ToJSON TaxType
 instance J.FromJSON TaxType
-
+instance J.ToJSON Batch
+instance J.FromJSON Batch
 $(deriveSafeCopy 0 'base ''Dunning)
 $(deriveSafeCopy 0 'base ''DunningState)
 $(deriveSafeCopy 0 'base ''Procedure)
@@ -218,7 +267,7 @@ $(deriveSafeCopy 0 'base ''Move)
 $(deriveSafeCopy 0 'base ''MoveState)
 $(deriveSafeCopy 0 'base ''MoveLine)
 $(deriveSafeCopy 0 'base ''MoveLineState)
-
+$(deriveSafeCopy 0 'base ''Batch)
 
 
 

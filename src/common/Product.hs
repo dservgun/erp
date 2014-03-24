@@ -73,7 +73,10 @@ type UPCCode = Maybe String
 data Attribute = Attribute {attributeName :: String, attrDescription:: String}
     deriving (Show, Generic, Typeable, Eq, Ord)
 type Weight = Float    
-data Dimensions = Dimensions {length :: Float, width :: Float, height :: Float, weight :: Weight}    
+type Height = Float
+type Length = Float
+type Width = Float
+data Dimensions = Dimensions {length :: Length, width :: Width, height :: Height, weight :: Weight}    
     deriving (Show, Generic, Typeable, Eq, Ord)
 type ProductAudit = (UTCTime, Product, PriceUOM) 
    

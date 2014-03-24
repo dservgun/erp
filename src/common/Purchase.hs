@@ -31,6 +31,7 @@ data PurchaseState = Draft | Quotation | Confirmed | Canceled
 data PurchaseLine = PurchaseLine {
     lineType :: PurchaseLineType,
     sequenceAllowed :: Bool,
+    batch ::  Ac.Batch,
     product :: Pr.Product,
     lineDescription :: String,
     quantity :: Ac.Quantity,

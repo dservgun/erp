@@ -30,6 +30,7 @@ data SaleLineType = Line | Title | Comment | Subtotal
 data SaleLine = SaleLine {
     lineType :: SaleLineType,
     sequence :: Bool,
+    batch :: Ac.Batch,
     product :: Pr.Product,    
     lineDescription :: String, -- Additional comments.
     quantity :: Ac.Quantity,

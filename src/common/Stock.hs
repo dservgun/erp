@@ -26,6 +26,7 @@ data LocationType = Storage | Warehouse | Customer | Supplier | LostAndFound
 
 data Location = Location{ 
                 location :: Co.Address,
+                geoLocation :: Co.GeoLocation,
                 locationType :: LocationType
                 } deriving (Show, Eq, Ord, Typeable, Generic)
                 
