@@ -166,7 +166,7 @@ data Longitude = Longitude { longitude :: CoordinateUnit,
 
 createLongitude :: Degrees -> Minutes -> Seconds -> LongDirection -> Longitude
 createLongitude d m s dir = 
-    if (invalid d || invalid m || invalid s) then
+    if invalid d || invalid m || invalid s then
         throw InvalidCoordinates
     else
         Longitude (CoordinateUnit d m s) dir
@@ -174,13 +174,13 @@ createLongitude d m s dir =
 data Coordinate = Coordinate { x :: Latitude, y :: Longitude} 
     deriving (Show, Typeable, Data, Generic, Eq, Ord)
 createCoordinate :: Latitude -> Longitude -> Coordinate
-createCoordinate x y = Coordinate x y 
+createCoordinate = Coordinate
     
 data GeoLocation = GeoLocation{ uri :: URI, 
                                 position :: Coordinate}
                         deriving (Show, Data, Typeable, Generic, Eq, Ord)
 createGeoLocation :: URI -> Coordinate -> GeoLocation
-createGeoLocation aURI aCoordinate = GeoLocation aURI aCoordinate                        
+createGeoLocation = GeoLocation
 type VCard = String  
 type Address = String                      
 data Party = Party {name :: String,
