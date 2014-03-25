@@ -116,7 +116,8 @@ data MoveLine = MoveLine {
     deriving (Show, Typeable, Generic, Eq, Ord)
 
 {-- XXX: This distribution is a list of amount lines on the account chart ??--}
-type Distribution = String 
+{-- This is the list of amounts for all the auto-complete taxes for the account --}
+type Distribution = [(Tax, Amount)]
 data Sign = Positive | Negative 
         deriving (Show, Typeable, Generic, Eq , Ord, Enum, Bounded)
 type Amount = Float 
