@@ -173,8 +173,9 @@ data Batch = Batch {
                 batchDate :: UTCTime,
                 batchID :: BatchID }
                 deriving (Show, Typeable, Generic, Eq, Ord)
-                
-createBatch aDate anId = Batch aDate anId
+
+createBatch :: UTCTime -> BatchID -> Batch                
+createBatch = Batch
 
 createNewBatch anId = do
     c <- getCurrentTime

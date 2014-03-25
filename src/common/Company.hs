@@ -23,7 +23,8 @@ module Company (createCompany, validCurrencies,
     Party, createParty, validContacts, validCategories,
     Contact(..),
     ContactType(..),
-    CompanyWorkTime, createCompanyWorkTime, validHours
+    CompanyWorkTime, createCompanyWorkTime, validHours,
+    invalidHoursPerDay, invalidDaysPerWeek, invalidWeeksPerMonth, invalidMonthsPerYear
     ) where
 import Control.Monad.State
 import Control.Monad.Reader
@@ -207,9 +208,9 @@ createParty name add loc contact cat vc categories contacts =
                         vcard = vc,
                         alternateCategories = S.fromList [],
                         alternatePocs = S.fromList[]} 
-        result2 = S.fold (\x -> addAlternateCategories x) result categories
+        result2 = S.fold addAlternateCategories result categories
     in
-        S.fold (\y -> addAlternatePocs y) result2 contacts
+        S.fold addAlternatePocs result2 contacts
 
 addAlternateCategories :: Category -> Party -> Party
 addAlternateCategories aCategory aParty =  
@@ -227,7 +228,7 @@ setPrimaryCategory aParty aCat =
 
 categoryExists :: Party -> Category -> Bool
 categoryExists aParty aCat =
-    aCat == (primaryCategory aParty) 
+    (aCat == primaryCategory aParty)
     || (S.member aCat(alternateCategories aParty))
 
 addAlternatePocs :: Contact -> Party -> Party
