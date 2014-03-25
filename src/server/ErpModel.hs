@@ -128,7 +128,7 @@ lookupCategory aLogin qbe =
     do
        Database db <- ask
        let erp = M.lookup aLogin db 
-       if (exists erp) then return $ Just qbe else return Nothing 
+       return (if exists erp then Just qbe else Nothing)
        where       
         exists erp = 
             case erp of
@@ -183,8 +183,8 @@ processRequest connection acid r@(Request entity emailId payload)  =
     "Category" -> updateCategory acid emailId $ L.toStrict payload
     "QueryDatabase" -> queryDatabase acid emailId $ L.toStrict payload
     "CloseConnection" -> do
-                TIO.putStrLn((T.pack "Closing connection for " ) `T.append` (T.pack emailId))
-                WS.sendTextData connection $ (J.encode r)
+                TIO.putStrLn (T.pack "Closing connection for " `T.append` (T.pack emailId))
+                WS.sendTextData connection $ J.encode r
     _ -> throw InvalidRequest
 
 
@@ -198,8 +198,7 @@ updateLogin acid payload =
                     loginLookup <- A.query acid (LookupLogin name)
                     case loginLookup of
                         Nothing -> A.update acid (InsertLogin name l)
-                        Just l2@(Lo.Login name email) ->do
-                            TIO.putStrLn ("Exception?")
+                        Just l2@(Lo.Login name email) -> TIO.putStrLn "Exception?"
             Nothing -> throw InvalidLogin 
 
 

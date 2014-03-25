@@ -47,7 +47,7 @@ parseMessage conn = do
     let 
         r = J.decode $ En.encodeUtf8 $ La.fromStrict msg
     case r of 
-        Just aRequest -> do
+        Just aRequest ->
             case M.requestEntity aRequest of         
                 "CloseConnection" -> do
                     T.putStrLn "Received :: "
@@ -66,8 +66,8 @@ loginTest aVer conn = do
     tR <- async( parseMessage conn)    
     -- Send a verified user and an unverified user,
     -- the recovery should not be showing the unverified user.    
-    WS.sendTextData conn $ createLoginRequest testEmail (encode(toJSON $ testLogin)) 
-    WS.sendTextData conn $ createCloseConnection testEmail $ encode $ toJSON testLogin
+    WS.sendTextData conn $ createLoginRequest testEmail $ encode (toJSON testLogin)
+    WS.sendTextData conn $ createCloseConnection testEmail $ encode (toJSON testLogin)
     wait tR
 
 categoryTest :: String -> WS.ClientApp () 
@@ -75,7 +75,7 @@ categoryTest aString conn =
     do
     T.putStrLn "Connected successfully"
     tR <- async $ parseMessage conn
-    WS.sendTextData conn $ createCategoryRequest testEmail(encode (toJSON (Co.Category aString)))
+    WS.sendTextData conn $ createCategoryRequest testEmail $ encode $ toJSON $ Co.Category aString
     WS.sendTextData conn $ createCloseConnection testEmail $ encode $ toJSON testEmail
     wait tR
 
@@ -134,8 +134,8 @@ instance Arbitrary Pr.UOM where
         name <- arbitrary
         symbol <- arbitrary
         category <- arbitrary 
-        num <- suchThat arbitrary(\x -> x /= 0) 
-        denom <- suchThat arbitrary (\x -> x /= 0) 
+        num <- suchThat arbitrary (/= 0) 
+        denom <- suchThat arbitrary (/= 0) 
         rounding <- arbitrary
         displayDigits <- arbitrary
         uActive <- arbitrary
@@ -143,11 +143,11 @@ instance Arbitrary Pr.UOM where
 
 instance Arbitrary Cu.Currency where
       arbitrary = elements [
-            ( Cu.Currency "AUD"), 
-            ( Cu.Currency "USD"), 
-            ( Cu.Currency "GBP"), 
-            ( Cu.Currency "ROU"), 
-            (Cu.Currency "TST")]
+            Cu.Currency "AUD", 
+            Cu.Currency "USD", 
+            Cu.Currency "GBP", 
+            Cu.Currency "ROU", 
+            Cu.Currency "TST"]
 
 instance Arbitrary Pr.Price where
      arbitrary = do
@@ -186,7 +186,7 @@ instance Arbitrary Co.Company where
      arbitrary = do
         party <- arbitrary
         currency <- arbitrary
-        alternateCurrencies <- (orderedList)
+        alternateCurrencies <- orderedList
         productSet <- orderedList
         return (Co.createCompany party currency (S.fromList alternateCurrencies) (S.fromList productSet))
         
@@ -207,7 +207,7 @@ instance Arbitrary Ac.Batch where
         
 main = do
     T.putStrLn "Starting server"
-    T.putStrLn $ "Removing acid state directory, from previous runs."
+    T.putStrLn "Removing acid state directory, from previous runs."
     SD.removeDirectoryRecursive acidStateTestDir
     m <- newEmptyMVar
     s <- async (testServerMain m acidStateTestDir)
@@ -228,18 +228,18 @@ main = do
     where
         acidStateTestDir = "./dist/build/tests/state"
 
-prop1 aUOM = Pr.validUOM aUOM   
+prop1 = Pr.validUOM   
 tests = [("properties_tests" :: String, quickCheck prop1),
          ("currency_valid" :: String, quickCheck prop_currency),
          ("company_work_time" :: String, quickCheck prop_company_time),
          ("party_categories" :: String, quickCheck prop_party_categories),
          ("party_contacts" :: String, quickCheck prop_party_contacts)]
 
-prop_currency aCompany = Co.validCurrencies aCompany
-prop_company_time aCompanyWorkTime = Co.validHours aCompanyWorkTime
+prop_currency  = Co.validCurrencies 
+prop_company_time  = Co.validHours 
 
-prop_party_categories aParty = Co.validCategories aParty
-prop_party_contacts aParty = Co.validContacts aParty
+prop_party_categories  = Co.validCategories 
+prop_party_contacts  = Co.validContacts 
 
 
 

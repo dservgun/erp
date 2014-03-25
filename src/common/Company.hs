@@ -45,7 +45,6 @@ import FiscalYear as Fy
 import qualified Currency as Cu
 import qualified Login as Lo
 import qualified Product as Pr
-import qualified Data.Map as M
 import qualified Data.Set as S
 
 type SupplierReference = String
@@ -57,7 +56,7 @@ instance Exception DuplicateCompaniesFound
 type Percent = Float
 data Day = CalendarDays Int | BusinessDays Int 
     deriving(Show, Data, Typeable, Generic, Eq, Ord)
-data PaymentTerm = Net_Days (Day, Percent)
+data PaymentTerm = NetDays (Day, Percent)
     deriving (Show, Data, Typeable, Generic, Eq, Ord)
     
 data Category = Category {category :: String}
@@ -73,10 +72,10 @@ data Company = Company {party :: Party,
                         productSet :: S.Set Pr.Product,
                         -- The current sequence number for
                         -- the product batch.
-                        productBatchId :: (M.Map String Integer)}
+                        productBatchId :: M.Map String Integer}
                         deriving (Show, Data, Typeable,Generic, Ord)
 instance Eq Company where
-    a == b = (party a == party b)
+    a == b = party a == party b
 
 createCompany :: Party -> Cu.Currency -> S.Set Cu.Currency -> S.Set Pr.Product
     -> Company 
@@ -85,7 +84,7 @@ createCompany aParty aCurrency alternateCurrencies products =
         result = Company aParty aCurrency (S.fromList []) products (M.fromList 
              (map (\x -> (show x, 0)) (S.elems products)))
     in
-        S.fold (\x -> addAlternateCurrencies x ) result alternateCurrencies
+        S.fold addAlternateCurrencies result alternateCurrencies
 
 resetCounter aCompany aProduct  = 
     aCompany {productBatchId = M.insert (show aProduct) 0 (productBatchId aCompany)}
@@ -99,18 +98,18 @@ setPrimaryCurrency aCurrency aCompany =
 
 addAlternateCurrencies :: Cu.Currency -> Company -> Company            
 addAlternateCurrencies aCurrency aCompany = 
-    if aCurrency == (currency aCompany) then
+    if aCurrency == currency aCompany then
         aCompany
     else
         aCompany {alternateCurrencies = S.insert aCurrency (alternateCurrencies aCompany)}  
 currencyExists :: Cu.Currency -> Company -> Bool        
-currencyExists aCurrency aCompany = (aCurrency == (currency aCompany))
-                        || (S.member aCurrency (alternateCurrencies aCompany))
+currencyExists aCurrency aCompany = (aCurrency == currency aCompany)
+                        || (S.member aCurrency $ alternateCurrencies aCompany)
 
 validCurrencies aCompany = S.notMember (currency aCompany) (alternateCurrencies aCompany)                        
 addProduct :: Company -> Pr.Product -> Company
 addProduct aCompany aProduct = aCompany {productSet = S.insert aProduct (productSet aCompany)}
-removeAlternateCurrency aCurrency aCompany = aCompany {alternateCurrencies = S.filter (\x -> x /= aCurrency) (alternateCurrencies aCompany) }
+removeAlternateCurrency aCurrency aCompany = aCompany {alternateCurrencies = S.filter ( /= aCurrency) (alternateCurrencies aCompany) }
 
 data CompanyReport = CompanyReport {fiscalYear :: Fy.FiscalYear,
                                     company :: Company,
@@ -125,10 +124,10 @@ findCompany aParty aCompanySet =
     let 
         result = S.filter (\x -> party x == aParty) aCompanySet
     in
-        if (S.null result) then
+        if S.null result then
             Nothing
         else
-            case (elems result) of
+            case elems result of
                 h:[] -> Just h
                 h:[t] -> throw DuplicateCompaniesFound
              where

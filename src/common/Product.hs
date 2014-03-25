@@ -32,7 +32,7 @@ data UOMCategory = UOMCategory {catName :: String,
                             parentCat :: Maybe UOMCategory}
     deriving(Show, Generic, Data, Typeable, Eq, Ord)
 createUOMCategory :: String -> Maybe UOMCategory -> UOMCategory
-createUOMCategory aString aCat = UOMCategory aString aCat
+createUOMCategory = UOMCategory 
 {-- UOM defines the unit of measure for the product --}
 data UOM = UOM {
         name :: String,
@@ -62,7 +62,7 @@ data Price = Price {p :: Float,
                     cu :: Cu.Currency}
             deriving (Show, Data, Generic, Typeable, Eq, Ord)
 createPrice :: Float -> Cu.Currency -> Price
-createPrice p cu = Price p cu
+createPrice = Price
 type PriceUOM = (Price, UOM)
 data CPMType = LIFO | FIFO
     deriving (Show, Generic, Data, Typeable, Eq, Ord)
