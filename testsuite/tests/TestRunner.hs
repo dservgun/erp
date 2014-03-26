@@ -25,6 +25,7 @@ import qualified Data.Text.Lazy.Encoding as En
 import qualified Data.Text.Lazy as La
 import qualified System.Directory as SD
 import Test.QuickCheck
+
 import Product as Pr
 import Text.Printf
 import TestHarness
@@ -90,7 +91,7 @@ databaseTest aString conn =
     wait tR
 
         
-main = do
+serverTest = do
     T.putStrLn "Starting server"
     T.putStrLn "Removing acid state directory, from previous runs."
     SD.removeDirectoryRecursive acidStateTestDir
@@ -109,10 +110,12 @@ main = do
     T.putStrLn "End tests"
     -- Cancel the server thread when all tests are done
     cancel s
-    mapM_ (\(s, a) -> printf "%-25s" s >> a) tests
     where
         acidStateTestDir = "./dist/build/tests/state"
 
+main = do
+    serverTest
+    mapM_ (\(s, a) -> printf "%-25s" s >> a) tests
 prop1 = Pr.validUOM   
 tests = [("properties_tests" :: String, quickCheck prop1),
          ("currency_valid" :: String, quickCheck prop_currency),
