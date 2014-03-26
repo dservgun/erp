@@ -6,6 +6,7 @@ module Account (
     AccountType,
     AccountKind,
     Account,
+    createAccount,
     CreditAccount,
     DebitAccount,
     JournalType,
@@ -24,11 +25,13 @@ module Account (
 )where
 import Control.Monad.State
 import Control.Monad.Reader
+import Control.Exception
 import qualified Control.Applicative as C
 import qualified Data.Acid as A
 import Data.Acid.Remote
 import Data.SafeCopy
 import Data.Typeable
+import Data.Data
 import qualified Data.Map as M
 import qualified Data.Tree as Tr
 import qualified Data.Aeson as J
@@ -41,17 +44,20 @@ import Entity(EntityState)
 import qualified FiscalYear as Fy
 import qualified Company as Co
 
+data InvalidAccountException = InvalidAccountException deriving(Show, Typeable, Generic, Data, Eq, Ord)
+
+instance Exception InvalidAccountException
 type Name = String
 type Code = String 
 type Boolean = Bool
 type Lot = String
 type TimeSpent = Float
 data DaysOfWeek = Sunday | Monday | Tuesday | Wednesday | Thursday | Friday | Saturday
-    deriving (Show, Enum, Bounded, Typeable, Generic, Eq, Ord)
+    deriving (Show, Enum, Bounded, Data, Typeable, Generic, Eq, Ord)
 data AccountType = IncomeStatement | BalanceSheet | DisplayBalance
-    deriving(Show, Enum, Bounded, Typeable, Generic, Eq, Ord)
+    deriving(Show, Enum, Bounded, Data, Typeable, Generic, Eq, Ord)
 data AccountKind = Payable | Receivable | AkExpense | AkRevenue | View | Other
-    deriving (Show, Enum, Bounded, Typeable, Generic, Eq, Ord)
+    deriving (Show, Enum, Bounded, Data,Typeable, Generic, Eq, Ord)
 data Account = Account {
         name :: Name,
         code :: Code,
@@ -63,20 +69,21 @@ data Account = Account {
         altCurrency :: Cu.Currency,
         reconcile :: Boolean,
         parent :: Account,
-        -- A list of tax auto complete move with
-        -- new moves lines corresponding to those taxes
-        -- if the user create a line linked to the current account
-        -- and if the journal type is Expense or Revenue
-        -- The above requirement is a bit too complicated
-        -- Note: Need to refactor the requirement to make 
-        -- it clearer.
-        taxes :: [Tax],
         note :: String}
-        deriving(Show,Typeable, Generic, Eq, Ord)
+        deriving(Show,Typeable, Data, Generic, Eq, Ord)
 type DebitAccount = Account
 type CreditAccount = Account
 type DisplayView = String
-
+createAccount :: Name -> Code -> Co.Company -> Cu.Currency -> AccountKind 
+            -> AccountType -> Boolean -> Cu.Currency
+            -> Boolean -> Account -> String -> Account
+createAccount aName aCode aCompany aCurrency aKind
+    aType deferral altCurrency 
+    reconcile parent note = 
+        if altCurrency /= aCurrency then    
+            Account aName aCode aCompany aCurrency aKind aType deferral altCurrency reconcile parent note
+        else
+            throw InvalidAccountException
 data JournalType = General | Revenue | Situation | Expense 
         | Cash DebitAccount CreditAccount
         deriving (Show, Typeable, Generic, Eq, Ord)
@@ -86,6 +93,14 @@ data Journal = Journal {
     jActive :: Boolean,
     view   :: DisplayView,
     updatePosted :: Boolean,
+    -- A list of tax auto complete move with
+    -- new moves lines corresponding to those taxes
+    -- if the user create a line linked to the current account
+    -- and if the journal type is Expense or Revenue
+    -- The above requirement is a bit too complicated
+    -- Note: Need to refactor the requirement to make 
+    -- it clearer.
+    taxes :: [Tax],
     journalType :: JournalType}
     deriving (Show, Typeable, Generic, Eq, Ord)
 data MoveState  = Draft | Posted 
