@@ -3,24 +3,26 @@ module Account (
     Lot,
     TimeSpent,
     DaysOfWeek,
-    AccountType,
-    AccountKind,
     Account,
     createAccount,
     CreditAccount,
     DebitAccount,
-    JournalType,
-    Journal,
+    JournalType(..),
+    Journal, createJournal,
     DisplayView,
     Move,
     MoveLine,
     MoveState,
     MoveLineState,
-    Tax,
-    TaxCode,
-    TaxType,
+    Sign(..),
+    Tax, createTax, validAccount,
+    TaxCode, createTaxCode,
+    TaxType(..),
+    TaxAmount(..),
     Quantity,
     Amount,
+    AccountKind(..),
+    AccountType(..),
     Batch, createBatch
 )where
 import Control.Monad.State
@@ -68,7 +70,6 @@ data Account = Account {
         deferral :: Boolean,
         altCurrency :: Cu.Currency,
         reconcile :: Boolean,
-        parent :: Account,
         note :: String}
         deriving(Show,Typeable, Data, Generic, Eq, Ord)
 type DebitAccount = Account
@@ -76,16 +77,19 @@ type CreditAccount = Account
 type DisplayView = String
 createAccount :: Name -> Code -> Co.Company -> Cu.Currency -> AccountKind 
             -> AccountType -> Boolean -> Cu.Currency
-            -> Boolean -> Account -> String -> Account
+            -> Boolean -> String -> Account
 createAccount aName aCode aCompany aCurrency aKind
     aType deferral altCurrency 
-    reconcile parent note = 
+    reconcile note = 
         if altCurrency /= aCurrency then    
-            Account aName aCode aCompany aCurrency aKind aType deferral altCurrency reconcile parent note
+            Account aName aCode aCompany aCurrency aKind aType deferral altCurrency reconcile note
         else
             throw InvalidAccountException
+validAccount :: Account -> Bool
+validAccount  = (\x -> currency x /= altCurrency x)
+
 data JournalType = General | Revenue | Situation | Expense 
-        | Cash DebitAccount CreditAccount
+        | Cash
         deriving (Show, Typeable, Generic, Eq, Ord)
 data Journal = Journal {
     jName :: Name,
@@ -101,8 +105,20 @@ data Journal = Journal {
     -- Note: Need to refactor the requirement to make 
     -- it clearer.
     taxes :: [Tax],
-    journalType :: JournalType}
+    journalType :: JournalType,
+    defaultDebitAccount :: DebitAccount,
+    defaultCreditAccount :: CreditAccount}
     deriving (Show, Typeable, Generic, Eq, Ord)
+createJournal :: Name -> Code -> Bool -> DisplayView -> Bool -> [Tax] -> JournalType -> DebitAccount -> CreditAccount -> Journal
+createJournal aName aCode active view updatePosted taxes jType defaultDebitAccount defaultCreditAccount =
+    case jType of 
+        Expense -> jObject
+        Revenue -> jObject
+        _ -> 
+            Journal aName aCode active view updatePosted [] jType defaultDebitAccount defaultCreditAccount
+        where 
+            jObject = Journal aName aCode active view updatePosted taxes jType defaultDebitAccount defaultCreditAccount
+    
 data MoveState  = Draft | Posted 
     deriving (Show, Typeable, Generic, Eq, Ord)
 data Move = Move {
@@ -144,6 +160,8 @@ data TaxCode = TaxCode {
     tcCompany :: Co.Company,
     tcParent :: TaxCode,
     sum :: Amount} deriving (Show, Typeable, Generic, Eq, Ord)
+createTaxCode :: Name -> Code -> Boolean -> Co.Company -> TaxCode -> Amount -> TaxCode
+createTaxCode = TaxCode 
 
 type Sequence = String
 data TaxType = PercentTaxType Float | FixedTaxType Float
@@ -157,7 +175,6 @@ data Tax = Tax {
  taxType :: TaxType,
  taxAmount :: TaxAmount,
  taxCompany :: Co.Company,
- parTax :: Tax,
  invoiceAccount :: Account,
  creditNoteAccount :: Account,
  invoiceBaseCode :: TaxCode,
@@ -169,12 +186,20 @@ data Tax = Tax {
  creditNoteTaxCode :: TaxCode,
  creditNoteTaxSign :: Sign}
     deriving(Show, Typeable, Generic, Eq, Ord)
+createTax :: Name -> Code -> String -> Boolean -> Sequence -> TaxType -> TaxAmount -> Co.Company
+            -> Account -> Account
+            -> TaxCode -> Sign
+            -> TaxCode -> Sign
+            -> TaxCode -> Sign
+            -> TaxCode -> Sign -> Tax
+createTax = Tax
+
 type TaxTree = Tr.Tree Tax 
 data TaxAmount = Fixed Float | Percentage Float | BasisPoints Float 
     deriving(Show, Typeable, Generic, Eq, Ord)
  
-computTaxAmount:: Amount -> TaxAmount -> Amount
-computTaxAmount a t = 
+computeTaxAmount:: Amount -> TaxAmount -> Amount
+computeTaxAmount a t = 
     case t of
     Fixed aNumber -> a + aNumber
     Percentage pct -> a *  (1 + pct/100)
