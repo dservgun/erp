@@ -23,8 +23,10 @@ We need a request log to manage log for the requests : time, ip etc.
  * For internal testing, wxPython seems to be a more suitable option. Though that is still debatable.
  
 ## Notes (discrepancies between the tryton and the current model):
-The accounting method that simplifies computation of inventory and probably preferable is to manage products as batches
+  * The accounting method that simplifies computation of inventory and probably preferable is to manage products as batches
  is in this (link)[http://www.oldschoolvalue.com/blog/valuation-methods/fifo-lifo-average-inventory-valuation/#fifo-method]. To handle this additional requirement, the model deviates a bit from the tryton definition.
+  * Account entity maintains a set of auto-complete tax types for a journal. This is better managed by the journal entitiy
+  * 
 ## References
  * [Tryton](http://doc.tryton.org/3.0/index.html)
  * [Accounting methods](http://en.wikipedia.org/wiki/FIFO_and_LIFO_accounting)
