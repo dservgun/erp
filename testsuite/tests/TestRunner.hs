@@ -122,7 +122,8 @@ tests = [("properties_tests" :: String, quickCheck prop1),
          ("company_work_time" :: String, quickCheck prop_company_time),
          ("party_categories" :: String, quickCheck prop_party_categories),
          ("party_contacts" :: String, quickCheck prop_party_contacts),
-         ("account_valid" :: String, quickCheck prop_valid_account)]
+         ("account_valid" :: String, quickCheck prop_valid_account),
+         ("journal_valid" :: String, quickCheck prop_valid_journal)]
 
 prop_currency  = Co.validCurrencies 
 prop_company_time  = Co.validHours 
@@ -131,3 +132,4 @@ prop_party_categories  = Co.validCategories
 prop_party_contacts  = Co.validContacts 
 
 prop_valid_account = Ac.validAccount 
+prop_valid_journal = Ac.validJournal

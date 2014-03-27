@@ -8,7 +8,7 @@ module Account (
     CreditAccount,
     DebitAccount,
     JournalType(..),
-    Journal, createJournal,
+    Journal, createJournal,validJournal,
     DisplayView,
     Move,
     MoveLine,
@@ -118,7 +118,14 @@ createJournal aName aCode active view updatePosted taxes jType defaultDebitAccou
             Journal aName aCode active view updatePosted [] jType defaultDebitAccount defaultCreditAccount
         where 
             jObject = Journal aName aCode active view updatePosted taxes jType defaultDebitAccount defaultCreditAccount
-    
+validJournal :: Journal -> Bool
+validJournal aJournal = 
+    case journalType aJournal of
+        Expense -> taxes aJournal /= [] 
+        Revenue -> taxes aJournal /= []
+        _       -> taxes aJournal == []
+
+
 data MoveState  = Draft | Posted 
     deriving (Show, Typeable, Generic, Eq, Ord)
 data Move = Move {
