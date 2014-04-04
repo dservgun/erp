@@ -32,18 +32,18 @@ instance Arbitrary Co.Category where
     arbitrary = do
         name <- arbitrary
         return $ Co.Category name
-        
+
 instance Arbitrary Pr.UOMCategory where
     arbitrary = do
             name <- arbitrary
             cat <- arbitrary
             return (Pr.createUOMCategory name cat)
-            
+
 instance Arbitrary Co.ContactType where
-    arbitrary = elements [Co.Phone 
-                    , Co.Mobile 
-                    , Co.Fax, Co.Email 
-                    , Co.Website 
+    arbitrary = elements [Co.Phone
+                    , Co.Mobile
+                    , Co.Fax, Co.Email
+                    , Co.Website
                     , Co.Skype
                     , Co.SIP
                     , Co.IRC
@@ -51,9 +51,9 @@ instance Arbitrary Co.ContactType where
 instance Arbitrary Co.Contact where
     arbitrary = do
         contactType <- arbitrary
-        value <- arbitrary 
+        value <- arbitrary
         return $ Co.Contact contactType value
-        
+
 instance Arbitrary Co.Party where
     arbitrary = do
         name <- arbitrary
@@ -64,18 +64,18 @@ instance Arbitrary Co.Party where
         vcard <- arbitrary
         alternateCategories <- orderedList
         alternatePocs <- orderedList
-        return $ Co.createParty name addresses mapLocation poc primaryCategory vcard 
+        return $ Co.createParty name addresses mapLocation poc primaryCategory vcard
             (S.fromList alternateCategories) (S.fromList alternatePocs)
- 
--- How do we enforce the rate and factor relationship?  
- 
+
+-- How do we enforce the rate and factor relationship?
+
 instance Arbitrary Pr.UOM where
     arbitrary = do
         name <- arbitrary
         symbol <- arbitrary
-        category <- arbitrary 
-        num <- suchThat arbitrary (/= 0) 
-        denom <- suchThat arbitrary (/= 0) 
+        category <- arbitrary
+        num <- suchThat arbitrary (/= 0)
+        denom <- suchThat arbitrary (/= 0)
         rounding <- arbitrary
         displayDigits <- arbitrary
         uActive <- arbitrary
@@ -83,10 +83,10 @@ instance Arbitrary Pr.UOM where
 
 instance Arbitrary Cu.Currency where
       arbitrary = elements [
-            Cu.Currency "AUD", 
-            Cu.Currency "USD", 
-            Cu.Currency "GBP", 
-            Cu.Currency "ROU", 
+            Cu.Currency "AUD",
+            Cu.Currency "USD",
+            Cu.Currency "GBP",
+            Cu.Currency "ROU",
             Cu.Currency "TST"]
 
 instance Arbitrary Pr.Price where
@@ -102,7 +102,7 @@ instance Arbitrary Co.Latitude where
         seconds <- arbitrary
         lDirec <- elements[Co.North, Co.South]
         return $ Co.createLatitude degrees minutes seconds lDirec
-        
+
 instance Arbitrary Co.Longitude where
     arbitrary = do
         degrees <- arbitrary
@@ -129,7 +129,7 @@ instance Arbitrary Co.Company where
         alternateCurrencies <- orderedList
         productSet <- orderedList
         return (Co.createCompany party currency (S.fromList alternateCurrencies) (S.fromList productSet))
-        
+
 instance Arbitrary Co.CompanyWorkTime where
     arbitrary = do
         company <- arbitrary
@@ -144,20 +144,20 @@ instance Arbitrary Ac.Batch where
         time <- arbitrary
         id <- arbitrary
         return $ Ac.createBatch time id
-instance Arbitrary Ac.Account where 
+instance Arbitrary Ac.Account where
     arbitrary = do
         name <- arbitrary
         code <- arbitrary
         company <- arbitrary
         currency <- arbitrary
         altCurrency <- suchThat arbitrary (/= currency)
-        kind <- elements [Ac.Payable, Ac.Receivable, Ac.AkExpense, Ac.AkRevenue, Ac.View, Ac.Other]        
+        kind <- elements [Ac.Payable, Ac.Receivable, Ac.AkExpense, Ac.AkRevenue, Ac.View, Ac.Other]
         acType <- elements[Ac.IncomeStatement, Ac.BalanceSheet, Ac.DisplayBalance]
         deferral <- arbitrary
         reconcile <- arbitrary
-        note <- arbitrary             
-        return $ Ac.createAccount name code company currency 
-                    kind acType deferral altCurrency reconcile note 
+        note <- arbitrary
+        return $ Ac.createAccount name code company currency
+                    kind acType deferral altCurrency reconcile note
 
 instance Arbitrary Ac.Journal where
     arbitrary = do
@@ -170,7 +170,7 @@ instance Arbitrary Ac.Journal where
         journalType <- elements [Ac.General, Ac.Revenue, Ac.Situation, Ac.Expense, Ac.Cash]
         defaultDebitAccount <- arbitrary
         defaultCreditAccount <- arbitrary
-       
+
         return $ Ac.createJournal name code active view updatePosted taxes journalType defaultDebitAccount defaultCreditAccount
 
 instance Arbitrary Ac.TaxCode where
@@ -204,19 +204,14 @@ instance Arbitrary Ac.Tax where
         creditNoteSign <- arbitrary
         creditNoteTaxCode <- arbitrary
         creditNoteTaxSign <- arbitrary
-        return $ Ac.createTax tName tCode description active 
+        return $ Ac.createTax tName tCode description active
                 sequence
                 taxType
-                taxAmount
                 taxCompany
                 invoiceAccount
                 creditNoteAccount
-                invoiceBaseTaxCode
-                invoiceBaseSign
-                invoiceTaxCode
-                invoiceTaxSign
-                creditNoteBase
-                creditNoteSign
-                creditNoteTaxCode
-                creditNoteTaxSign
-                
+                (invoiceBaseTaxCode, invoiceBaseSign)
+                (invoiceTaxCode, invoiceTaxSign)
+                (creditNoteBase, creditNoteSign)
+                (creditNoteTaxCode, creditNoteTaxSign)
+

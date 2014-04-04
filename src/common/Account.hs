@@ -34,6 +34,7 @@ import Data.Acid.Remote
 import Data.SafeCopy
 import Data.Typeable
 import Data.Data
+import qualified Data.Set as S
 import qualified Data.Map as M
 import qualified Data.Tree as Tr
 import qualified Data.Aeson as J
@@ -50,7 +51,7 @@ data InvalidAccountException = InvalidAccountException deriving(Show, Typeable, 
 
 instance Exception InvalidAccountException
 type Name = String
-type Code = String 
+type Code = String
 type Boolean = Bool
 type Lot = String
 type TimeSpent = Float
@@ -65,7 +66,7 @@ data Account = Account {
         code :: Code,
         aCompany :: Co.Company,
         currency :: Cu.Currency,
-        kind :: AccountKind,
+        acKind :: AccountKind,
         acType :: AccountType,
         deferral :: Boolean,
         altCurrency :: Cu.Currency,
@@ -75,20 +76,37 @@ data Account = Account {
 type DebitAccount = Account
 type CreditAccount = Account
 type DisplayView = String
-createAccount :: Name -> Code -> Co.Company -> Cu.Currency -> AccountKind 
+debit :: Account -> Bool
+debit anAccount =
+    let accType = acKind anAccount in
+    case accType of
+        Payable -> True
+        AkExpense -> True
+        Receivable -> False
+        AkRevenue -> False
+        _ -> False
+credit anAccount =
+    let
+        accType = acKind anAccount in
+        case accType of
+            Receivable -> True
+            AkRevenue -> True
+            _         -> False
+
+createAccount :: Name -> Code -> Co.Company -> Cu.Currency -> AccountKind
             -> AccountType -> Boolean -> Cu.Currency
             -> Boolean -> String -> Account
 createAccount aName aCode aCompany aCurrency aKind
-    aType deferral altCurrency 
-    reconcile note = 
-        if altCurrency /= aCurrency then    
+    aType deferral altCurrency
+    reconcile note =
+        if altCurrency /= aCurrency then
             Account aName aCode aCompany aCurrency aKind aType deferral altCurrency reconcile note
         else
             throw InvalidAccountException
 validAccount :: Account -> Bool
 validAccount  = (\x -> currency x /= altCurrency x)
 
-data JournalType = General | Revenue | Situation | Expense 
+data JournalType = General | Revenue | Situation | Expense
         | Cash
         deriving (Show, Typeable, Generic, Eq, Ord)
 data Journal = Journal {
@@ -102,31 +120,36 @@ data Journal = Journal {
     -- if the user create a line linked to the current account
     -- and if the journal type is Expense or Revenue
     -- The above requirement is a bit too complicated
-    -- Note: Need to refactor the requirement to make 
+    -- Note: Need to refactor the requirement to make
     -- it clearer.
     taxes :: [Tax],
     journalType :: JournalType,
     defaultDebitAccount :: DebitAccount,
-    defaultCreditAccount :: CreditAccount}
+    defaultCreditAccount :: CreditAccount,
+    moves :: S.Set Move}
     deriving (Show, Typeable, Generic, Eq, Ord)
 createJournal :: Name -> Code -> Bool -> DisplayView -> Bool -> [Tax] -> JournalType -> DebitAccount -> CreditAccount -> Journal
 createJournal aName aCode active view updatePosted taxes jType defaultDebitAccount defaultCreditAccount =
-    case jType of 
+    case jType of
         Expense -> jObject
         Revenue -> jObject
-        _ -> 
-            Journal aName aCode active view updatePosted [] jType defaultDebitAccount defaultCreditAccount
-        where 
-            jObject = Journal aName aCode active view updatePosted taxes jType defaultDebitAccount defaultCreditAccount
+        _ ->
+            Journal aName aCode active view updatePosted [] jType
+                defaultDebitAccount defaultCreditAccount S.empty
+        where
+            jObject = Journal
+                aName aCode active view updatePosted taxes jType
+                defaultDebitAccount
+                defaultCreditAccount S.empty
 validJournal :: Journal -> Bool
-validJournal aJournal = 
+validJournal aJournal =
     case journalType aJournal of
-        Expense -> taxes aJournal /= [] 
+        Expense -> taxes aJournal /= []
         Revenue -> taxes aJournal /= []
         _       -> taxes aJournal == []
 
 
-data MoveState  = Draft | Posted 
+data MoveState  = Draft | Posted
     deriving (Show, Typeable, Generic, Eq, Ord)
 data Move = Move {
     mName :: Name,
@@ -135,9 +158,28 @@ data Move = Move {
     journal :: Journal,
     effectiveDate :: UTCTime,
     postDate ::  UTCTime,
-    mState :: MoveState}
+    mState :: MoveState,
+    moveLines :: S.Set MoveLine}
     deriving (Show, Typeable, Generic, Eq, Ord)
 
+creditMoves :: Move -> S.Set MoveLine
+creditMoves aMove =
+    let lines = moveLines aMove in
+    S.filter (\x -> credit $ account x) lines
+debitMoves :: Move -> S.Set MoveLine
+debitMoves aMove =
+    let lines = moveLines aMove in
+    S.filter (\x -> debit $ account x) lines
+
+postedMove :: Move -> Bool
+postedMove aMove =
+    let
+        creds = creditMoves aMove
+        debits = debitMoves aMove
+        creditSum = S.foldr' (\m acc -> acc + (mlAmount m)) 0 creds
+        debitSum = S.foldr' (\m acc -> acc + (mlAmount m)) 0 debits
+    in
+        debitSum - creditSum == 0
 data MoveLineState = MlDraft | MlPosted | MlValid
     deriving (Show, Typeable, Generic, Eq, Ord, Enum, Bounded)
 data MoveLine = MoveLine {
@@ -156,9 +198,9 @@ data MoveLine = MoveLine {
 {-- XXX: This distribution is a list of amount lines on the account chart ??--}
 {-- This is the list of amounts for all the auto-complete taxes for the account --}
 type Distribution = [(Tax, Amount)]
-data Sign = Positive | Negative 
+data Sign = Positive | Negative
         deriving (Show, Typeable, Generic, Eq , Ord, Enum, Bounded)
-type Amount = Float 
+type Amount = Float
 type Quantity = Float
 data TaxCode = TaxCode {
     tcName :: Name,
@@ -168,11 +210,16 @@ data TaxCode = TaxCode {
     tcParent :: TaxCode,
     sum :: Amount} deriving (Show, Typeable, Generic, Eq, Ord)
 createTaxCode :: Name -> Code -> Boolean -> Co.Company -> TaxCode -> Amount -> TaxCode
-createTaxCode = TaxCode 
+createTaxCode = TaxCode
 
 type Sequence = String
 data TaxType = PercentTaxType Float | FixedTaxType Float
     deriving (Show, Typeable, Generic, Eq, Ord)
+{--
+Refactoring note: credit note account
+and invoice account repeat fields.
+--}
+type AccountCode = (Account, Sign)
 data Tax = Tax {
  tName :: Name,
  tCode :: Code,
@@ -180,39 +227,52 @@ data Tax = Tax {
  tActive :: Boolean,
  sequence ::Sequence,
  taxType :: TaxType,
- taxAmount :: TaxAmount,
  taxCompany :: Co.Company,
  invoiceAccount :: Account,
  creditNoteAccount :: Account,
- invoiceBaseCode :: TaxCode,
- invoiceBaseSign :: Sign,
- invoiceTaxCode :: TaxCode,
- invoiceTaxSign :: Sign,
- creditNoteBaseCode :: TaxCode,
- creditNoteBaseSign :: Sign,
- creditNoteTaxCode :: TaxCode,
- creditNoteTaxSign :: Sign}
+ invoiceBaseCode :: AccountCode,
+ invoiceTaxCode :: AccountCode,
+ creditNoteBaseCode :: AccountCode,
+ creditNoteTaxCode :: AccountCode
+ }
     deriving(Show, Typeable, Generic, Eq, Ord)
-createTax :: Name -> Code -> String -> Boolean -> Sequence -> TaxType -> TaxAmount -> Co.Company
+createTax :: Name -> Code -> String -> Boolean -> Sequence -> TaxType -> Co.Company
             -> Account -> Account
-            -> TaxCode -> Sign
-            -> TaxCode -> Sign
-            -> TaxCode -> Sign
-            -> TaxCode -> Sign -> Tax
+            -> AccountCode
+            -> AccountCode
+            -> AccountCode
+            -> AccountCode -> Tax
 createTax = Tax
+validTax :: Tax -> Bool
+validTax aTax = validTaxType (taxType aTax)
+           && (invoiceAccount aTax /= creditNoteAccount aTax)
 
-type TaxTree = Tr.Tree Tax 
-data TaxAmount = Fixed Float | Percentage Float | BasisPoints Float 
+
+{--
+What does a fixed tax type mean: Would it be possible for
+a fixed tax amount to ever be greater than the amount the
+tax is being applied on?
+--}
+
+validTaxType :: TaxType -> Bool
+validTaxType = \taxType ->
+    case taxType of
+        PercentTaxType anAmount -> anAmount > 0.0 && anAmount < 100.00
+        FixedTaxType anAmount -> True
+
+
+type TaxTree = Tr.Tree Tax
+data TaxAmount = Fixed Float | Percentage Float | BasisPoints Float
     deriving(Show, Typeable, Generic, Eq, Ord)
- 
+
 computeTaxAmount:: Amount -> TaxAmount -> Amount
-computeTaxAmount a t = 
+computeTaxAmount a t =
     case t of
     Fixed aNumber -> a + aNumber
     Percentage pct -> a *  (1 + pct/100)
     BasisPoints bps -> a * (1 + bps/ 10000)
-    
-data Procedure = Proceure String deriving (Show, Typeable, Generic, Eq, Ord)
+
+data Procedure = Procedure String deriving (Show, Typeable, Generic, Eq, Ord)
 type Day = Int
 data Level = Level Day deriving (Show, Typeable, Generic, Eq, Ord)
 data DunningState = DDraft | DDone deriving (Show, Typeable, Generic, Eq, Ord, Enum, Bounded)
@@ -222,7 +282,7 @@ data Batch = Batch {
                 batchID :: BatchID }
                 deriving (Show, Typeable, Generic, Eq, Ord)
 
-createBatch :: UTCTime -> BatchID -> Batch                
+createBatch :: UTCTime -> BatchID -> Batch
 createBatch = Batch
 
 createNewBatch anId = do
@@ -243,16 +303,16 @@ printDunningLetter = L.pack . show
 
 getAccountTypes = map(\x -> (L.pack (show x),x)) ([minBound..maxBound]::[AccountType])
 {--
-computing inventory costs by FIFO method, 
+computing inventory costs by FIFO method,
 apparently LIFO is a US tax haven.
 The FIFO works as follows:
-Date No. Units Price 
+Date No. Units Price
 d1 100          1
 d2 200          10
 d3 300          11
 
 Number of units sold:
-d4 20           
+d4 20
 d5 140
 d6 100
 
@@ -260,6 +320,11 @@ cost of d4 is 20 * 1
 cost d5 is (80 * 1 + 60 * 10)
 cost d6 is (100 * 10)
 inventory cost between a period needs to adjust the journal accordingly
+
+The above algorithm is a general information, to keep the audits simple,
+purchases and sales are part of a batch and the inventory
+is the difference between sales for a batch and purchases for the same
+batch.
 --}
 
 
@@ -271,11 +336,11 @@ instance J.FromJSON DunningState
 instance J.ToJSON Procedure
 instance J.FromJSON Procedure
 instance J.ToJSON Level
-instance J.FromJSON Level        
+instance J.FromJSON Level
 instance J.ToJSON JournalType
 instance J.FromJSON JournalType
 instance J.ToJSON Journal
-instance J.FromJSON Journal        
+instance J.FromJSON Journal
 instance J.ToJSON Account
 instance J.FromJSON Account
 instance J.ToJSON Tax
@@ -308,7 +373,7 @@ $(deriveSafeCopy 0 'base ''Procedure)
 $(deriveSafeCopy 0 'base ''Level)
 $(deriveSafeCopy 0 'base ''JournalType)
 $(deriveSafeCopy 0 'base ''Journal)
-$(deriveSafeCopy 0 'base ''Account)    
+$(deriveSafeCopy 0 'base ''Account)
 $(deriveSafeCopy 0 'base ''Tax)
 $(deriveSafeCopy 0 'base ''AccountType)
 $(deriveSafeCopy 0 'base ''AccountKind)
@@ -325,6 +390,6 @@ $(deriveSafeCopy 0 'base ''Batch)
 
 
 
-                 
-                 
-                 
+
+
+
