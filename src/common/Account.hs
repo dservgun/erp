@@ -46,7 +46,7 @@ import qualified Currency as Cu
 import Entity(EntityState)
 import qualified FiscalYear as Fy
 import qualified Company as Co
-
+import qualified Data.Ratio as R
 data InvalidAccountException = InvalidAccountException deriving(Show, Typeable, Generic, Data, Eq, Ord)
 
 instance Exception InvalidAccountException
@@ -148,7 +148,7 @@ validJournal aJournal =
         Revenue -> taxes aJournal /= []
         _       -> taxes aJournal == []
 
-
+type ReferenceNumber = String
 data MoveState  = Draft | Posted
     deriving (Show, Typeable, Generic, Eq, Ord)
 data Move = Move {
@@ -159,9 +159,16 @@ data Move = Move {
     effectiveDate :: UTCTime,
     postDate ::  UTCTime,
     mState :: MoveState,
+    moveRefNumber :: ReferenceNumber,
     moveLines :: S.Set MoveLine}
     deriving (Show, Typeable, Generic, Eq, Ord)
 
+post :: Move -> UTCTime -> ReferenceNumber -> Move
+post aMove aDate aRef =
+    if balancedMove aMove aDate then
+        aMove {postDate = aDate, mState = Posted, moveRefNumber = aRef}
+    else
+        aMove
 creditMoves :: Move -> S.Set MoveLine
 creditMoves aMove =
     let lines = moveLines aMove in
@@ -171,8 +178,8 @@ debitMoves aMove =
     let lines = moveLines aMove in
     S.filter (\x -> debit $ account x) lines
 
-postedMove :: Move -> Bool
-postedMove aMove =
+balancedMove :: Move -> UTCTime -> Bool
+balancedMove aMove postDate =
     let
         creds = creditMoves aMove
         debits = debitMoves aMove
@@ -189,7 +196,8 @@ data MoveLine = MoveLine {
     account :: Account,
     move :: Move,
     mlState :: MoveLineState,
-    secondCurrency :: Cu.Currency,
+    secondCurrency :: (Cu.Currency, Amount),
+    -- Maturity date is the limit date for the payment
     maturityDate :: UTCTime,
     reconciliation :: Maybe Integer,
     taxLines :: [Distribution]}
@@ -200,8 +208,8 @@ data MoveLine = MoveLine {
 type Distribution = [(Tax, Amount)]
 data Sign = Positive | Negative
         deriving (Show, Typeable, Generic, Eq , Ord, Enum, Bounded)
-type Amount = Float
-type Quantity = Float
+type Amount = R.Ratio Integer
+type Quantity = R.Ratio Integer
 data TaxCode = TaxCode {
     tcName :: Name,
     tcCode :: Code,
@@ -248,11 +256,6 @@ validTax aTax = validTaxType (taxType aTax)
            && (invoiceAccount aTax /= creditNoteAccount aTax)
 
 
-{--
-What does a fixed tax type mean: Would it be possible for
-a fixed tax amount to ever be greater than the amount the
-tax is being applied on?
---}
 
 validTaxType :: TaxType -> Bool
 validTaxType = \taxType ->
@@ -262,7 +265,15 @@ validTaxType = \taxType ->
 
 
 type TaxTree = Tr.Tree Tax
-data TaxAmount = Fixed Float | Percentage Float | BasisPoints Float
+
+{--
+What does a fixed tax amount mean: Would it be possible for
+a fixed tax amount to ever be greater than the amount the
+tax is being applied on?
+This tax is sort of regressive.
+--}
+data TaxAmount = Fixed (R.Ratio Integer) | Percentage (R.Ratio Integer)
+        | BasisPoints (R.Ratio Integer)
     deriving(Show, Typeable, Generic, Eq, Ord)
 
 computeTaxAmount:: Amount -> TaxAmount -> Amount
