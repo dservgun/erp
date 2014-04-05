@@ -15,7 +15,7 @@ import Control.Concurrent.Async(async, wait, cancel)
 import Data.Text (Text)
 import qualified Data.Set as S
 import qualified Data.Text as T
-import qualified Data.Text.IO as T
+import qualified Data.Text.IO as Tio
 import Data.Time.Clock
 import Data.DateTime
 import qualified Network.WebSockets as WS
