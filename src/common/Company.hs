@@ -1,5 +1,5 @@
-module Company (createCompany, validCurrencies, 
-    Company, 
+module Company (createCompany, validCurrencies,
+    Company,
     Employee,
     Category(..),
     SupplierReference,
@@ -8,11 +8,11 @@ module Company (createCompany, validCurrencies,
     findCompany,
     DuplicateCompaniesFound,
     Percent,
-    Day, 
+    Day,
     PaymentTerm,
     CompanyReport,
     Degrees, Minutes, Seconds, InvalidCoordinates,
-    LatDirection(..), 
+    LatDirection(..),
     LongDirection(..),
     Latitude, createLatitude,
     Longitude, createLongitude,
@@ -55,11 +55,11 @@ data DuplicateCompaniesFound = DuplicateCompaniesFound deriving (Show, Generic, 
 instance Exception CompanyNotFound
 instance Exception DuplicateCompaniesFound
 type Percent = Float
-data Day = CalendarDays Int | BusinessDays Int 
+data Day = CalendarDays Int | BusinessDays Int
     deriving(Show, Data, Typeable, Generic, Eq, Ord)
 data PaymentTerm = NetDays (Day, Percent)
     deriving (Show, Data, Typeable, Generic, Eq, Ord)
-    
+
 data Category = Category {category :: String}
     deriving(Show, Data, Typeable, Generic, Eq, Ord)
 data Header = Header String
@@ -79,35 +79,35 @@ instance Eq Company where
     a == b = party a == party b
 
 createCompany :: Party -> Cu.Currency -> S.Set Cu.Currency -> S.Set Pr.Product
-    -> Company 
-createCompany aParty aCurrency alternateCurrencies products = 
-    let 
-        result = Company aParty aCurrency (S.fromList []) products (M.fromList 
+    -> Company
+createCompany aParty aCurrency alternateCurrencies products =
+    let
+        result = Company aParty aCurrency (S.fromList []) products (M.fromList
              (map (\x -> (show x, 0)) (S.elems products)))
     in
         S.fold addAlternateCurrencies result alternateCurrencies
 
-resetCounter aCompany aProduct  = 
+resetCounter aCompany aProduct  =
     aCompany {productBatchId = M.insert (show aProduct) 0 (productBatchId aCompany)}
-incrementCounter aCompany aProduct = M.adjust ( + 1) (show aProduct) (productBatchId aCompany) 
+incrementCounter aCompany aProduct = M.adjust ( + 1) (show aProduct) (productBatchId aCompany)
 
-setPrimaryCurrency aCurrency aCompany = 
+setPrimaryCurrency aCurrency aCompany =
         if currencyExists aCurrency aCompany then
             aCompany
         else
             aCompany {currency = aCurrency}
 
-addAlternateCurrencies :: Cu.Currency -> Company -> Company            
-addAlternateCurrencies aCurrency aCompany = 
+addAlternateCurrencies :: Cu.Currency -> Company -> Company
+addAlternateCurrencies aCurrency aCompany =
     if aCurrency == currency aCompany then
         aCompany
     else
-        aCompany {alternateCurrencies = S.insert aCurrency (alternateCurrencies aCompany)}  
-currencyExists :: Cu.Currency -> Company -> Bool        
+        aCompany {alternateCurrencies = S.insert aCurrency (alternateCurrencies aCompany)}
+currencyExists :: Cu.Currency -> Company -> Bool
 currencyExists aCurrency aCompany = (aCurrency == currency aCompany)
                         || (S.member aCurrency $ alternateCurrencies aCompany)
 
-validCurrencies aCompany = S.notMember (currency aCompany) (alternateCurrencies aCompany)                        
+validCurrencies aCompany = S.notMember (currency aCompany) (alternateCurrencies aCompany)
 addProduct :: Company -> Pr.Product -> Company
 addProduct aCompany aProduct = aCompany {productSet = S.insert aProduct (productSet aCompany)}
 removeAlternateCurrency aCurrency aCompany = aCompany {alternateCurrencies = S.filter ( /= aCurrency) (alternateCurrencies aCompany) }
@@ -118,11 +118,11 @@ data CompanyReport = CompanyReport {fiscalYear :: Fy.FiscalYear,
                                     footer :: Footer,
                                     publishDate :: UTCTime}
                         deriving (Show, Data, Typeable,Generic)
-                        
+
 type URI = String
 findCompany :: Party -> S.Set Company -> Maybe Company
-findCompany aParty aCompanySet = 
-    let 
+findCompany aParty aCompanySet =
+    let
         result = S.filter (\x -> party x == aParty) aCompanySet
     in
         if S.null result then
@@ -133,73 +133,73 @@ findCompany aParty aCompanySet =
                 h:[t] -> throw DuplicateCompaniesFound
              where
                 elems aSet = S.elems aSet
-            
+
 
 type Degrees = Integer
 type Minutes = Integer
-type Seconds = Integer            
+type Seconds = Integer
 data LatDirection = North | South deriving (Show, Data, Typeable, Generic, Eq, Ord)
 data LongDirection = East | West deriving (Show, Data, Typeable, Generic, Eq, Ord)
 data CoordinateUnit = CoordinateUnit {degrees :: Degrees,
                         minutes :: Minutes,
                         seconds :: Seconds}
                     deriving (Show, Data, Typeable, Generic, Eq, Ord)
-                    
-data Latitude = Latitude { lat :: CoordinateUnit, 
+
+data Latitude = Latitude { lat :: CoordinateUnit,
                            latDirection :: LatDirection}
                 deriving (Show, Typeable, Data, Generic, Eq, Ord)
-                
+
 invalid :: Degrees -> Bool
 invalid a = a < 0 || a > 60
 data InvalidCoordinates = InvalidCoordinates deriving (Show, Data, Typeable, Generic, Eq, Ord)
 instance Exception InvalidCoordinates
 
 createLatitude :: Degrees -> Minutes -> Seconds -> LatDirection -> Latitude
-createLatitude d m s dir= 
+createLatitude d m s dir=
     if (invalid d || invalid m || invalid s) then
         throw InvalidCoordinates
     else
         Latitude (CoordinateUnit d m s) dir
-      
+
 data Longitude = Longitude { longitude :: CoordinateUnit,
                             longDirection :: LongDirection}
     deriving (Show, Data, Typeable, Generic, Eq, Ord)
 
 createLongitude :: Degrees -> Minutes -> Seconds -> LongDirection -> Longitude
-createLongitude d m s dir = 
+createLongitude d m s dir =
     if invalid d || invalid m || invalid s then
         throw InvalidCoordinates
     else
         Longitude (CoordinateUnit d m s) dir
-        
-data Coordinate = Coordinate { x :: Latitude, y :: Longitude} 
+
+data Coordinate = Coordinate { x :: Latitude, y :: Longitude}
     deriving (Show, Typeable, Data, Generic, Eq, Ord)
 createCoordinate :: Latitude -> Longitude -> Coordinate
 createCoordinate = Coordinate
-    
-data GeoLocation = GeoLocation{ uri :: URI, 
+
+data GeoLocation = GeoLocation{ uri :: URI,
                                 position :: Coordinate}
                         deriving (Show, Data, Typeable, Generic, Eq, Ord)
 createGeoLocation :: URI -> Coordinate -> GeoLocation
 createGeoLocation = GeoLocation
-type VCard = String  
-type Address = String                      
+type VCard = String
+type Address = String
 data Party = Party {name :: String,
                     address :: Address,
                     maplocation :: GeoLocation,
                     poc        :: Contact,
                     primaryCategory :: Category,
-                    vcard :: VCard, 
+                    vcard :: VCard,
                     alternateCategories :: S.Set Category,
                     alternatePocs :: S.Set Contact
                     }
                     deriving (Show, Data, Typeable,Generic, Eq, Ord)
 type Name = String
 
-createParty :: Name -> Address -> GeoLocation -> Contact -> Category 
+createParty :: Name -> Address -> GeoLocation -> Contact -> Category
                     -> VCard -> S.Set Category -> S.Set Contact -> Party
 createParty name add loc contact cat vc categories contacts =
-    let 
+    let
         result = Party { name = name,
                         address = add,
                         maplocation = loc,
@@ -207,13 +207,13 @@ createParty name add loc contact cat vc categories contacts =
                         primaryCategory = cat,
                         vcard = vc,
                         alternateCategories = S.fromList [],
-                        alternatePocs = S.fromList[]} 
+                        alternatePocs = S.fromList[]}
         result2 = S.fold addAlternateCategories result categories
     in
         S.fold addAlternatePocs result2 contacts
 
 addAlternateCategories :: Category -> Party -> Party
-addAlternateCategories aCategory aParty =  
+addAlternateCategories aCategory aParty =
     if categoryExists aParty aCategory then
         aParty
     else
@@ -232,21 +232,21 @@ categoryExists aParty aCat =
     || (S.member aCat(alternateCategories aParty))
 
 addAlternatePocs :: Contact -> Party -> Party
-addAlternatePocs aContact aParty = 
+addAlternatePocs aContact aParty =
     if contactExists aParty aContact then
         aParty
     else
         aParty {alternatePocs = S.insert aContact (alternatePocs aParty)}
 
 setPOC:: Party -> Contact -> Party
-setPOC aParty aContact = 
+setPOC aParty aContact =
     if contactExists aParty aContact then
         aParty
     else
         aParty {poc = aContact}
 contactExists :: Party -> Contact -> Bool
 contactExists aParty aContact =
-    (aContact == (poc aParty)) 
+    (aContact == (poc aParty))
     || (S.member aContact (alternatePocs aParty))
 
 validContacts :: Party -> Bool
@@ -254,27 +254,27 @@ validContacts aParty = S.notMember (poc aParty) (alternatePocs aParty)
 validCategories :: Party -> Bool
 validCategories aParty = S.notMember (primaryCategory aParty) (alternateCategories aParty)
 
-data ContactType = Phone | Mobile | Fax | Email | Website | 
+data ContactType = Phone | Mobile | Fax | Email | Website |
                     Skype |
                     SIP |
                     IRC |
                     Jabber
                     deriving (Enum, Bounded, Show, Typeable,Data, Generic, Eq, Ord)
-                    
-                    
-data Contact = Contact {contactType :: ContactType, 
+
+
+data Contact = Contact {contactType :: ContactType,
                         value :: String}
                     deriving(Show, Data, Typeable,Generic, Eq, Ord)
-data Employee = Employee {employeeDetails :: Party, employeeCompany :: Company}                    
+data Employee = Employee {employeeDetails :: Party, employeeCompany :: Company}
                     deriving (Show, Typeable, Generic, Eq, Ord)
-data User = User {mainCompany :: Company, 
+data User = User {mainCompany :: Company,
                   userCompany :: Company,
                   userEmployee :: Employee}
                   deriving (Show, Typeable, Generic, Eq, Ord)
 type HoursPerDay = Int
 type DaysPerWeek = Int
 type WeeksPerMonth = Int
-type MonthsPerYear = Int                  
+type MonthsPerYear = Int
 data CompanyWorkTime = CompanyWorkTime {
             workTime:: Company,
             hoursPerDay :: HoursPerDay,
@@ -288,11 +288,11 @@ instance Exception InvalidWorkTime
 
 createCompanyWorkTime :: Company -> HoursPerDay -> DaysPerWeek -> WeeksPerMonth -> MonthsPerYear -> CompanyWorkTime
 createCompanyWorkTime aCompany hoursPerDay daysPerWeek weeksPerMonth monthsPerYear =
-    if invalidHoursPerDay hoursPerDay || 
-        invalidDaysPerWeek daysPerWeek || 
+    if invalidHoursPerDay hoursPerDay ||
+        invalidDaysPerWeek daysPerWeek ||
         invalidWeeksPerMonth weeksPerMonth ||
         invalidMonthsPerYear monthsPerYear then
-        CompanyWorkTime aCompany 8 5 5 12 -- some defaults?? 
+        CompanyWorkTime aCompany 8 5 5 12 -- some defaults??
     else
         CompanyWorkTime aCompany hoursPerDay daysPerWeek weeksPerMonth monthsPerYear
 invalidHoursPerDay :: Int -> Bool
@@ -306,7 +306,7 @@ invalidWeeksPerMonth aNumber = aNumber < 0 || aNumber > 5
 
 invalidMonthsPerYear :: Int -> Bool
 invalidMonthsPerYear aNumber = aNumber < 0 || aNumber > 12
-        
+
 type Hours = Int
 totalDays :: CompanyWorkTime -> Hours
 totalDays aCompanyWorkTime = (hoursPerDay aCompanyWorkTime) * (daysPerWeek aCompanyWorkTime) *(weeksPerMonth  aCompanyWorkTime) * (monthsPerYear  aCompanyWorkTime)
@@ -323,15 +323,15 @@ instance J.FromJSON LatDirection
 instance J.ToJSON LongDirection
 instance J.FromJSON LongDirection
 instance J.ToJSON Coordinate
-instance J.FromJSON Coordinate                
+instance J.FromJSON Coordinate
 instance J.ToJSON CoordinateUnit
 instance J.FromJSON CoordinateUnit
 instance J.ToJSON CompanyWorkTime
-instance J.FromJSON CompanyWorkTime            
+instance J.FromJSON CompanyWorkTime
 instance J.ToJSON User
-instance J.FromJSON User                  
+instance J.FromJSON User
 instance J.ToJSON Employee
-instance J.FromJSON Employee                        
+instance J.FromJSON Employee
 instance J.ToJSON Company
 instance J.FromJSON Company
 instance J.ToJSON Contact
@@ -373,4 +373,4 @@ $(deriveSafeCopy 0 'base ''PaymentTerm)
 $(deriveSafeCopy 0 'base ''Day)
 getContactTypes = map(\x -> (L.pack (show x),x)) ([minBound..maxBound]::[ContactType])
 
-                
+

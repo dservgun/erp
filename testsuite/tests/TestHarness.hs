@@ -83,11 +83,11 @@ instance Arbitrary Pr.UOM where
 
 instance Arbitrary Cu.Currency where
       arbitrary = elements [
-            Cu.Currency "AUD",
-            Cu.Currency "USD",
-            Cu.Currency "GBP",
-            Cu.Currency "ROU",
-            Cu.Currency "TST"]
+            Cu.createCurrency "AUD",
+            Cu.createCurrency "USD",
+            Cu.createCurrency "GBP",
+            Cu.createCurrency "ROU",
+            Cu.createCurrency "TST"]
 
 instance Arbitrary Pr.Price where
      arbitrary = do
@@ -102,7 +102,6 @@ instance Arbitrary Co.Latitude where
         seconds <- arbitrary
         lDirec <- elements[Co.North, Co.South]
         return $ Co.createLatitude degrees minutes seconds lDirec
-
 instance Arbitrary Co.Longitude where
     arbitrary = do
         degrees <- arbitrary

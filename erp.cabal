@@ -18,10 +18,10 @@ Category: Business Application
 
 Build-type: Simple
 
-cabal-version : >= 1.16
+cabal-version : >= 1.14
 extra-source-files: testsuite/tests/TestRunner.hs
 
-library      
+library
   GHC-options: -fhpc
   default-language: Haskell2010
   build-depends: base, acid-state, websockets, mtl,
@@ -97,18 +97,18 @@ executable erp_ui
      , DataKinds
      , DeriveGeneric
      , NoMonomorphismRestriction
-     
+
 Test-suite tests
   Type: exitcode-stdio-1.0
-  
+
   default-language: Haskell2010
-  Hs-source-dirs: testsuite/tests                    
+  Hs-source-dirs: testsuite/tests
   Main-is: TestRunner.hs
   default-extensions: OverloadedStrings, CPP
      , DeriveDataTypeable
      , TypeFamilies
      , TemplateHaskell
-     , TypeSynonymInstances  
+     , TypeSynonymInstances
      , FlexibleInstances
      , DataKinds
      , DeriveGeneric
