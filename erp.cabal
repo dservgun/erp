@@ -48,7 +48,7 @@ library
      , DeriveGeneric
      , NoMonomorphismRestriction
 executable erp
-  GHC-options: -fhpcs
+  GHC-options:
   default-language: Haskell2010
   main-is: Main.hs
   -- hs-source-dirs: ., src/server, testsuite/tests, src/common, src/client

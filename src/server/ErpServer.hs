@@ -50,7 +50,6 @@ A simple echo.
 instance Show WS.Connection where
     show _  = "Connection info.....WS sockets should provide some defaults??"
 handleConnection m acid pending = do
-  os <- getEnv "os"
   conn <- WS.acceptRequest pending
   TIO.putStrLn $ T.pack ("Accepted connection.." ++ show conn)
 
