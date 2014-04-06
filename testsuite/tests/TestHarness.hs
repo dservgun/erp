@@ -69,7 +69,7 @@ instance Arbitrary Co.Party where
 
 -- How do we enforce the rate and factor relationship?
 
-instance Arbitrary Pr.UOM where
+instance Arbitrary (Pr.ErpError Pr.ProductError Pr.UOM) where
     arbitrary = do
         name <- arbitrary
         symbol <- arbitrary

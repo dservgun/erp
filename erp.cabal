@@ -1,130 +1,75 @@
-Name:   erp
-
-Version: 0.0.1
-
-Synopsis: Create a data model for erp
-
-Description: Create a data model for erp
-
-Homepage: TBD
-
-License: GPL
-
-Author: dg
-
-Maintainer: dinkar.ganti@gmail.com
-
-Category: Business Application
-
-Build-type: Simple
-
-cabal-version : >= 1.16
+name: erp
+version: 0.0.1
+cabal-version: >=1.16
+build-type: Simple
+license: GPL
+license-file: ""
+maintainer: dinkar.ganti@gmail.com
+homepage: TBD
+synopsis: Create a data model for erp
+description: Create a data model for erp
+category: Business Application
+author: dg
+data-dir: ""
 extra-source-files: testsuite/tests/TestRunner.hs
 
 library
-  GHC-options: -fhpc -DDEBUG
-  CC-optionns: -DDEBUG
-  default-language: Haskell2010
-  build-depends: base, acid-state, websockets, mtl,
-                 containers, safecopy
-                 , text, async, aeson
-                 , time
-                 , url
-                 , hslogger
-                 , directory
-                 , datetime
-  hs-source-dirs: ., src/server, testsuite/tests, src/common, src/client
-  exposed-modules:  ErpServer,ErpModel, Login, Account, Company, Currency, FiscalYear, Entity
-                    , AccountAsset
-                    , Bank
-                    , Product
-                    , Carrier
-  default-extensions: OverloadedStrings, CPP
-     , DeriveDataTypeable
-     , TypeFamilies
-     , TemplateHaskell
-     , TypeSynonymInstances
-     , FlexibleInstances
-     , DataKinds
-     , DeriveGeneric
-     , NoMonomorphismRestriction
+    build-depends: base -any, acid-state -any, websockets -any,
+                   mtl -any, containers -any, safecopy -any, text -any, async -any,
+                   aeson -any, time -any, url -any, hslogger -any, directory -any,
+                   datetime -any
+    exposed-modules: ErpError ErpServer ErpModel Login Account Company
+                     Currency FiscalYear Entity AccountAsset Bank Product Carrier
+    exposed: True
+    buildable: True
+    default-language: Haskell2010
+    default-extensions: OverloadedStrings CPP DeriveDataTypeable
+                        TypeFamilies TemplateHaskell TypeSynonymInstances FlexibleInstances
+                        DataKinds DeriveGeneric NoMonomorphismRestriction
+                        OverlappingInstances
+    hs-source-dirs: . src/server testsuite/tests src/common src/client
+    ghc-options: -fhpc -DDEBUG
+
 executable erp
-  GHC-options:
-  default-language: Haskell2010
-  main-is: Main.hs
-  -- hs-source-dirs: ., src/server, testsuite/tests, src/common, src/client
-  build-depends: base, acid-state, websockets, mtl, containers
-                 , safecopy
-                 , text
-                 , async
-                 , aeson
-                 , time
-                 , erp
-                 , url
-                 , hslogger
-                 , directory
-                 , datetime
-  default-extensions: OverloadedStrings, CPP
-     , DeriveDataTypeable
-     , TypeFamilies
-     , TemplateHaskell
-     , FlexibleInstances
-     , TypeSynonymInstances
-     , DataKinds
-     , DeriveGeneric
-     , NoMonomorphismRestriction
+    build-depends: base -any, acid-state -any, websockets -any,
+                   mtl -any, containers -any, safecopy -any, text -any, async -any,
+                   aeson -any, time -any, erp -any, url -any, hslogger -any,
+                   directory -any, datetime -any
+    main-is: Main.hs
+    buildable: True
+    default-language: Haskell2010
+    default-extensions: OverloadedStrings CPP DeriveDataTypeable
+                        TypeFamilies TemplateHaskell FlexibleInstances TypeSynonymInstances
+                        DataKinds DeriveGeneric NoMonomorphismRestriction
+                        OverlappingInstances
+    other-modules:
 
 executable erp_ui
-  GHC-options:
-  default-language: Haskell2010
-  main-is: Main.hs
-  -- hs-source-dirs: ., src/server, testsuite/tests, src/common, src/client
-  build-depends: base, acid-state, websockets, mtl, containers
-                 , safecopy
-                 , text
-                 , async
-                 , aeson
-                 , time
-                 , erp
-                 , url
-                 , directory
-                 , datetime
-  default-extensions: OverloadedStrings, CPP
-     , DeriveDataTypeable
-     , TypeFamilies
-     , TemplateHaskell
-     , FlexibleInstances
-     , TypeSynonymInstances
-     , DataKinds
-     , DeriveGeneric
-     , NoMonomorphismRestriction
+    build-depends: base -any, acid-state -any, websockets -any,
+                   mtl -any, containers -any, safecopy -any, text -any, async -any,
+                   aeson -any, time -any, erp -any, url -any, directory -any,
+                   datetime -any
+    main-is: Main.hs
+    buildable: True
+    default-language: Haskell2010
+    default-extensions: OverloadedStrings CPP DeriveDataTypeable
+                        TypeFamilies TemplateHaskell FlexibleInstances TypeSynonymInstances
+                        DataKinds DeriveGeneric NoMonomorphismRestriction
+                        OverlappingInstances
+    other-modules:
 
-Test-suite tests
-  Type: exitcode-stdio-1.0
-
-  default-language: Haskell2010
-  Hs-source-dirs: testsuite/tests
-  Main-is: TestRunner.hs
-  default-extensions: OverloadedStrings, CPP
-     , DeriveDataTypeable
-     , TypeFamilies
-     , TemplateHaskell
-     , TypeSynonymInstances
-     , FlexibleInstances
-     , DataKinds
-     , DeriveGeneric
-  GHC-options: -rtsopts -fhpc
-  Build-depends: base, acid-state, websockets, mtl, containers
-                 , safecopy
-                 , erp
-                 , text
-                 , async
-                 , test-framework
-                 , test-framework-quickcheck2
-                 , QuickCheck
-                 , random
-                 , aeson
-                 , time
-                 , url
-                 , directory
-                 , datetime
+test-suite tests
+    build-depends: base -any, acid-state -any, websockets -any,
+                   mtl -any, containers -any, safecopy -any, erp -any, text -any,
+                   async -any, test-framework -any, test-framework-quickcheck2 -any,
+                   QuickCheck -any, random -any, aeson -any, time -any, url -any,
+                   directory -any, datetime -any
+    type: exitcode-stdio-1.0
+    main-is: TestRunner.hs
+    buildable: True
+    default-language: Haskell2010
+    default-extensions: OverloadedStrings CPP DeriveDataTypeable
+                        TypeFamilies TemplateHaskell TypeSynonymInstances FlexibleInstances
+                        DataKinds DeriveGeneric OverlappingInstances
+    hs-source-dirs: testsuite/tests
+    ghc-options: -rtsopts -fhpc

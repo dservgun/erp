@@ -116,14 +116,23 @@ serverTest = do
 main = do
     serverTest
     mapM_ (\(s, a) -> printf "%-25s" s >> a) ( tests)
-prop1 = Pr.validUOM
-tests = [("properties_tests" :: String, quickCheck prop1)
-          , ("currency_valid" :: String, quickCheck prop_currency)
-         ,("company_work_time" :: String, quickCheck prop_company_time),
-         ("party_categories" :: String, quickCheck prop_party_categories),
-         ("party_contacts" :: String, quickCheck prop_party_contacts),
-         ("account_valid" :: String, quickCheck prop_valid_account),
-         ("journal_valid" :: String, quickCheck prop_valid_journal)]
+    putStrLn "Hello"
+
+prop1 :: Pr.ErpError ProductError UOM -> Bool
+prop1 aValue =
+    case aValue of
+    Pr.Error _ -> False
+    Pr.Success aUOM -> Pr.validUOM aUOM
+
+tests = [
+         ("properties_tests" :: String, quickCheck prop1)
+         , ("currency_valid" :: String, quickCheck prop_currency)
+         , ("company_work_time" :: String, quickCheck prop_company_time)
+         , ("party_categories" :: String, quickCheck prop_party_categories)
+         , ("party_contacts" :: String, quickCheck prop_party_contacts)
+         , ("account_valid" :: String, quickCheck prop_valid_account)
+         , ("journal_valid" :: String, quickCheck prop_valid_journal)
+         ]
 prop_currency  = Co.validCurrencies
 prop_company_time  = Co.validHours
 

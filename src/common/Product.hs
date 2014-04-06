@@ -1,9 +1,16 @@
 module Product (
-    UOM, createUOM, validUOM,
-    UOMCategory, createUOMCategory,
-    Price, createPrice,
-    PriceUOM,
-    Product)
+      UOM
+    , createUOM
+    , validUOM
+    , UOMCategory
+    , createUOMCategory
+    , Price
+    , createPrice
+    , PriceUOM
+    , ProductError
+    , ErpError(..)
+    , Product
+    )
 where
 import Control.Monad.State
 import Control.Monad.Reader
@@ -23,18 +30,20 @@ import Data.Time.Clock
 import GHC.Generics
 import qualified Currency as Cu
 import Data.Ratio
+import ErpError
 
-data ERPError = ERPError
 
+data ProductError = ProductError {eMsg :: String} deriving Show
+
+data InvalidUOMException = InvalidUOMException deriving Show
 
 data UOMCategory = UOMCategory {catName :: String,
-                            parentCat :: Maybe UOMCategory}
+                                parentCat :: Maybe UOMCategory}
     deriving(Show, Generic, Data, Typeable, Eq, Ord)
 createUOMCategory :: String -> Maybe UOMCategory -> UOMCategory
 createUOMCategory = UOMCategory
 {-- UOM defines the unit of measure for the product --}
-data UOM = InvalidUOMException |
-        UOM {
+data UOM =  UOM {
         name :: String,
         symbol :: String,
         category :: UOMCategory,
@@ -48,12 +57,12 @@ data UOM = InvalidUOMException |
 type Numerator = Integer
 type Denominator = Integer
 createUOM :: String -> String -> UOMCategory -> Numerator -> Denominator -> Int -> Int ->
-    Bool -> UOM
+    Bool -> ErpError ProductError UOM
 createUOM name symbol category num den rounding displayDigits active =
         if den == 0 then
-            InvalidUOMException
+            Error $ ProductError "InvalidUOM"
         else
-            UOM name symbol category (num % den) (den % num) rounding displayDigits active
+            Success $ UOM name symbol category (num % den) (den % num) rounding displayDigits active
 
 
 validUOM :: UOM -> Bool
