@@ -18,9 +18,10 @@ We need a request log to manage log for the requests : time, ip etc.
  * Approval workflow needs to be customizable.
  * Realtime data feed for currencies if needed. Usually currency transactions are end of day settlements. The system should be able to customize the sleep interval for querying currency rates.
  
-## UI design
+## UI choices
  * Seaside or ScalaFX: My opinion is that ui has an oo bias and Smalltalk is a better solution. Need to investigate that.
  * For internal testing, wxPython seems to be a more suitable option. Though that is still debatable.
+ * [Haxe](http://haxe.org)
  
 ## Notes (discrepancies between the tryton and the current model):
   * The accounting method that simplifies computation of inventory and probably preferable is to manage products as batches
