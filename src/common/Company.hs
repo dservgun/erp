@@ -271,6 +271,7 @@ data User = User {mainCompany :: Company,
                   userCompany :: Company,
                   userEmployee :: Employee}
                   deriving (Show, Typeable, Generic, Eq, Ord)
+
 type HoursPerDay = Int
 type DaysPerWeek = Int
 type WeeksPerMonth = Int
@@ -282,6 +283,8 @@ data CompanyWorkTime = CompanyWorkTime {
             weeksPerMonth :: WeeksPerMonth,
             monthsPerYear :: MonthsPerYear}
                 deriving (Show, Typeable, Generic, Eq, Ord)
+
+
 data InvalidWorkTime = InvalidWorkTime {h :: HoursPerDay, d :: DaysPerWeek, w :: WeeksPerMonth, m :: MonthsPerYear}
         deriving (Show, Typeable, Generic, Eq, Ord)
 instance Exception InvalidWorkTime

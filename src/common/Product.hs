@@ -1,6 +1,6 @@
 module Product (
     UOM, createUOM, validUOM,
-    UOMCategory, createUOMCategory, 
+    UOMCategory, createUOMCategory,
     Price, createPrice,
     PriceUOM,
     Product)
@@ -24,17 +24,17 @@ import GHC.Generics
 import qualified Currency as Cu
 import Data.Ratio
 
-data InvalidUOMException = InvalidUOMException deriving (Show, Generic, Typeable, Eq, Ord)
+data ERPError = ERPError
 
-instance Exception InvalidUOMException
 
 data UOMCategory = UOMCategory {catName :: String,
                             parentCat :: Maybe UOMCategory}
     deriving(Show, Generic, Data, Typeable, Eq, Ord)
 createUOMCategory :: String -> Maybe UOMCategory -> UOMCategory
-createUOMCategory = UOMCategory 
+createUOMCategory = UOMCategory
 {-- UOM defines the unit of measure for the product --}
-data UOM = UOM {
+data UOM = InvalidUOMException |
+        UOM {
         name :: String,
         symbol :: String,
         category :: UOMCategory,
@@ -47,14 +47,15 @@ data UOM = UOM {
 
 type Numerator = Integer
 type Denominator = Integer
-createUOM :: String -> String -> UOMCategory -> Numerator -> Denominator -> Int -> Int -> Bool -> UOM
-createUOM name symbol category num den rounding displayDigits active = 
+createUOM :: String -> String -> UOMCategory -> Numerator -> Denominator -> Int -> Int ->
+    Bool -> UOM
+createUOM name symbol category num den rounding displayDigits active =
         if den == 0 then
-            throw InvalidUOMException
+            InvalidUOMException
         else
             UOM name symbol category (num % den) (den % num) rounding displayDigits active
-        
-            
+
+
 validUOM :: UOM -> Bool
 validUOM aUOM = ((rate aUOM) * (factor aUOM)) == 1
 
@@ -70,17 +71,17 @@ data CostPriceMethod = Fixed | Average CPMType
     deriving(Show, Generic, Data, Typeable, Eq, Ord)
 data ProductType = Goods | Assets | Services
     deriving(Show, Generic, Data, Typeable, Eq, Ord)
-type UPCCode = Maybe String    
+type UPCCode = Maybe String
 data Attribute = Attribute {attributeName :: String, attrDescription:: String}
     deriving (Show, Generic, Data, Typeable, Eq, Ord)
-type Weight = Float    
+type Weight = Float
 type Height = Float
 type Length = Float
 type Width = Float
-data Dimensions = Dimensions {length :: Length, width :: Width, height :: Height, weight :: Weight}    
+data Dimensions = Dimensions {length :: Length, width :: Width, height :: Height, weight :: Weight}
     deriving (Show, Generic, Data, Typeable, Eq, Ord)
-type ProductAudit = (UTCTime, Product, PriceUOM) 
-   
+type ProductAudit = (UTCTime, Product, PriceUOM)
+
 data Product = Product {
         productUPCCode :: UPCCode,
         productDescription :: String,
@@ -97,7 +98,7 @@ data Product = Product {
         parentProduct :: Product,
         productHistory:: [ProductAudit]}
         deriving (Data,Show, Generic, Typeable, Eq, Ord)
-        
+
 
 
 instance J.ToJSON UOMCategory
@@ -127,6 +128,6 @@ $(deriveSafeCopy 0 'base ''Price)
 $(deriveSafeCopy 0 'base ''Product)
 $(deriveSafeCopy 0 'base ''ProductType)
 $(deriveSafeCopy 0 'base ''Attribute)
-$(deriveSafeCopy 0 'base ''CostPriceMethod)    
-$(deriveSafeCopy 0 'base ''CPMType)    
+$(deriveSafeCopy 0 'base ''CostPriceMethod)
+$(deriveSafeCopy 0 'base ''CPMType)
 $(deriveSafeCopy 0 'base ''Dimensions)

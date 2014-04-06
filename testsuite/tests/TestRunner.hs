@@ -31,49 +31,49 @@ import Text.Printf
 import TestHarness
 
 testEmail = "test@test.org"
-createQueryDatabaseRequest login aPayload = 
+createQueryDatabaseRequest login aPayload =
     encode $ toJSON $ M.Request M.queryDatabaseConstant login $ En.decodeUtf8 aPayload
 
 createLoginRequest login aPayload  = encode( toJSON (M.Request M.loginConstant login $ En.decodeUtf8 aPayload))
 
-createCategoryRequest login aPayload = encode $ toJSON $ M.Request M.categoryConstant 
+createCategoryRequest login aPayload = encode $ toJSON $ M.Request M.categoryConstant
         login $ En.decodeUtf8 aPayload
-createCloseConnection login aPayload = 
+createCloseConnection login aPayload =
     encode $ toJSON $ M.Request M.closeConnection login $ En.decodeUtf8 aPayload
 
 
 processResponse aRequest@(M.Request entity email payload) = T.pack $ show aRequest
 parseMessage :: WS.Connection-> IO ()
 parseMessage conn = do
-    msg <- WS.receiveData conn    
-    let 
+    msg <- WS.receiveData conn
+    let
         r = J.decode $ En.encodeUtf8 $ La.fromStrict msg
-    case r of 
+    case r of
         Just aRequest ->
-            case M.requestEntity aRequest of         
+            case M.requestEntity aRequest of
                 "CloseConnection" -> do
                     T.putStrLn "Received :: "
                     WS.sendClose conn ("Closing" :: T.Text)
-                _ -> do 
-                    T.putStrLn "Received ::" 
+                _ -> do
+                    T.putStrLn "Received ::"
                     T.putStrLn $ processResponse aRequest
- 
+
         _ -> throw M.InvalidRequest
 
-testLogin = L.Login "test@test.org" True        
+testLogin = L.Login "test@test.org" True
 
 loginTest :: Int -> WS.ClientApp ()
 loginTest aVer conn = do
     T.putStrLn "Client Connected successfully"
-    tR <- async( parseMessage conn)    
+    tR <- async( parseMessage conn)
     -- Send a verified user and an unverified user,
-    -- the recovery should not be showing the unverified user.    
+    -- the recovery should not be showing the unverified user.
     WS.sendTextData conn $ createLoginRequest testEmail $ encode (toJSON testLogin)
     WS.sendTextData conn $ createCloseConnection testEmail $ encode (toJSON testLogin)
     wait tR
 
-categoryTest :: String -> WS.ClientApp () 
-categoryTest aString conn = 
+categoryTest :: String -> WS.ClientApp ()
+categoryTest aString conn =
     do
     T.putStrLn "Connected successfully"
     tR <- async $ parseMessage conn
@@ -81,7 +81,7 @@ categoryTest aString conn =
     WS.sendTextData conn $ createCloseConnection testEmail $ encode $ toJSON testEmail
     wait tR
 
-        
+
 databaseTest :: String -> WS.ClientApp ()
 databaseTest aString conn =
     do
@@ -90,7 +90,7 @@ databaseTest aString conn =
     WS.sendTextData conn $ createCloseConnection testEmail $ encode $ toJSON testEmail
     wait tR
 
-        
+
 serverTest = do
     T.putStrLn "Starting server"
     T.putStrLn "Removing acid state directory, from previous runs."
@@ -115,21 +115,20 @@ serverTest = do
 
 main = do
     serverTest
-    mapM_ (\(s, a) -> printf "%-25s" s >> a) tests
-prop1 = Pr.validUOM   
-tests = [("properties_tests" :: String, quickCheck prop1),
-         ("currency_valid" :: String, quickCheck prop_currency),
-         ("company_work_time" :: String, quickCheck prop_company_time),
+    mapM_ (\(s, a) -> printf "%-25s" s >> a) ( tests)
+prop1 = Pr.validUOM
+tests = [("properties_tests" :: String, quickCheck prop1)
+          , ("currency_valid" :: String, quickCheck prop_currency)
+         ,("company_work_time" :: String, quickCheck prop_company_time),
          ("party_categories" :: String, quickCheck prop_party_categories),
          ("party_contacts" :: String, quickCheck prop_party_contacts),
          ("account_valid" :: String, quickCheck prop_valid_account),
          ("journal_valid" :: String, quickCheck prop_valid_journal)]
+prop_currency  = Co.validCurrencies
+prop_company_time  = Co.validHours
 
-prop_currency  = Co.validCurrencies 
-prop_company_time  = Co.validHours 
+prop_party_categories  = Co.validCategories
+prop_party_contacts  = Co.validContacts
 
-prop_party_categories  = Co.validCategories 
-prop_party_contacts  = Co.validContacts 
-
-prop_valid_account = Ac.validAccount 
+prop_valid_account = Ac.validAccount
 prop_valid_journal = Ac.validJournal

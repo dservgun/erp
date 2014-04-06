@@ -22,7 +22,8 @@ cabal-version : >= 1.16
 extra-source-files: testsuite/tests/TestRunner.hs
 
 library
-  GHC-options: -fhpc
+  GHC-options: -fhpc -DDEBUG
+  CC-optionns: -DDEBUG
   default-language: Haskell2010
   build-depends: base, acid-state, websockets, mtl,
                  containers, safecopy

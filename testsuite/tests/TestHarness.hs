@@ -81,6 +81,7 @@ instance Arbitrary Pr.UOM where
         uActive <- arbitrary
         return (Pr.createUOM name symbol category num denom displayDigits rounding uActive)
 
+
 instance Arbitrary Cu.Currency where
       arbitrary = elements [
             Cu.createCurrency "AUD",
