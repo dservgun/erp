@@ -124,6 +124,15 @@ prop1 aValue =
     Pr.Error _ -> False
     Pr.Success aUOM -> Pr.validUOM aUOM
 
+prop_valid_dimensions :: Pr.ErpError ProductError Dimensions -> Bool
+prop_valid_dimensions aValue =
+    case aValue of
+    Pr.Error _ -> False
+    Pr.Success aDim -> Pr.validDimensions aDim
+
+
+
+
 tests = [
          ("properties_tests" :: String, quickCheck prop1)
          , ("currency_valid" :: String, quickCheck prop_currency)
@@ -132,6 +141,7 @@ tests = [
          , ("party_contacts" :: String, quickCheck prop_party_contacts)
          , ("account_valid" :: String, quickCheck prop_valid_account)
          , ("journal_valid" :: String, quickCheck prop_valid_journal)
+         , ("dimensions_valid" :: String, quickCheck prop_valid_dimensions)
          ]
 prop_currency  = Co.validCurrencies
 prop_company_time  = Co.validHours

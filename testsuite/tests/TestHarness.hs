@@ -1,4 +1,4 @@
-module TestHarness where
+smodule TestHarness where
 import qualified Data.Map as Map
 import qualified ErpModel as M
 import qualified Login as L
@@ -52,7 +52,7 @@ instance Arbitrary Co.Contact where
     arbitrary = do
         contactType <- arbitrary
         value <- arbitrary
-        return $ Co.Contact contactType value
+ s       return $ Co.Contact contactType value
 
 instance Arbitrary Co.Party where
     arbitrary = do
@@ -103,6 +103,16 @@ instance Arbitrary Co.Latitude where
         seconds <- arbitrary
         lDirec <- elements[Co.North, Co.South]
         return $ Co.createLatitude degrees minutes seconds lDirec
+
+instance Arbitrary (ErpError Pr.ProductError Pr.Dimensions) where
+    arbitrary = do
+        length <- arbitrary
+        height <- arbitrary
+        width  <- arbitrary
+        weight <- arbitrary
+        return $ Pr.createDimensions length width height weight
+
+
 instance Arbitrary Co.Longitude where
     arbitrary = do
         degrees <- arbitrary
@@ -144,7 +154,7 @@ instance Arbitrary Ac.Batch where
         time <- arbitrary
         id <- arbitrary
         return $ Ac.createBatch time id
-instance Arbitrary Ac.Account where
+instance Arbitrary (ErpError Ac.AccountError Ac.Account) where
     arbitrary = do
         name <- arbitrary
         code <- arbitrary
@@ -166,12 +176,11 @@ instance Arbitrary Ac.Journal where
         active <- arbitrary
         view <- arbitrary
         updatePosted <- arbitrary
-        taxes <- orderedList
         journalType <- elements [Ac.General, Ac.Revenue, Ac.Situation, Ac.Expense, Ac.Cash]
         defaultDebitAccount <- arbitrary
         defaultCreditAccount <- arbitrary
 
-        return $ Ac.createJournal name code active view updatePosted taxes journalType defaultDebitAccount defaultCreditAccount
+        return $ Ac.createJournal name code active view updatePosted Nothing journalType defaultDebitAccount defaultCreditAccount
 
 instance Arbitrary Ac.TaxCode where
     arbitrary = do
@@ -181,10 +190,11 @@ instance Arbitrary Ac.TaxCode where
         tcCompany <- arbitrary
         tcParent <- arbitrary
         sum <- arbitrary
-        return $ Ac.createTaxCode tcName tcCode tcActive tcCompany tcParent sum
+        return $ Ac.createTaxCode tcName tcCode tcActive tcCompany sum
 instance Arbitrary Ac.Sign where
     arbitrary = oneof [return Ac.Positive, return Ac.Negative]
-instance Arbitrary Ac.Tax where
+
+instance Arbitrary (ErpError Ac.AccountError Ac.Tax) where
     arbitrary = do
         tName <- arbitrary
         tCode <- arbitrary

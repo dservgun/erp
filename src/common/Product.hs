@@ -10,6 +10,9 @@ module Product (
     , ProductError
     , ErpError(..)
     , Product
+    , Dimensions
+    , createDimensions
+    , validDimensions
     )
 where
 import Control.Monad.State
@@ -62,7 +65,8 @@ createUOM name symbol category num den rounding displayDigits active =
         if den == 0 then
             Error $ ProductError "InvalidUOM"
         else
-            Success $ UOM name symbol category (num % den) (den % num) rounding displayDigits active
+            Success $ UOM name symbol category (num % den) (den % num) rounding
+            displayDigits active
 
 
 validUOM :: UOM -> Bool
@@ -87,8 +91,28 @@ type Weight = Float
 type Height = Float
 type Length = Float
 type Width = Float
-data Dimensions = Dimensions {length :: Length, width :: Width, height :: Height, weight :: Weight}
+
+data Dimensions =
+    Dimensions {dLength :: Length, width :: Width, height :: Height, weight :: Weight}
     deriving (Show, Generic, Data, Typeable, Eq, Ord)
+
+createDimensions :: Length -> Width -> Height -> Weight ->
+    ErpError ProductError Dimensions
+createDimensions a b c w =
+    if a > 0 && b > 0  && c > 0 && w > 0 then
+        Success $ Dimensions a b c w
+    else
+        Error $ ProductError $ "Invalid dimensions "  ++ (show a) ++ "," ++
+            (show b) ++ "," ++
+            (show c) ++ ", " ++ (show w)
+
+validDimensions :: Dimensions -> Bool
+validDimensions d  = a > 0 && b > 0 && c > 0 && w > 0
+                    where
+                        a = dLength d
+                        b = width d
+                        c = height d
+                        w = weight d
 type ProductAudit = (UTCTime, Product, PriceUOM)
 
 data Product = Product {

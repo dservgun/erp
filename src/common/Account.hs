@@ -23,6 +23,7 @@ module Account (
     Amount,
     AccountKind(..),
     AccountType(..),
+    AccountError(..),
     Batch, createBatch
 )where
 import Control.Monad.State
@@ -42,14 +43,16 @@ import qualified Data.Text.Lazy.Encoding as E
 import qualified Data.Text.Lazy as L
 import Data.Time.Clock
 import GHC.Generics
+import ErpError
 import qualified Currency as Cu
 import Entity(EntityState)
 import qualified FiscalYear as Fy
 import qualified Company as Co
 import qualified Data.Ratio as R
-data InvalidAccountException = InvalidAccountException deriving(Show, Typeable, Generic, Data, Eq, Ord)
-
-instance Exception InvalidAccountException
+data InvalidAccountException = InvalidAccountException
+    deriving (Show, Typeable, Generic, Data, Eq, Ord)
+data AccountError = AccountError {msg :: String}
+    deriving (Show, Typeable, Generic, Data, Eq, Ord)
 type Name = String
 type Code = String
 type Boolean = Bool
@@ -95,14 +98,14 @@ credit anAccount =
 
 createAccount :: Name -> Code -> Co.Company -> Cu.Currency -> AccountKind
             -> AccountType -> Boolean -> Cu.Currency
-            -> Boolean -> String -> Account
+            -> Boolean -> String -> ErpError AccountError Account
 createAccount aName aCode aCompany aCurrency aKind
     aType deferral altCurrency
     reconcile note =
         if altCurrency /= aCurrency then
-            Account aName aCode aCompany aCurrency aKind aType deferral altCurrency reconcile note
+            Success $ Account aName aCode aCompany aCurrency aKind aType deferral altCurrency reconcile note
         else
-            throw InvalidAccountException
+            Error $ AccountError "Invalid Account"
 validAccount :: Account -> Bool
 validAccount  = (\x -> currency x /= altCurrency x)
 
@@ -122,19 +125,23 @@ data Journal = Journal {
     -- The above requirement is a bit too complicated
     -- Note: Need to refactor the requirement to make
     -- it clearer.
-    taxes :: [Tax],
+    taxes :: Maybe (Tr.Tree Tax),
     journalType :: JournalType,
     defaultDebitAccount :: DebitAccount,
     defaultCreditAccount :: CreditAccount,
     moves :: S.Set Move}
     deriving (Show, Typeable, Generic, Eq, Ord)
-createJournal :: Name -> Code -> Bool -> DisplayView -> Bool -> [Tax] -> JournalType -> DebitAccount -> CreditAccount -> Journal
+
+instance Ord (Tr.Tree Tax) where
+    compare  t y = compare (Tr.rootLabel t) (Tr.rootLabel y)
+    (<=) t y = (Tr.rootLabel t) <= (Tr.rootLabel y)
+createJournal :: Name -> Code -> Bool -> DisplayView -> Bool -> Maybe (Tr.Tree Tax) -> JournalType -> DebitAccount -> CreditAccount -> Journal
 createJournal aName aCode active view updatePosted taxes jType defaultDebitAccount defaultCreditAccount =
     case jType of
         Expense -> jObject
         Revenue -> jObject
         _ ->
-            Journal aName aCode active view updatePosted [] jType
+            Journal aName aCode active view updatePosted Nothing jType
                 defaultDebitAccount defaultCreditAccount S.empty
         where
             jObject = Journal
@@ -144,9 +151,10 @@ createJournal aName aCode active view updatePosted taxes jType defaultDebitAccou
 validJournal :: Journal -> Bool
 validJournal aJournal =
     case journalType aJournal of
-        Expense -> taxes aJournal /= []
-        Revenue -> taxes aJournal /= []
-        _       -> taxes aJournal == []
+        Expense -> taxes aJournal /= Nothing
+        Revenue -> taxes aJournal /= Nothing
+        _       -> taxes aJournal == Nothing
+
 
 type ReferenceNumber = String
 data MoveState  = Draft | Posted
@@ -169,20 +177,26 @@ post aMove aDate aRef =
         aMove {postDate = aDate, mState = Posted, moveRefNumber = aRef}
     else
         aMove
-creditMoves :: Move -> S.Set MoveLine
-creditMoves aMove =
-    let lines = moveLines aMove in
-    S.filter (\x -> credit $ account x) lines
-debitMoves :: Move -> S.Set MoveLine
-debitMoves aMove =
-    let lines = moveLines aMove in
-    S.filter (\x -> debit $ account x) lines
+creditMoves :: Move -> UTCTime -> S.Set MoveLine
+creditMoves aMove aDate =
+    let
+        lines = moveLines aMove
+        datedLines = S.filter (\y -> moveLineEffectiveDate y <= aDate) lines
+    in
+        S.filter (\x -> credit $ account x) datedLines
+debitMoves :: Move -> UTCTime -> S.Set MoveLine
+debitMoves aMove aDate =
+    let
+        lines = moveLines aMove
+        datedLines = S.filter (\y -> moveLineEffectiveDate y  <= aDate) lines
+    in
+        S.filter (\x -> debit $ account x) datedLines
 
 balancedMove :: Move -> UTCTime -> Bool
 balancedMove aMove postDate =
     let
-        creds = creditMoves aMove
-        debits = debitMoves aMove
+        creds = creditMoves aMove postDate
+        debits = debitMoves aMove postDate
         creditSum = S.foldr' (\m acc -> acc + (mlAmount m)) 0 creds
         debitSum = S.foldr' (\m acc -> acc + (mlAmount m)) 0 debits
     in
@@ -197,6 +211,7 @@ data MoveLine = MoveLine {
     move :: Move,
     mlState :: MoveLineState,
     secondCurrency :: (Cu.Currency, Amount),
+    moveLineEffectiveDate :: UTCTime,
     -- Maturity date is the limit date for the payment
     maturityDate :: UTCTime,
     reconciliation :: Maybe Integer,
@@ -215,10 +230,13 @@ data TaxCode = TaxCode {
     tcCode :: Code,
     tcActive  :: Boolean,
     tcCompany :: Co.Company,
-    tcParent :: TaxCode,
     sum :: Amount} deriving (Show, Typeable, Generic, Eq, Ord)
-createTaxCode :: Name -> Code -> Boolean -> Co.Company -> TaxCode -> Amount -> TaxCode
+createTaxCode :: Name -> Code -> Boolean -> Co.Company -> Amount -> TaxCode
 createTaxCode = TaxCode
+
+
+addChild :: (Tr.Tree TaxCode) -> TaxCode -> TaxCode -> Tr.Tree TaxCode
+addChild aTree child parent = undefined
 
 type Sequence = String
 data TaxType = PercentTaxType Float | FixedTaxType Float
@@ -227,7 +245,7 @@ data TaxType = PercentTaxType Float | FixedTaxType Float
 Refactoring note: credit note account
 and invoice account repeat fields.
 --}
-type AccountCode = (Account, Sign)
+type AccountCode = (ErpError AccountError Account, Sign)
 data Tax = Tax {
  tName :: Name,
  tCode :: Code,
@@ -242,15 +260,21 @@ data Tax = Tax {
  invoiceTaxCode :: AccountCode,
  creditNoteBaseCode :: AccountCode,
  creditNoteTaxCode :: AccountCode
- }
-    deriving(Show, Typeable, Generic, Eq, Ord)
+ } deriving(Show, Typeable, Generic, Eq, Ord)
+
 createTax :: Name -> Code -> String -> Boolean -> Sequence -> TaxType -> Co.Company
-            -> Account -> Account
+            -> ErpError AccountError Account
+            -> ErpError AccountError Account
             -> AccountCode
             -> AccountCode
             -> AccountCode
-            -> AccountCode -> Tax
-createTax = Tax
+            -> AccountCode -> ErpError AccountError Tax
+createTax n c s b se tt co acc1 acc2 a1 a2 a3 a4 =
+    case (acc1, acc2) of
+    (Success a11, Success a21) -> Success $ Tax n c s b se tt co a11 a21 a1 a2 a3 a4
+    _               -> Error $ AccountError "Invalid accounts"
+
+
 validTax :: Tax -> Bool
 validTax aTax = validTaxType (taxType aTax)
            && (invoiceAccount aTax /= creditNoteAccount aTax)
@@ -378,6 +402,8 @@ instance J.ToJSON TaxType
 instance J.FromJSON TaxType
 instance J.ToJSON Batch
 instance J.FromJSON Batch
+instance J.ToJSON AccountError
+instance J.FromJSON AccountError
 $(deriveSafeCopy 0 'base ''Dunning)
 $(deriveSafeCopy 0 'base ''DunningState)
 $(deriveSafeCopy 0 'base ''Procedure)
@@ -398,6 +424,7 @@ $(deriveSafeCopy 0 'base ''MoveState)
 $(deriveSafeCopy 0 'base ''MoveLine)
 $(deriveSafeCopy 0 'base ''MoveLineState)
 $(deriveSafeCopy 0 'base ''Batch)
+$(deriveSafeCopy 0 'base ''AccountError)
 
 
 
