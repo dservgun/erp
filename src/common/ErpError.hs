@@ -26,9 +26,7 @@ import qualified Data.Aeson as J
 
 data ErpError a b = Error a | Success b deriving (Show, Eq, Ord, Typeable,Generic,Data)
 
-instance J.ToJSON (ErpError a b)
-instance J.FromJSON (ErpError a b)
-$(deriveSafeCopy 0 'base ''ErpError)
+
 
 
 

@@ -76,8 +76,8 @@ data Account = Account {
         reconcile :: Boolean,
         note :: String}
         deriving(Show,Typeable, Data, Generic, Eq, Ord)
-type DebitAccount = Account
-type CreditAccount = Account
+type DebitAccount = ErpError AccountError Account
+type CreditAccount = ErpError AccountError Account
 type DisplayView = String
 debit :: Account -> Bool
 debit anAccount =
@@ -106,9 +106,11 @@ createAccount aName aCode aCompany aCurrency aKind
             Success $ Account aName aCode aCompany aCurrency aKind aType deferral altCurrency reconcile note
         else
             Error $ AccountError "Invalid Account"
-validAccount :: Account -> Bool
-validAccount  = (\x -> currency x /= altCurrency x)
-
+validAccount :: ErpError AccountError Account -> Bool
+validAccount anAccount =
+    case anAccount of
+        Success x -> currency x /= altCurrency x
+        _ -> False
 data JournalType = General | Revenue | Situation | Expense
         | Cash
         deriving (Show, Typeable, Generic, Eq, Ord)
@@ -127,34 +129,47 @@ data Journal = Journal {
     -- it clearer.
     taxes :: Maybe (Tr.Tree Tax),
     journalType :: JournalType,
-    defaultDebitAccount :: DebitAccount,
-    defaultCreditAccount :: CreditAccount,
+    defaultDebitAccount :: Account,
+    defaultCreditAccount :: Account,
     moves :: S.Set Move}
     deriving (Show, Typeable, Generic, Eq, Ord)
 
 instance Ord (Tr.Tree Tax) where
     compare  t y = compare (Tr.rootLabel t) (Tr.rootLabel y)
     (<=) t y = (Tr.rootLabel t) <= (Tr.rootLabel y)
-createJournal :: Name -> Code -> Bool -> DisplayView -> Bool -> Maybe (Tr.Tree Tax) -> JournalType -> DebitAccount -> CreditAccount -> Journal
+createJournal :: Name -> Code -> Bool -> DisplayView -> Bool ->
+    Maybe (Tr.Tree Tax) -> JournalType -> DebitAccount -> CreditAccount ->
+        ErpError AccountError Journal
 createJournal aName aCode active view updatePosted taxes jType defaultDebitAccount defaultCreditAccount =
     case jType of
         Expense -> jObject
         Revenue -> jObject
         _ ->
-            Journal aName aCode active view updatePosted Nothing jType
-                defaultDebitAccount defaultCreditAccount S.empty
+            case (defaultDebitAccount, defaultCreditAccount) of
+                (Success x, Success y) ->
+                    Success $ Journal aName aCode active view
+                              updatePosted Nothing jType
+                              x y S.empty
+                _  -> Error $ AccountError "Invalid Journal"
         where
-            jObject = Journal
-                aName aCode active view updatePosted taxes jType
-                defaultDebitAccount
-                defaultCreditAccount S.empty
-validJournal :: Journal -> Bool
-validJournal aJournal =
-    case journalType aJournal of
-        Expense -> taxes aJournal /= Nothing
-        Revenue -> taxes aJournal /= Nothing
-        _       -> taxes aJournal == Nothing
+            jObject =
+                case (defaultDebitAccount, defaultCreditAccount) of
+                    (Success x, Success y) ->
+                        Success $ Journal
+                        aName aCode active view updatePosted taxes jType
+                        x
+                        y S.empty
+                    _ -> Error $ AccountError "Invalid Journal"
 
+validJournal :: ErpError AccountError Journal -> Bool
+validJournal aJournalH =
+    case aJournalH of
+    Success aJournal ->
+        case journalType aJournal of
+            Expense -> taxes aJournal /= Nothing
+            Revenue -> taxes aJournal /= Nothing
+            _       -> taxes aJournal == Nothing
+    _ -> False
 
 type ReferenceNumber = String
 data MoveState  = Draft | Posted
@@ -245,7 +260,8 @@ data TaxType = PercentTaxType Float | FixedTaxType Float
 Refactoring note: credit note account
 and invoice account repeat fields.
 --}
-type AccountCode = (ErpError AccountError Account, Sign)
+type AccountCode = (Account, Sign)
+type ErrorAccountCode = ErpError AccountError (Account, Sign)
 data Tax = Tax {
  tName :: Name,
  tCode :: Code,
@@ -265,13 +281,17 @@ data Tax = Tax {
 createTax :: Name -> Code -> String -> Boolean -> Sequence -> TaxType -> Co.Company
             -> ErpError AccountError Account
             -> ErpError AccountError Account
-            -> AccountCode
-            -> AccountCode
-            -> AccountCode
-            -> AccountCode -> ErpError AccountError Tax
+            -> ErrorAccountCode
+            -> ErrorAccountCode
+            -> ErrorAccountCode
+            -> ErrorAccountCode -> ErpError AccountError Tax
 createTax n c s b se tt co acc1 acc2 a1 a2 a3 a4 =
     case (acc1, acc2) of
-    (Success a11, Success a21) -> Success $ Tax n c s b se tt co a11 a21 a1 a2 a3 a4
+    (Success a11, Success a21) ->
+        case (a1, a2, a3, a4) of
+            (Success a211, Success a222, Success a333, Success a444) ->
+                Success $ Tax n c s b se tt co a11 a21 a211 a222 a333 a444
+            _ -> Error $ AccountError "Invalid acccounts"
     _               -> Error $ AccountError "Invalid accounts"
 
 
@@ -294,7 +314,7 @@ type TaxTree = Tr.Tree Tax
 What does a fixed tax amount mean: Would it be possible for
 a fixed tax amount to ever be greater than the amount the
 tax is being applied on?
-This tax is sort of regressive.
+This tax is regressive.
 --}
 data TaxAmount = Fixed (R.Ratio Integer) | Percentage (R.Ratio Integer)
         | BasisPoints (R.Ratio Integer)
