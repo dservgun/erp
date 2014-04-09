@@ -1,0 +1,18 @@
+Version of session file format:
+               1
+Time of storage:
+               "Tue Apr  8 08:52:29 EDT 2014"
+Layout:        VerticalP (TerminalP {paneGroups = fromList [], paneTabs = Just TopP, currentPage = 0, detachedId = Nothing, detachedSize = Nothing}) (HorizontalP (TerminalP {paneGroups = fromList [], paneTabs = Just BottomP, currentPage = 0, detachedId = Nothing, detachedSize = Nothing}) (TerminalP {paneGroups = fromList [], paneTabs = Nothing, currentPage = 0, detachedId = Nothing, detachedSize = Nothing}) 264) 766
+Population:    [(Just (BufferSt (BufferState "/Users/dinkarganti/haskell/erp/src/common/Account.hs" 3508)),[SplitP LeftP]),(Just (BufferSt (BufferState "/Users/dinkarganti/haskell/erp/src/common/ErpError.hs" 525)),[SplitP LeftP]),(Just (ErrorsSt ErrorsState),[SplitP RightP,SplitP TopP]),(Just (FilesSt FilesState),[SplitP RightP,SplitP TopP]),(Just (GrepSt GrepState),[SplitP RightP,SplitP TopP]),(Just (LogSt LogState),[SplitP RightP,SplitP BottomP]),(Just (BufferSt (BufferState "/Users/dinkarganti/haskell/erp/src/common/Product.hs" 862)),[SplitP LeftP]),(Just (SearchSt (SearchState {searchString = "", searchScope = SystemScope, searchMode = Prefix {caseSense = False}})),[SplitP RightP,SplitP TopP]),(Just (BufferSt (BufferState "/Users/dinkarganti/haskell/erp/testsuite/tests/TestHarness.hs" 4421)),[SplitP LeftP]),(Just (BufferSt (BufferState "/Users/dinkarganti/haskell/erp/testsuite/tests/TestRunner.hs" 5259)),[SplitP LeftP]),(Just (BufferSt (BufferState "/Users/dinkarganti/haskell/erp/erp.cabal" 632)),[SplitP LeftP]),(Just (BufferSt (BufferState "/Users/dinkarganti/haskell/erp/typefamilies.txt" 18)),[SplitP LeftP])]
+Window size:   (1252,698)
+Completion size:
+               (750,400)
+Workspace:     Just "/Users/dinkarganti/haskell/erp/erp.lkshw"
+Active pane:   Just "Log"
+Toolbar visible:
+               True
+FindbarState:  (False,FindState {entryStr = "validJournal", entryHist = ["validJournal","prop_valid","propV","createJournal","createAcc","Ac.Account","createTax","throw","Dimensions","validCurr","getE","genE"], replaceStr = "", replaceHist = [], caseSensitive = False, entireWord = False, wrapAround = False, regex = False, lineNr = 105})
+Recently opened files:
+               ["/Users/dinkarganti/haskell/erp/README.md","/Users/dinkarganti/haskell/erp/src/server/ErpServer.hs","/Users/dinkarganti/haskell/erp/src/server/ErpModel.hs","/Users/dinkarganti/haskell/erp/src/common/Currency.hs","/Users/dinkarganti/haskell/erp/src/common/Company.hs","/Users/dinkarganti/haskell/erp/testsuite/tests/TestHarness.hs","/Users/dinkarganti/haskell/erp/erp.cabal","/Users/dinkarganti/haskell/so/test7.hs","/Users/dinkarganti/haskell/erp/testsuite/tests/TestRunner.hs","/Users/dinkarganti/haskell/so/so.cabal","/Users/dinkarganti/haskell/so/src/Main.hs"]
+Recently opened workspaces:
+               ["/Users/dinkarganti/haskell/erp/erp.lkshw","/Users/dinkarganti/haskell/so/so.lkshw"]
