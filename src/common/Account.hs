@@ -23,7 +23,6 @@ module Account (
     Amount,
     AccountKind(..),
     AccountType(..),
-    AccountError(..),
     Batch, createBatch
 )where
 import Control.Monad.State
@@ -51,8 +50,6 @@ import qualified Company as Co
 import qualified Data.Ratio as R
 data InvalidAccountException = InvalidAccountException
     deriving (Show, Typeable, Generic, Data, Eq, Ord)
-data AccountError = AccountError {msg :: String}
-    deriving (Show, Typeable, Generic, Data, Eq, Ord)
 type Name = String
 type Code = String
 type Boolean = Bool
@@ -76,8 +73,8 @@ data Account = Account {
         reconcile :: Boolean,
         note :: String}
         deriving(Show,Typeable, Data, Generic, Eq, Ord)
-type DebitAccount = ErpError AccountError Account
-type CreditAccount = ErpError AccountError Account
+type DebitAccount = ErpError ModuleError Account
+type CreditAccount = ErpError ModuleError Account
 type DisplayView = String
 debit :: Account -> Bool
 debit anAccount =
@@ -96,17 +93,21 @@ credit anAccount =
             AkRevenue -> True
             _         -> False
 
-createAccount :: Name -> Code -> Co.Company -> Cu.Currency -> AccountKind
+createAccount :: Name -> Code ->
+                ErpError ModuleError Co.Company -> Cu.Currency -> AccountKind
             -> AccountType -> Boolean -> Cu.Currency
-            -> Boolean -> String -> ErpError AccountError Account
+            -> Boolean -> String -> ErpError ModuleError Account
 createAccount aName aCode aCompany aCurrency aKind
     aType deferral altCurrency
     reconcile note =
-        if altCurrency /= aCurrency then
-            Success $ Account aName aCode aCompany aCurrency aKind aType deferral altCurrency reconcile note
-        else
-            Error $ AccountError "Invalid Account"
-validAccount :: ErpError AccountError Account -> Bool
+    case aCompany of
+    Success aCom ->
+            if altCurrency /= aCurrency then
+                Success $ Account aName aCode aCom aCurrency aKind aType deferral altCurrency reconcile note
+            else
+                Error $ ModuleError "Account" "InvAccount" "Invalid Account"
+    Error _ -> Error $ ModuleError "Account" "InvCompany" "Invalid Company"
+validAccount :: ErpError ModuleError Account -> Bool
 validAccount anAccount =
     case anAccount of
         Success x -> currency x /= altCurrency x
@@ -139,7 +140,7 @@ instance Ord (Tr.Tree Tax) where
     (<=) t y = (Tr.rootLabel t) <= (Tr.rootLabel y)
 createJournal :: Name -> Code -> Bool -> DisplayView -> Bool ->
     Maybe (Tr.Tree Tax) -> JournalType -> DebitAccount -> CreditAccount ->
-        ErpError AccountError Journal
+        ErpError ModuleError Journal
 createJournal aName aCode active view updatePosted taxes jType defaultDebitAccount defaultCreditAccount =
     case jType of
         Expense -> jObject
@@ -150,7 +151,7 @@ createJournal aName aCode active view updatePosted taxes jType defaultDebitAccou
                     Success $ Journal aName aCode active view
                               updatePosted Nothing jType
                               x y S.empty
-                _  -> Error $ AccountError "Invalid Journal"
+                _  -> Error $ ModuleError "Account" "InvJournal" "Invalid Journal"
         where
             jObject =
                 case (defaultDebitAccount, defaultCreditAccount) of
@@ -159,9 +160,9 @@ createJournal aName aCode active view updatePosted taxes jType defaultDebitAccou
                         aName aCode active view updatePosted taxes jType
                         x
                         y S.empty
-                    _ -> Error $ AccountError "Invalid Journal"
+                    _ -> Error $ ModuleError "Account" "InvJournal" "Invalid Journal"
 
-validJournal :: ErpError AccountError Journal -> Bool
+validJournal :: ErpError ModuleError Journal -> Bool
 validJournal aJournalH =
     case aJournalH of
     Success aJournal ->
@@ -246,8 +247,13 @@ data TaxCode = TaxCode {
     tcActive  :: Boolean,
     tcCompany :: Co.Company,
     sum :: Amount} deriving (Show, Typeable, Generic, Eq, Ord)
-createTaxCode :: Name -> Code -> Boolean -> Co.Company -> Amount -> TaxCode
-createTaxCode = TaxCode
+createTaxCode :: Name -> Code -> Boolean ->
+    ErpError ModuleError Co.Company -> Amount ->
+    ErpError ModuleError TaxCode
+createTaxCode n c a com s =
+    case com of
+    Success aC -> Success $ TaxCode n c a aC s
+    Error _ -> Error $ ModuleError "Acount" "INVTC" "Invalid tax code"
 
 
 addChild :: (Tr.Tree TaxCode) -> TaxCode -> TaxCode -> Tr.Tree TaxCode
@@ -261,7 +267,7 @@ Refactoring note: credit note account
 and invoice account repeat fields.
 --}
 type AccountCode = (Account, Sign)
-type ErrorAccountCode = ErpError AccountError (Account, Sign)
+type ErrorAccountCode = ErpError ModuleError (Account, Sign)
 data Tax = Tax {
  tName :: Name,
  tCode :: Code,
@@ -278,21 +284,25 @@ data Tax = Tax {
  creditNoteTaxCode :: AccountCode
  } deriving(Show, Typeable, Generic, Eq, Ord)
 
-createTax :: Name -> Code -> String -> Boolean -> Sequence -> TaxType -> Co.Company
-            -> ErpError AccountError Account
-            -> ErpError AccountError Account
+createTax :: Name -> Code -> String -> Boolean -> Sequence -> TaxType ->
+               ErpError ModuleError Co.Company
+            -> ErpError ModuleError Account
+            -> ErpError ModuleError Account
             -> ErrorAccountCode
             -> ErrorAccountCode
             -> ErrorAccountCode
-            -> ErrorAccountCode -> ErpError AccountError Tax
+            -> ErrorAccountCode -> ErpError ModuleError Tax
 createTax n c s b se tt co acc1 acc2 a1 a2 a3 a4 =
     case (acc1, acc2) of
     (Success a11, Success a21) ->
         case (a1, a2, a3, a4) of
             (Success a211, Success a222, Success a333, Success a444) ->
-                Success $ Tax n c s b se tt co a11 a21 a211 a222 a333 a444
-            _ -> Error $ AccountError "Invalid acccounts"
-    _               -> Error $ AccountError "Invalid accounts"
+                case co of
+                    Success aCo ->
+                        Success $ Tax n c s b se tt aCo a11 a21 a211 a222 a333 a444
+                    Error _ -> Error $ ModuleError "Account" "InvTax" "Invalid Tax"
+            _ -> Error $ ModuleError "Account" "InvAccount" "Invalid Acccounts"
+    _               -> Error $ ModuleError "Account" "InvAccount" "Invalid Accounts"
 
 
 validTax :: Tax -> Bool
@@ -422,8 +432,6 @@ instance J.ToJSON TaxType
 instance J.FromJSON TaxType
 instance J.ToJSON Batch
 instance J.FromJSON Batch
-instance J.ToJSON AccountError
-instance J.FromJSON AccountError
 $(deriveSafeCopy 0 'base ''Dunning)
 $(deriveSafeCopy 0 'base ''DunningState)
 $(deriveSafeCopy 0 'base ''Procedure)
@@ -444,8 +452,6 @@ $(deriveSafeCopy 0 'base ''MoveState)
 $(deriveSafeCopy 0 'base ''MoveLine)
 $(deriveSafeCopy 0 'base ''MoveLineState)
 $(deriveSafeCopy 0 'base ''Batch)
-$(deriveSafeCopy 0 'base ''AccountError)
-
 
 
 

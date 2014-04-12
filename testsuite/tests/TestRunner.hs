@@ -15,7 +15,7 @@ import Control.Concurrent.Async(async, wait, cancel)
 import Data.Text (Text)
 import qualified Data.Set as S
 import qualified Data.Text as T
-import qualified Data.Text.IO as T
+import qualified Data.Text.IO as TIO
 import Data.Time.Clock
 import Data.DateTime
 import qualified Network.WebSockets as WS
@@ -25,7 +25,7 @@ import qualified Data.Text.Lazy.Encoding as En
 import qualified Data.Text.Lazy as La
 import qualified System.Directory as SD
 import Test.QuickCheck
-
+import ErpError
 import Product as Pr
 import Text.Printf
 import TestHarness
@@ -52,11 +52,11 @@ parseMessage conn = do
         Just aRequest ->
             case M.requestEntity aRequest of
                 "CloseConnection" -> do
-                    T.putStrLn "Received :: "
+                    TIO.putStrLn "Received :: "
                     WS.sendClose conn ("Closing" :: T.Text)
                 _ -> do
-                    T.putStrLn "Received ::"
-                    T.putStrLn $ processResponse aRequest
+                    TIO.putStrLn "Received ::"
+                    TIO.putStrLn $ processResponse aRequest
 
         _ -> throw M.InvalidRequest
 
@@ -64,7 +64,7 @@ testLogin = L.Login "test@test.org" True
 
 loginTest :: Int -> WS.ClientApp ()
 loginTest aVer conn = do
-    T.putStrLn "Client Connected successfully"
+    TIO.putStrLn "Client Connected successfully"
     tR <- async( parseMessage conn)
     -- Send a verified user and an unverified user,
     -- the recovery should not be showing the unverified user.
@@ -75,7 +75,8 @@ loginTest aVer conn = do
 categoryTest :: String -> WS.ClientApp ()
 categoryTest aString conn =
     do
-    T.putStrLn "Connected successfully"
+    TIO.putStrLn "Connected successfully"
+
     tR <- async $ parseMessage conn
     WS.sendTextData conn $ createCategoryRequest testEmail $ encode $ toJSON $ Co.Category aString
     WS.sendTextData conn $ createCloseConnection testEmail $ encode $ toJSON testEmail
@@ -92,22 +93,22 @@ databaseTest aString conn =
 
 
 serverTest = do
-    T.putStrLn "Starting server"
-    T.putStrLn "Removing acid state directory, from previous runs."
+    TIO.putStrLn "Starting server"
+    TIO.putStrLn "Removing acid state directory, from previous runs."
     SD.removeDirectoryRecursive acidStateTestDir
     m <- newEmptyMVar
     s <- async (testServerMain m acidStateTestDir)
-    T.putStrLn "Waiting for the server to start"
-    T.putStrLn "Starting client thread"
+    TIO.putStrLn "Waiting for the server to start"
+    TIO.putStrLn "Starting client thread"
     mvarValue <- takeMVar m
-    T.putStrLn $ T.pack("Mvar returned " ++ show mvarValue)
+    TIO.putStrLn $ T.pack("Mvar returned " ++ show mvarValue)
     c <- async (WS.runClient "localhost" 8082 "/" $ loginTest 2)
     cat <- async(WS.runClient "localhost" 8082 "/" $ categoryTest "Test Category")
     db <- async (WS.runClient "localhost" 8082 "/" $ databaseTest "Test query database")
     rc <- wait c
     rCat <- wait cat
     rdb <- wait db
-    T.putStrLn "End tests"
+    TIO.putStrLn "End tests"
     -- Cancel the server thread when all tests are done
     cancel s
     where
@@ -116,7 +117,6 @@ serverTest = do
 main = do
     serverTest
     mapM_ (\(s, a) -> printf "%-25s" s >> a) ( tests)
-    putStrLn "Hello"
 
 prop1 :: Pr.ErpError ProductError UOM -> Bool
 prop1 aValue =
@@ -133,6 +133,7 @@ prop_valid_dimensions aValue =
 
 
 
+
 tests = [
          ("properties_tests" :: String, quickCheck prop1)
          , ("currency_valid" :: String, quickCheck prop_currency)
@@ -143,11 +144,35 @@ tests = [
          , ("journal_valid" :: String, quickCheck prop_valid_journal)
          , ("dimensions_valid" :: String, quickCheck prop_valid_dimensions)
          ]
-prop_currency  = Co.validCurrencies
-prop_company_time  = Co.validHours
 
-prop_party_categories  = Co.validCategories
-prop_party_contacts  = Co.validContacts
+prop_currency :: ErpError ModuleError Co.Company -> Bool
+prop_currency a =
+    case a of
+    ErpError.Success aCompany -> Co.validCurrencies aCompany
+    ErpError.Error _ -> False
 
-prop_valid_account = Ac.validAccount
+prop_company_time :: ErpError ModuleError Co.CompanyWorkTime -> Bool
+prop_company_time a =
+    case a of
+    ErpError.Success aCom -> Co.validHours aCom
+    ErpError.Error _ -> False
+
+prop_party_categories :: ErpError ModuleError Co.Party -> Bool
+prop_party_categories a =
+    case a of
+    ErpError.Success cat -> Co.validCategories cat
+    ErpError.Error _ -> False
+
+prop_party_contacts :: ErpError ModuleError Co.Party -> Bool
+prop_party_contacts a =
+    case a of
+    ErpError.Success con -> Co.validContacts con
+    ErpError.Error  _ -> False
+
+
+prop_valid_account a =
+    case a of
+        ErpError.Error _ -> False
+        _          -> Ac.validAccount a
+
 prop_valid_journal = Ac.validJournal

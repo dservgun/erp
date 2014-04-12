@@ -55,7 +55,7 @@ instance Arbitrary Co.Contact where
         value <- arbitrary
         return $ Co.Contact contactType value
 
-instance Arbitrary Co.Party where
+instance Arbitrary (ErpError ModuleError Co.Party) where
     arbitrary = do
         name <- arbitrary
         addresses <- orderedList
@@ -97,7 +97,7 @@ instance Arbitrary Pr.Price where
         curr <- arbitrary
         return (Pr.createPrice price curr)
 
-instance Arbitrary Co.Latitude where
+instance Arbitrary (ErpError ModuleError Co.Latitude) where
      arbitrary = do
         degrees <- arbitrary
         minutes <- arbitrary
@@ -114,26 +114,26 @@ instance Arbitrary (ErpError Pr.ProductError Pr.Dimensions) where
         return $ Pr.createDimensions length width height weight
 
 
-instance Arbitrary Co.Longitude where
+instance Arbitrary (ErpError ModuleError Co.Longitude) where
     arbitrary = do
         degrees <- arbitrary
         minutes <- arbitrary
         seconds <- arbitrary
         loDirec <- elements[Co.East, Co.West]
         return $ Co.createLongitude degrees minutes seconds loDirec
-instance Arbitrary Co.Coordinate where
+instance Arbitrary (ErpError ModuleError Co.Coordinate) where
     arbitrary = do
         lat <- arbitrary
         long <- arbitrary
         return $ Co.createCoordinate lat long
-instance Arbitrary Co.GeoLocation where
+instance Arbitrary (ErpError ModuleError Co.GeoLocation) where
      arbitrary = do
         uri <- arbitrary
         position <- arbitrary
         return $ Co.createGeoLocation uri position
 instance Arbitrary Pr.Product where
 
-instance Arbitrary Co.Company where
+instance Arbitrary (ErpError ModuleError Co.Company) where
      arbitrary = do
         party <- arbitrary
         currency <- arbitrary
@@ -142,7 +142,7 @@ instance Arbitrary Co.Company where
         return (Co.createCompany party currency
             (S.fromList alternateCurrencies) (S.fromList productSet))
 
-instance Arbitrary Co.CompanyWorkTime where
+instance Arbitrary (ErpError ModuleError Co.CompanyWorkTime) where
     arbitrary = do
         company <- arbitrary
         hoursPerDay <- arbitrary
@@ -157,7 +157,7 @@ instance Arbitrary Ac.Batch where
         id <- arbitrary
         return $ Ac.createBatch time id
 
-instance Arbitrary (ErpError Ac.AccountError Ac.Account) where
+instance Arbitrary (ErpError ModuleError Ac.Account) where
     arbitrary = do
         name <- arbitrary
         code <- arbitrary
@@ -172,7 +172,7 @@ instance Arbitrary (ErpError Ac.AccountError Ac.Account) where
         return $ Ac.createAccount name code company currency
                     kind acType deferral altCurrency reconcile note
 
-instance Arbitrary (ErpError Ac.AccountError Ac.Journal) where
+instance Arbitrary (ErpError ModuleError Ac.Journal) where
     arbitrary = do
         name <- arbitrary
         code <- arbitrary
@@ -184,7 +184,7 @@ instance Arbitrary (ErpError Ac.AccountError Ac.Journal) where
         defaultCreditAccount <- arbitrary
         return $ Ac.createJournal name code active view updatePosted Nothing journalType defaultDebitAccount defaultCreditAccount
 
-instance Arbitrary Ac.TaxCode where
+instance Arbitrary (ErpError ModuleError Ac.TaxCode) where
     arbitrary = do
         tcName <- arbitrary
         tcCode <- arbitrary
@@ -193,11 +193,11 @@ instance Arbitrary Ac.TaxCode where
         sum <- arbitrary
         return $ Ac.createTaxCode tcName tcCode tcActive tcCompany sum
 
-instance Arbitrary (ErpError Ac.AccountError Ac.Sign) where
+instance Arbitrary (ErpError ModuleError Ac.Sign) where
     arbitrary = oneof [return $ ErpError.Success $ Ac.Positive,
             return $ ErpError.Success $ Ac.Negative]
 
-instance Arbitrary (ErpError Ac.AccountError Ac.Tax) where
+instance Arbitrary (ErpError ModuleError Ac.Tax) where
     arbitrary = do
         tName <- arbitrary
         tCode <- arbitrary
@@ -228,11 +228,13 @@ instance Arbitrary (ErpError Ac.AccountError Ac.Tax) where
                 (convert (creditNoteBase, creditNoteSign))
                 (convert (creditNoteTaxCode, creditNoteTaxSign))
         where
-            convert :: (ErpError Ac.AccountError Ac.Account,
-                        ErpError Ac.AccountError Ac.Sign) ->
-                            ErpError Ac.AccountError (Ac.Account, Ac.Sign)
+            convert :: (ErpError ModuleError Ac.Account,
+                        ErpError ModuleError Ac.Sign) ->
+                            ErpError ModuleError (Ac.Account, Ac.Sign)
             convert (acc, sign) =
                 case (acc, sign) of
                     (ErpError.Success a, ErpError.Success s) -> ErpError.Success (a, s)
-                    _ -> ErpError.Error $ Ac.AccountError "Invalid Account"
+                    _ -> ErpError.Error $
+                        ModuleError "TestHarness" "InvTestCase"
+                            "Invalid Account"
 

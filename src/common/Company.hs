@@ -11,7 +11,7 @@ module Company (createCompany, validCurrencies,
     Day,
     PaymentTerm,
     CompanyReport,
-    Degrees, Minutes, Seconds, InvalidCoordinates,
+    Degrees, Minutes, Seconds,
     LatDirection(..),
     LongDirection(..),
     Latitude, createLatitude,
@@ -47,6 +47,8 @@ import qualified Currency as Cu
 import qualified Login as Lo
 import qualified Product as Pr
 import qualified Data.Set as S
+import ErpError
+
 
 type SupplierReference = String
 type InternalReference = String
@@ -54,6 +56,8 @@ data CompanyNotFound = CompanyNotFound deriving (Show, Generic, Data, Typeable, 
 data DuplicateCompaniesFound = DuplicateCompaniesFound deriving (Show, Generic, Data, Typeable, Eq, Ord)
 instance Exception CompanyNotFound
 instance Exception DuplicateCompaniesFound
+
+
 type Percent = Float
 data Day = CalendarDays Int | BusinessDays Int
     deriving(Show, Data, Typeable, Generic, Eq, Ord)
@@ -78,15 +82,20 @@ data Company = Company {party :: Party,
 instance Eq Company where
     a == b = party a == party b
 
-createCompany :: Party -> Cu.Currency -> S.Set Cu.Currency -> S.Set Pr.Product
-    -> Company
+createCompany :: ErpError ModuleError Party -> Cu.Currency ->
+    S.Set Cu.Currency -> S.Set Pr.Product
+    -> ErpError ModuleError Company
 createCompany aParty aCurrency alternateCurrencies products =
-    let
-        result = Company aParty aCurrency (S.fromList []) products (M.fromList
-             (map (\x -> (show x, 0)) (S.elems products)))
-    in
-        S.fold addAlternateCurrencies result alternateCurrencies
-
+    case aParty of
+        Success aP ->
+                let
+                    initProductBatch = map (\x -> (show x, 1) ) (S.elems products)
+                    result = Company aP aCurrency (S.fromList [])
+                            products (M.fromList initProductBatch)
+                in
+                    Success $ S.fold addAlternateCurrencies result
+                            alternateCurrencies
+        Error a -> Error $ ModuleError "Company" "InvCompany" "Invalid Company"
 resetCounter aCompany aProduct  =
     aCompany {productBatchId = M.insert (show aProduct) 0 (productBatchId aCompany)}
 incrementCounter aCompany aProduct = M.adjust ( + 1) (show aProduct) (productBatchId aCompany)
@@ -107,7 +116,9 @@ currencyExists :: Cu.Currency -> Company -> Bool
 currencyExists aCurrency aCompany = (aCurrency == currency aCompany)
                         || (S.member aCurrency $ alternateCurrencies aCompany)
 
-validCurrencies aCompany = S.notMember (currency aCompany) (alternateCurrencies aCompany)
+validCurrencies aCom = S.notMember (currency aCom)
+             (alternateCurrencies aCom)
+
 addProduct :: Company -> Pr.Product -> Company
 addProduct aCompany aProduct = aCompany {productSet = S.insert aProduct (productSet aCompany)}
 removeAlternateCurrency aCurrency aCompany = aCompany {alternateCurrencies = S.filter ( /= aCurrency) (alternateCurrencies aCompany) }
@@ -151,37 +162,47 @@ data Latitude = Latitude { lat :: CoordinateUnit,
 
 invalid :: Degrees -> Bool
 invalid a = a < 0 || a > 60
-data InvalidCoordinates = InvalidCoordinates deriving (Show, Data, Typeable, Generic, Eq, Ord)
-instance Exception InvalidCoordinates
 
-createLatitude :: Degrees -> Minutes -> Seconds -> LatDirection -> Latitude
+createLatitude :: Degrees -> Minutes -> Seconds -> LatDirection ->
+    ErpError ModuleError Latitude
 createLatitude d m s dir=
     if (invalid d || invalid m || invalid s) then
-        throw InvalidCoordinates
+        Error $ ModuleError "Company" "CO001" "Invalid coordinates"
     else
-        Latitude (CoordinateUnit d m s) dir
+        Success $ Latitude (CoordinateUnit d m s) dir
 
 data Longitude = Longitude { longitude :: CoordinateUnit,
                             longDirection :: LongDirection}
     deriving (Show, Data, Typeable, Generic, Eq, Ord)
 
-createLongitude :: Degrees -> Minutes -> Seconds -> LongDirection -> Longitude
+createLongitude :: Degrees -> Minutes -> Seconds -> LongDirection ->
+       ErpError ModuleError Longitude
 createLongitude d m s dir =
     if invalid d || invalid m || invalid s then
-        throw InvalidCoordinates
+        Error $ ModuleError "Company" "CO_Inv_Long" "Invalid longitude"
     else
-        Longitude (CoordinateUnit d m s) dir
+        Success $ Longitude (CoordinateUnit d m s) dir
 
 data Coordinate = Coordinate { x :: Latitude, y :: Longitude}
     deriving (Show, Typeable, Data, Generic, Eq, Ord)
-createCoordinate :: Latitude -> Longitude -> Coordinate
-createCoordinate = Coordinate
+createCoordinate :: ErpError ModuleError Latitude ->
+                    ErpError ModuleError Longitude ->
+                    ErpError ModuleError Coordinate
+createCoordinate la lo =
+        case (la, lo) of
+            (Success lat, Success long) -> Success $ Coordinate lat long
+            _               -> Error $ ModuleError "Company"
+                                "CO_Inv_Coord" "Invalid coordinates"
 
 data GeoLocation = GeoLocation{ uri :: URI,
                                 position :: Coordinate}
                         deriving (Show, Data, Typeable, Generic, Eq, Ord)
-createGeoLocation :: URI -> Coordinate -> GeoLocation
-createGeoLocation = GeoLocation
+createGeoLocation :: URI -> (ErpError ModuleError Coordinate) -> ErpError ModuleError GeoLocation
+createGeoLocation a b =
+    case b of
+        Success b -> Success $ GeoLocation a b
+        _         -> Error $ ModuleError "Company" "Inv_Geo_Loc"
+                                        "Invalid geo location"
 type VCard = String
 type Address = String
 data Party = Party {name :: String,
@@ -196,21 +217,25 @@ data Party = Party {name :: String,
                     deriving (Show, Data, Typeable,Generic, Eq, Ord)
 type Name = String
 
-createParty :: Name -> Address -> GeoLocation -> Contact -> Category
-                    -> VCard -> S.Set Category -> S.Set Contact -> Party
+createParty :: Name -> Address -> ErpError ModuleError GeoLocation -> Contact -> Category
+                    -> VCard -> S.Set Category -> S.Set Contact ->
+                    ErpError ModuleError Party
 createParty name add loc contact cat vc categories contacts =
-    let
-        result = Party { name = name,
+    case loc of
+        Success aLoc ->
+            let result = Party { name = name,
                         address = add,
-                        maplocation = loc,
+                        maplocation = aLoc,
                         poc = contact,
                         primaryCategory = cat,
                         vcard = vc,
                         alternateCategories = S.fromList [],
                         alternatePocs = S.fromList[]}
-        result2 = S.fold addAlternateCategories result categories
-    in
-        S.fold addAlternatePocs result2 contacts
+                result2 = S.fold addAlternateCategories result categories
+            in
+                Success $ S.fold addAlternatePocs result2 contacts
+        Error _ -> Error $ ModuleError "Company" "InvParty" "Invalid Party"
+
 
 addAlternateCategories :: Category -> Party -> Party
 addAlternateCategories aCategory aParty =
@@ -289,15 +314,21 @@ data InvalidWorkTime = InvalidWorkTime {h :: HoursPerDay, d :: DaysPerWeek, w ::
         deriving (Show, Typeable, Generic, Eq, Ord)
 instance Exception InvalidWorkTime
 
-createCompanyWorkTime :: Company -> HoursPerDay -> DaysPerWeek -> WeeksPerMonth -> MonthsPerYear -> CompanyWorkTime
+createCompanyWorkTime :: ErpError ModuleError Company -> HoursPerDay ->
+    DaysPerWeek -> WeeksPerMonth -> MonthsPerYear ->
+    ErpError ModuleError CompanyWorkTime
 createCompanyWorkTime aCompany hoursPerDay daysPerWeek weeksPerMonth monthsPerYear =
     if invalidHoursPerDay hoursPerDay ||
         invalidDaysPerWeek daysPerWeek ||
         invalidWeeksPerMonth weeksPerMonth ||
         invalidMonthsPerYear monthsPerYear then
-        CompanyWorkTime aCompany 8 5 5 12 -- some defaults??
+        Error $ ModuleError "Company" "InvWorkTime" "Invalid Work time"
     else
-        CompanyWorkTime aCompany hoursPerDay daysPerWeek weeksPerMonth monthsPerYear
+        case aCompany of
+            Success aCom ->
+                    Success $ CompanyWorkTime aCom hoursPerDay daysPerWeek
+                        weeksPerMonth monthsPerYear
+            Error _ -> Error $ ModuleError "Company" "InvCompany" "Invalid Company"
 invalidHoursPerDay :: Int -> Bool
 invalidHoursPerDay aNumber = aNumber < 0 || aNumber > 10
 
@@ -314,6 +345,7 @@ type Hours = Int
 totalDays :: CompanyWorkTime -> Hours
 totalDays aCompanyWorkTime = (hoursPerDay aCompanyWorkTime) * (daysPerWeek aCompanyWorkTime) *(weeksPerMonth  aCompanyWorkTime) * (monthsPerYear  aCompanyWorkTime)
 
+validHours :: CompanyWorkTime -> Bool
 validHours aCompanyWorkTime = 2500 > (totalDays aCompanyWorkTime)
 instance J.ToJSON GeoLocation
 instance J.FromJSON GeoLocation

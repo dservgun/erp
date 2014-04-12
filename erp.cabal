@@ -14,11 +14,21 @@ data-dir: ""
 extra-source-files: testsuite/tests/TestRunner.hs
 
 library
-    build-depends: base -any, acid-state -any, websockets -any,
-                   mtl -any, containers -any, safecopy -any, text -any, async -any,
-                   aeson -any, time -any, url -any, hslogger -any, directory -any,
-                   datetime -any
-                   , hspec >= 1.9.2
+    build-depends:    base -any
+                    , acid-state >= 0.12.1
+                    , websockets >= 0.8.2.0
+                    , mtl >= 2.1.2
+                    , containers -any
+                    , safecopy >= 0.8.2
+                    , text >= 0.11.3.1
+                    , async >= 2.0.1.4
+                    , aeson >= 0.7.0.2
+                    , time >= 1.4.0.1
+                    , url >= 2.1.3
+                    , hslogger >= 1.2.3
+                    , directory >= 1.2.0.1
+                    , datetime >= 0.2.1
+                    , hspec >= 1.9.2
     exposed-modules: ErpError ErpServer ErpModel Login Account Company
                      Currency FiscalYear Entity AccountAsset Bank Product Carrier
     exposed: True
@@ -32,11 +42,23 @@ library
     ghc-options: -fhpc -DDEBUG
 
 executable erp
-    build-depends: base -any, acid-state -any, websockets -any,
-                   mtl -any, containers -any, safecopy -any, text -any, async -any,
-                   aeson -any, time -any, erp -any, url -any, hslogger -any,
-                   directory -any, datetime -any
-                   , hspec >= 1.9.2
+        build-depends:    base -any
+                    , acid-state >= 0.12.1
+                    , websockets >= 0.8.2.0
+                    , mtl >= 2.1.2
+                    , containers -any
+                    , safecopy >= 0.8.2
+                    , text >= 0.11.3.1
+                    , async >= 2.0.1.4
+                    , aeson >= 0.7.0.2
+                    , time >= 1.4.0.1
+                    , url >= 2.1.3
+                    , hslogger >= 1.2.3
+                    , directory >= 1.2.0.1
+                    , datetime >= 0.2.1
+                    , hspec >= 1.9.2
+                    , erp
+
     main-is: Main.hs
     buildable: True
     default-language: Haskell2010
@@ -47,11 +69,23 @@ executable erp
     other-modules:
 
 executable erp_ui
-    build-depends: base -any, acid-state -any, websockets -any,
-                   mtl -any, containers -any, safecopy -any, text -any, async -any,
-                   aeson -any, time -any, erp -any, url -any, directory -any,
-                   datetime -any
-                   , hspec >= 1.9.2
+    build-depends:    base -any
+                    , acid-state >= 0.12.1
+                    , websockets >= 0.8.2.0
+                    , mtl >= 2.1.2
+                    , containers -any
+                    , safecopy >= 0.8.2
+                    , text >= 0.11.3.1
+                    , async >= 2.0.1.4
+                    , aeson >= 0.7.0.2
+                    , time >= 1.4.0.1
+                    , url >= 2.1.3
+                    , hslogger >= 1.2.3
+                    , directory >= 1.2.0.1
+                    , datetime >= 0.2.1
+                    , hspec >= 1.9.2
+                    , erp
+
     main-is: Main.hs
     buildable: True
     default-language: Haskell2010
@@ -62,12 +96,24 @@ executable erp_ui
     other-modules:
 
 test-suite tests
-    build-depends: base -any, acid-state -any, websockets -any,
-                   mtl -any, containers -any, safecopy -any, erp -any, text -any,
-                   async -any, test-framework -any, test-framework-quickcheck2 -any,
-                   QuickCheck -any, random -any, aeson -any, time -any, url -any,
-                   directory -any, datetime -any
-                   , hspec >= 1.9.2
+    build-depends:    base -any
+                    , acid-state >= 0.12.1
+                    , websockets >= 0.8.2.0
+                    , mtl >= 2.1.2
+                    , containers -any
+                    , safecopy >= 0.8.2
+                    , text >= 0.11.3.1
+                    , async >= 2.0.1.4
+                    , aeson >= 0.7.0.2
+                    , time >= 1.4.0.1
+                    , url >= 2.1.3
+                    , hslogger >= 1.2.3
+                    , directory >= 1.2.0.1
+                    , datetime >= 0.2.1
+                    , hspec >= 1.9.2
+                    , QuickCheck >= 2.6
+                    , erp
+
     type: exitcode-stdio-1.0
     main-is: TestRunner.hs
     buildable: True
