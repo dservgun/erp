@@ -146,33 +146,34 @@ tests = [
          ]
 
 prop_currency :: ErpError ModuleError Co.Company -> Bool
-prop_currency a =
-    case a of
-    ErpError.Success aCompany -> Co.validCurrencies aCompany
-    ErpError.Error _ -> False
+prop_currency (ErpError.Success aCompany) = Co.validCurrencies aCompany
+-- I need a better way to express this.
+prop_currency (ErpError.Error _) = True
 
 prop_company_time :: ErpError ModuleError Co.CompanyWorkTime -> Bool
 prop_company_time a =
     case a of
     ErpError.Success aCom -> Co.validHours aCom
-    ErpError.Error _ -> False
+    ErpError.Error _ -> True
 
 prop_party_categories :: ErpError ModuleError Co.Party -> Bool
 prop_party_categories a =
     case a of
     ErpError.Success cat -> Co.validCategories cat
-    ErpError.Error _ -> False
+    ErpError.Error _ -> True
 
 prop_party_contacts :: ErpError ModuleError Co.Party -> Bool
 prop_party_contacts a =
     case a of
     ErpError.Success con -> Co.validContacts con
-    ErpError.Error  _ -> False
+    ErpError.Error  _ -> True
 
 
 prop_valid_account a =
     case a of
-        ErpError.Error _ -> False
+        ErpError.Error _ -> True
         _          -> Ac.validAccount a
 
-prop_valid_journal = Ac.validJournal
+prop_valid_journal :: ErpError ModuleError Ac.Journal -> Bool
+prop_valid_journal (ErpError.Success aJournal )= Ac.validJournal aJournal
+prop_valid_journal (ErpError.Error _ ) = True

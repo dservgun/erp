@@ -162,15 +162,12 @@ createJournal aName aCode active view updatePosted taxes jType defaultDebitAccou
                         y S.empty
                     _ -> Error $ ModuleError "Account" "InvJournal" "Invalid Journal"
 
-validJournal :: ErpError ModuleError Journal -> Bool
-validJournal aJournalH =
-    case aJournalH of
-    Success aJournal ->
+validJournal :: Journal -> Bool
+validJournal aJournal =
         case journalType aJournal of
             Expense -> taxes aJournal /= Nothing
             Revenue -> taxes aJournal /= Nothing
             _       -> taxes aJournal == Nothing
-    _ -> False
 
 type ReferenceNumber = String
 data MoveState  = Draft | Posted
