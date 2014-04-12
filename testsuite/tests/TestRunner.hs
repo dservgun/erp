@@ -118,18 +118,6 @@ main = do
     serverTest
     mapM_ (\(s, a) -> printf "%-25s" s >> a) ( tests)
 
-prop1 :: Pr.ErpError ProductError UOM -> Bool
-prop1 aValue =
-    case aValue of
-    Pr.Error _ -> False
-    Pr.Success aUOM -> Pr.validUOM aUOM
-
-prop_valid_dimensions :: Pr.ErpError ProductError Dimensions -> Bool
-prop_valid_dimensions aValue =
-    case aValue of
-    Pr.Error _ -> False
-    Pr.Success aDim -> Pr.validDimensions aDim
-
 
 
 
@@ -177,3 +165,17 @@ prop_valid_account a =
 prop_valid_journal :: ErpError ModuleError Ac.Journal -> Bool
 prop_valid_journal (ErpError.Success aJournal )= Ac.validJournal aJournal
 prop_valid_journal (ErpError.Error _ ) = True
+
+
+
+prop1 :: Pr.ErpError ProductError UOM -> Bool
+prop1 aValue =
+    case aValue of
+    Pr.Error _ -> True
+    Pr.Success aUOM -> Pr.validUOM aUOM
+
+prop_valid_dimensions :: Pr.ErpError ProductError Dimensions -> Bool
+prop_valid_dimensions aValue =
+    case aValue of
+    Pr.Error _ -> True
+    Pr.Success aDim -> Pr.validDimensions aDim
