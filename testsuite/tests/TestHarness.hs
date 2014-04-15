@@ -238,3 +238,12 @@ instance Arbitrary (ErpError ModuleError Ac.Tax) where
                         ModuleError "TestHarness" "InvTestCase"
                             "Invalid Account"
 
+
+
+
+inject :: (ErpError ModuleError a, ErpError ModuleError b) -> ErpError ModuleError (a, b)
+inject (a1, a2) =
+    case (a1, a2) of
+        (ErpError.Success a, ErpError.Success s) -> ErpError.Success (a, s)
+        _ -> ErpError.Error $ ModuleError "TestHarness" "InvTestCase" "Invalid account or sign"
+

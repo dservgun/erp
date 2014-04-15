@@ -25,6 +25,7 @@ import Data.SafeCopy
 import Data.Typeable
 import Data.Data
 import qualified Data.Map as M
+import qualified Data.HashMap.Strict as H
 import qualified Data.Set as S
 import qualified Data.Aeson as J
 import qualified Data.Text.Lazy.Encoding as E
@@ -91,11 +92,18 @@ type Weight = Float
 type Height = Float
 type Length = Float
 type Width = Float
+-- This needs to be its own module
+type Image = String
 
+-- lengthD because length is sort of reserved in haskell.
 data Dimensions =
-    Dimensions {dLength :: Length, width :: Width, height :: Height, weight :: Weight}
-    deriving (Show, Generic, Data, Typeable, Eq, Ord)
+    Dimensions {lengthD :: Length, width :: Width, height :: Height, weight :: Weight}
+    deriving (Show, Generic, Data, Typeable, Eq, Ord, Read)
 
+{--
+create dimensions for the product. Sizes will differ for different type
+of product sizes.
+--}
 createDimensions :: Length -> Width -> Height -> Weight ->
     ErpError ProductError Dimensions
 createDimensions a b c w =
@@ -109,11 +117,22 @@ createDimensions a b c w =
 validDimensions :: Dimensions -> Bool
 validDimensions d  = a > 0 && b > 0 && c > 0 && w > 0
                     where
-                        a = dLength d
+                        a = lengthD d
                         b = width d
                         c = height d
                         w = weight d
 type ProductAudit = (UTCTime, Product, PriceUOM)
+{-- |
+  The size here represents a pair of multiple and the uom. For example,
+  if a product is packaged in 1 liter, 5 liter and 20 liter packages,
+  then liter is the UOM and the size for the product could be
+  one of
+  (1, Liter)
+  (5, Liter)
+  (20, Liter)
+
+ |--}
+type Size = (Int, UOM)
 
 data Product = Product {
         productUPCCode :: UPCCode,
@@ -128,11 +147,25 @@ data Product = Product {
         attributes :: S.Set Attribute,
         active :: Bool,
         dimensions :: Dimensions,
+        -- The key is the string of the Size type
+        -- How to create custom maps such that
+        -- we can create json from them?
+        -- Show interface should have sufficed:
+        -- Need to find out
+        dimensionsMap :: M.Map String (Dimensions, Image),
         parentProduct :: Product,
         productHistory:: [ProductAudit]}
         deriving (Data,Show, Generic, Typeable, Eq, Ord)
 
+addDimensions :: Product -> Size -> Dimensions -> Image -> Product
+addDimensions aProduct aSize dim image =
+    aProduct {dimensionsMap =
+        M.insert (show aSize) (dim, image) (dimensionsMap aProduct)}
 
+deleteDimensions :: Product -> Size -> Product
+deleteDimensions aProduct aSize = aProduct {
+        dimensionsMap = M.delete (show aSize) (dimensionsMap aProduct)
+        }
 
 instance J.ToJSON UOMCategory
 instance J.FromJSON UOMCategory
