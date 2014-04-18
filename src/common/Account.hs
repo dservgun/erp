@@ -133,11 +133,12 @@ data Journal = Journal {
     defaultDebitAccount :: Account,
     defaultCreditAccount :: Account,
     moves :: S.Set Move}
-    deriving (Show, Typeable, Generic, Eq, Ord)
+    deriving (Show, Typeable, Generic, Eq)
 
-instance Ord (Tr.Tree Tax) where
-    compare  t y = compare (Tr.rootLabel t) (Tr.rootLabel y)
-    (<=) t y = (Tr.rootLabel t) <= (Tr.rootLabel y)
+instance Ord Journal where
+    compare  t y = compare (jName t, jCode t) (jName y, jCode y)
+    (<=) t y = (jName t, jCode t) <= (jName y, jCode y)
+
 createJournal :: Name -> Code -> Bool -> DisplayView -> Bool ->
     Maybe (Tr.Tree Tax) -> JournalType -> DebitAccount -> CreditAccount ->
         ErpError ModuleError Journal

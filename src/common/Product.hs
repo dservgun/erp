@@ -24,6 +24,7 @@ import Data.Acid.Remote
 import Data.SafeCopy
 import Data.Typeable
 import Data.Data
+import Data.Tree as Tr
 import qualified Data.Map as M
 import qualified Data.HashMap.Strict as H
 import qualified Data.Set as S
@@ -41,22 +42,46 @@ data ProductError = ProductError {eMsg :: String} deriving Show
 
 data InvalidUOMException = InvalidUOMException deriving Show
 
-data UOMCategory = UOMCategory {catName :: String,
-                                parentCat :: Maybe UOMCategory}
+data UOMCategory = UOMCategory {catName :: String}
     deriving(Show, Generic, Data, Typeable, Eq, Ord)
-createUOMCategory :: String -> Maybe UOMCategory -> UOMCategory
+
+findCategory :: UOMCategory -> Tr.Tree UOMCategory -> ErpError
+                            ModuleError UOMCategory
+findCategory aCat aTree =
+    case r of
+    [] -> ErpError.Error $ ModuleError "Product" "CatNotFound"
+                                "Category not found"
+
+    [h] -> ErpError.Success h
+    _ -> ErpError.Error $ ModuleError "Product" "DupCat"
+                    "Duplicate categories"
+    where
+        r = filter (\x -> x == aCat) (Tr.flatten aTree)
+createUOMCategory :: String -> UOMCategory
 createUOMCategory = UOMCategory
+createRootCategory :: UOMCategory -> Tr.Tree UOMCategory
+createRootCategory aCat = Tr.Node aCat []
+updateCategoryTree :: UOM -> Tr.Tree UOMCategory -> UOM
+updateCategoryTree aUOM aCat =
+    aUOM {
+           category = aCat
+         }
+
+
 {-- UOM defines the unit of measure for the product --}
 data UOM =  UOM {
         name :: String,
         symbol :: String,
-        category :: UOMCategory,
+        category :: Tr.Tree UOMCategory,
         rate :: Ratio Integer,
         factor :: Ratio Integer,
         rounding :: Int,
         displayDigits :: Int,
         uActive :: Bool}
-    deriving (Show, Generic, Data, Typeable,Eq, Ord)
+    deriving (Show, Generic, Data, Typeable,Eq)
+instance Ord UOM where
+    compare  t y = compare (name t, symbol t) (name y, symbol y)
+    (<=) t y = (name t, symbol t) <= (name y, symbol y)
 
 type Numerator = Integer
 type Denominator = Integer
@@ -66,7 +91,7 @@ createUOM name symbol category num den rounding displayDigits active =
         if den == 0 then
             Error $ ProductError "InvalidUOM"
         else
-            Success $ UOM name symbol category (num % den) (den % num) rounding
+            Success $ UOM name symbol (createRootCategory category) (num % den) (den % num) rounding
             displayDigits active
 
 
