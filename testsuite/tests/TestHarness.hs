@@ -37,8 +37,7 @@ instance Arbitrary Co.Category where
 instance Arbitrary Pr.UOMCategory where
     arbitrary = do
             name <- arbitrary
-            cat <- arbitrary
-            return (Pr.createUOMCategory name cat)
+            return (Pr.createUOMCategory name)
 
 instance Arbitrary Co.ContactType where
     arbitrary = elements [Co.Phone
