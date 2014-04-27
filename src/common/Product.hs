@@ -61,11 +61,23 @@ createUOMCategory :: String -> UOMCategory
 createUOMCategory = UOMCategory
 createRootCategory :: UOMCategory -> Tr.Tree UOMCategory
 createRootCategory aCat = Tr.Node aCat []
+addChildCategory :: Tr.Tree UOMCategory -> Tr.Tree UOMCategory
+        -> Tr.Tree UOMCategory
+addChildCategory parent child = parent {subForest = child : (subForest parent)}
+
+{-- | Delete the immediate child for a parent --}
+deleteCategory :: Tr.Tree UOMCategory -> Tr.Tree UOMCategory
+    -> Tr.Tree UOMCategory
+deleteCategory parent child = parent
+    {subForest = filter (\x -> x /= child) $ subForest parent}
+
+
 updateCategoryTree :: UOM -> Tr.Tree UOMCategory -> UOM
 updateCategoryTree aUOM aCat =
     aUOM {
            category = aCat
          }
+
 
 
 {-- UOM defines the unit of measure for the product --}
@@ -120,7 +132,7 @@ type Width = Float
 -- This needs to be its own module
 type Image = String
 
--- lengthD because length is sort of reserved in haskell.
+-- lengthD because length is sort of reserved.
 data Dimensions =
     Dimensions {lengthD :: Length, width :: Width, height :: Height, weight :: Weight}
     deriving (Show, Generic, Data, Typeable, Eq, Ord, Read)
