@@ -55,9 +55,9 @@ data ErpModel = ErpModel
                     deleted :: Deleted
                 } deriving (Show, Generic, Typeable, Eq, Ord)
 
-delete anErpModel = anErpModel {deleted = True}                
-{-- A given email id can be tied to only a single erp model, 
- though a given model can be associated with multiple email ids--}                 
+delete anErpModel = anErpModel {deleted = True}
+{-- A given email id can be tied to only a single erp model,
+ though a given model can be associated with multiple email ids--}
 data Database = Database ! (M.Map String ErpModel)
      deriving (Show, Generic, Typeable, Eq, Ord)
 data RequestType = Create | Modify | Retrieve | Delete deriving (Show, Generic, Typeable, Eq, Ord)
@@ -74,7 +74,7 @@ instance J.ToJSON ErpModel
 instance J.FromJSON ErpModel
 
 
-$(deriveSafeCopy 0 'base ''Database)   
+$(deriveSafeCopy 0 'base ''Database)
 $(deriveSafeCopy 0 'base ''ErpModel)
 
 emptyModel = ErpModel{partySet = S.empty,
@@ -86,16 +86,16 @@ emptyModel = ErpModel{partySet = S.empty,
 updateModel aModel aCategory = aModel{ categorySet = S.insert aCategory (categorySet aModel)}
 
 lookupCompany :: String -> Co.Party -> A.Query Database (Maybe Co.Company)
-lookupCompany aLogin aParty = 
+lookupCompany aLogin aParty =
     do
         Database db <- ask
         let erp = M.lookup aLogin db
-        case erp of 
+        case erp of
             Nothing -> throw Co.CompanyNotFound
             Just x -> return $ Co.findCompany aParty (companySet x)
-                
+
 insertLogin :: String -> Lo.Login -> A.Update Database ()
-insertLogin aString aLogin = 
+insertLogin aString aLogin =
     do
         Database db <- get
         let loginErp = emptyModel {login = aLogin}
@@ -106,41 +106,41 @@ deleteLoginI aString  =
     do
         Database db <- get
         let loginErp = M.lookup aString db
-        case loginErp of 
+        case loginErp of
             Nothing -> throw LoginNotFound
             Just x -> put (Database (M.insert aString (delete x) db))
-            
-        
-        
+
+
+
 lookupLogin :: String -> A.Query  Database (Maybe Lo.Login)
 lookupLogin aLogin =
     do
         Database db <- ask
-        let erp = M.lookup aLogin db 
+        let erp = M.lookup aLogin db
         case erp of
             Just erp -> return $ Just $ login erp
             _   -> return Nothing
-        
-        
+
+
 lookupCategory :: String -> Co.Category -> A.Query  Database(Maybe Co.Category)
 -- qbe -> query by example
-lookupCategory aLogin qbe = 
+lookupCategory aLogin qbe =
     do
        Database db <- ask
-       let erp = M.lookup aLogin db 
+       let erp = M.lookup aLogin db
        return (if exists erp then Just qbe else Nothing)
-       where       
-        exists erp = 
+       where
+        exists erp =
             case erp of
-            Just e -> S.member qbe (categorySet e) 
+            Just e -> S.member qbe (categorySet e)
             _      -> False
 
 insertCategory :: String -> Co.Category -> A.Update Database ()
-insertCategory aLogin c@(Co.Category aCatName) = 
+insertCategory aLogin c@(Co.Category aCatName) =
     do
         Database db <- get
         let erp = M.lookup aLogin db
-        case erp of        
+        case erp of
             Just exists -> put(Database (M.insert aLogin (updateModel exists c) db))
             _       -> return()
 
@@ -149,7 +149,7 @@ getDatabase userEmail = do
         Database db <- ask
         let loginErp = M.lookup userEmail db
         return loginErp
-            
+
 $(A.makeAcidic ''Database ['lookupLogin, 'insertLogin, 'deleteLoginI, 'lookupCategory, 'insertCategory
             , 'getDatabase])
 
@@ -167,21 +167,23 @@ initializeDatabase  dbLocation = A.openLocalStateFrom dbLocation $ Database M.em
 disconnect = A.closeAcidState
 
 pJSON = J.decode . E.encodeUtf8 . L.fromStrict
-updateDatabase connection acid aMessage = 
-    let 
+updateDatabase connection acid aMessage =
+    let
         r = J.decode $ E.encodeUtf8 $ L.fromStrict aMessage
-    in 
-        case r of         
+    in
+        case r of
         Just aRequest -> processRequest connection acid aRequest
         _ -> throw InvalidRequest
 
-        
-processRequest connection acid r@(Request entity emailId payload)  = 
+
+processRequest connection acid r@(Request entity emailId payload)  =
     case entity of
     "Login" -> updateLogin acid $ L.toStrict payload
     "DeleteLogin" -> deleteLogin acid emailId
     "Category" -> updateCategory acid emailId $ L.toStrict payload
-    "QueryDatabase" -> queryDatabase acid emailId $ L.toStrict payload
+    "QueryDatabase" -> do
+            model <- queryDatabase acid emailId $ L.toStrict payload
+            TIO.putStrLn $ T.pack $ show model
     "CloseConnection" -> do
                 TIO.putStrLn (T.pack "Closing connection for " `T.append` (T.pack emailId))
                 WS.sendTextData connection $ J.encode r
@@ -189,25 +191,25 @@ processRequest connection acid r@(Request entity emailId payload)  =
 
 
 deleteLogin acid anEmailId = A.update acid (DeleteLoginI anEmailId)
-updateLogin acid payload = 
+updateLogin acid payload =
      let
         pObject = J.decode $ E.encodeUtf8 $ L.fromStrict payload
-     in 
+     in
         case pObject of
             Just l@(Lo.Login name email) -> do
                     loginLookup <- A.query acid (LookupLogin name)
                     case loginLookup of
                         Nothing -> A.update acid (InsertLogin name l)
                         Just l2@(Lo.Login name email) -> TIO.putStrLn "Exception?"
-            Nothing -> throw InvalidLogin 
+            Nothing -> throw InvalidLogin
 
 
 updateCategory acid emailId payload =
-    let 
+    let
         pObject = pJSON payload
     in
         case pObject of
-            Just c@(Co.Category aCat) -> do 
+            Just c@(Co.Category aCat) -> do
                 infoM "ErpModel" "Processing update category"
                 lookup <- A.query acid (LookupCategory emailId c)
                 case lookup of
@@ -216,9 +218,10 @@ updateCategory acid emailId payload =
             Nothing -> throw InvalidCategory
 
 
-displayText = T.pack . show      
-      
+displayText = T.pack . show
+
 queryDatabase acid emailId payload = do
     lookup <- A.query acid (GetDatabase emailId)
     TIO.putStrLn(displayText lookup)
-    TIO.putStrLn("How does this work??")
+    return lookup
+

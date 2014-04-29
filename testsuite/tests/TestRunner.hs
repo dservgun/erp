@@ -93,18 +93,19 @@ databaseTest aString conn =
 
 
 serverTest = do
-    TIO.putStrLn "Removing acid state directory, from previous runs."
+    TIO.putStrLn "Cleanup."
     dirExists <- SD.doesDirectoryExist acidStateTestDir
-    TIO.putStrLn $ T.pack ("Directory exists " ++ (show dirExists))
+
     case dirExists of
         True -> SD.removeDirectoryRecursive acidStateTestDir
-        False -> TIO.putStrLn "Directory not found to delete"
+        False -> TIO.putStrLn "."
     m <- newEmptyMVar
     s <- async (testServerMain m acidStateTestDir)
     TIO.putStrLn "Starting server"
 
-    TIO.putStrLn "Waiting for the server to start"
+    TIO.putStrLn "Starting..."
     mvarValue <- takeMVar m
+    TIO.putStrLn "Server ready."
     TIO.putStrLn "Starting client thread"
     TIO.putStrLn $ T.pack("Mvar returned " ++ show mvarValue)
     c <- async (WS.runClient "localhost" 8082 "/" $ loginTest 2)
