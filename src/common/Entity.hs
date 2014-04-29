@@ -16,7 +16,7 @@ import GHC.Generics
 
 data EntityState = Open | Closed
     deriving (Show, Data, Typeable, Generic, Eq, Ord)
-    
+
 instance J.ToJSON EntityState
 instance J.FromJSON EntityState
-$(deriveSafeCopy 0 'base ''EntityState)    
+$(deriveSafeCopy 0 'base ''EntityState)

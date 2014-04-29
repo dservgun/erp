@@ -55,7 +55,7 @@ parseMessage conn = do
                     TIO.putStrLn "Received :: "
                     WS.sendClose conn ("Closing" :: T.Text)
                 _ -> do
-                    TIO.putStrLn "Received ::"
+                    TIO.putStrLn $ T.pack ("Received ::" ++ (show aRequest))
                     TIO.putStrLn $ processResponse aRequest
 
         _ -> throw M.InvalidRequest
@@ -93,14 +93,19 @@ databaseTest aString conn =
 
 
 serverTest = do
-    TIO.putStrLn "Starting server"
     TIO.putStrLn "Removing acid state directory, from previous runs."
-    SD.removeDirectoryRecursive acidStateTestDir
+    dirExists <- SD.doesDirectoryExist acidStateTestDir
+    TIO.putStrLn $ T.pack ("Directory exists " ++ (show dirExists))
+    case dirExists of
+        True -> SD.removeDirectoryRecursive acidStateTestDir
+        False -> TIO.putStrLn "Directory not found to delete"
     m <- newEmptyMVar
     s <- async (testServerMain m acidStateTestDir)
+    TIO.putStrLn "Starting server"
+
     TIO.putStrLn "Waiting for the server to start"
-    TIO.putStrLn "Starting client thread"
     mvarValue <- takeMVar m
+    TIO.putStrLn "Starting client thread"
     TIO.putStrLn $ T.pack("Mvar returned " ++ show mvarValue)
     c <- async (WS.runClient "localhost" 8082 "/" $ loginTest 2)
     cat <- async(WS.runClient "localhost" 8082 "/" $ categoryTest "Test Category")
@@ -116,6 +121,7 @@ serverTest = do
 
 main = do
     serverTest
+
     mapM_ (\(s, a) -> printf "%-25s" s >> a) ( tests)
 
 
