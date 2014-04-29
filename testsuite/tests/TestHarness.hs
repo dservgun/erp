@@ -69,7 +69,7 @@ instance Arbitrary (ErpError ModuleError Co.Party) where
 
 -- How do we enforce the rate and factor relationship?
 
-instance Arbitrary (Pr.ErpError Pr.ProductError Pr.UOM) where
+instance Arbitrary (ErpError.ErpError ErpError.ModuleError Pr.UOM) where
     arbitrary = do
         name <- arbitrary
         symbol <- arbitrary
@@ -104,7 +104,7 @@ instance Arbitrary (ErpError ModuleError Co.Latitude) where
         lDirec <- elements[Co.North, Co.South]
         return $ Co.createLatitude degrees minutes seconds lDirec
 
-instance Arbitrary (ErpError Pr.ProductError Pr.Dimensions) where
+instance Arbitrary (ErpError ErpError.ModuleError Pr.Dimensions) where
     arbitrary = do
         length <- arbitrary
         height <- arbitrary
@@ -233,8 +233,8 @@ instance Arbitrary (ErpError ModuleError Ac.Tax) where
             convert (acc, sign) =
                 case (acc, sign) of
                     (ErpError.Success a, ErpError.Success s) -> ErpError.Success (a, s)
-                    _ -> ErpError.Error $
-                        ModuleError "TestHarness" "InvTestCase"
+                    _ -> ErpError.createErrorS
+                         "TestHarness" "InvTestCase"
                             "Invalid Account"
 
 
@@ -244,5 +244,6 @@ inject :: (ErpError ModuleError a, ErpError ModuleError b) -> ErpError ModuleErr
 inject (a1, a2) =
     case (a1, a2) of
         (ErpError.Success a, ErpError.Success s) -> ErpError.Success (a, s)
-        _ -> ErpError.Error $ ModuleError "TestHarness" "InvTestCase" "Invalid account or sign"
+        _ -> ErpError.createErrorS
+                "TestHarness" "InvTestCase" "Invalid account or sign"
 

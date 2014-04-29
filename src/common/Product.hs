@@ -7,8 +7,6 @@ module Product (
     , Price
     , createPrice
     , PriceUOM
-    , ProductError
-    , ErpError(..)
     , Product
     , Dimensions
     , createDimensions
@@ -38,7 +36,6 @@ import Data.Ratio
 import ErpError
 
 
-data ProductError = ProductError {eMsg :: String} deriving Show
 
 data InvalidUOMException = InvalidUOMException deriving Show
 
@@ -49,11 +46,11 @@ findCategory :: UOMCategory -> Tr.Tree UOMCategory -> ErpError
                             ModuleError UOMCategory
 findCategory aCat aTree =
     case r of
-    [] -> ErpError.Error $ ModuleError "Product" "CatNotFound"
+    [] -> ErpError.createErrorS "Product" "CatNotFound"
                                 "Category not found"
 
-    [h] -> ErpError.Success h
-    _ -> ErpError.Error $ ModuleError "Product" "DupCat"
+    [h] -> ErpError.createSuccess h
+    _ -> ErpError.createErrorS "Product" "DupCat"
                     "Duplicate categories"
     where
         r = filter (\x -> x == aCat) (Tr.flatten aTree)
@@ -64,6 +61,7 @@ createRootCategory aCat = Tr.Node aCat []
 addChildCategory :: Tr.Tree UOMCategory -> Tr.Tree UOMCategory
         -> Tr.Tree UOMCategory
 addChildCategory parent child = parent {subForest = child : (subForest parent)}
+
 
 {-- | Delete the immediate child for a parent --}
 deleteCategory :: Tr.Tree UOMCategory -> Tr.Tree UOMCategory
@@ -98,12 +96,13 @@ instance Ord UOM where
 type Numerator = Integer
 type Denominator = Integer
 createUOM :: String -> String -> UOMCategory -> Numerator -> Denominator -> Int -> Int ->
-    Bool -> ErpError ProductError UOM
+    Bool -> ErpError ModuleError UOM
 createUOM name symbol category num den rounding displayDigits active =
         if den == 0 then
-            Error $ ProductError "InvalidUOM"
+            ErpError.createErrorS  "Product" "InvalidUOM" "Invalid UOM"
         else
-            Success $ UOM name symbol (createRootCategory category) (num % den) (den % num) rounding
+            ErpError.createSuccess $ UOM name symbol (createRootCategory category)
+            (num % den) (den % num) rounding
             displayDigits active
 
 
@@ -142,14 +141,16 @@ create dimensions for the product. Sizes will differ for different type
 of product sizes.
 --}
 createDimensions :: Length -> Width -> Height -> Weight ->
-    ErpError ProductError Dimensions
+    ErpError ModuleError Dimensions
 createDimensions a b c w =
     if a > 0 && b > 0  && c > 0 && w > 0 then
-        Success $ Dimensions a b c w
+        ErpError.createSuccess $ Dimensions a b c w
     else
-        Error $ ProductError $ "Invalid dimensions "  ++ (show a) ++ "," ++
+        ErpError.createErrorS
+            "ProducT"
+            "InvDimensions"  ("Invalid dimensions "  ++ (show a) ++ "," ++
             (show b) ++ "," ++
-            (show c) ++ ", " ++ (show w)
+            (show c) ++ ", " ++ (show w))
 
 validDimensions :: Dimensions -> Bool
 validDimensions d  = a > 0 && b > 0 && c > 0 && w > 0

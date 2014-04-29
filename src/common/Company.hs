@@ -93,9 +93,9 @@ createCompany aParty aCurrency alternateCurrencies products =
                     result = Company aP aCurrency (S.fromList [])
                             products (M.fromList initProductBatch)
                 in
-                    Success $ S.fold addAlternateCurrencies result
+                    ErpError.createSuccess $ S.fold addAlternateCurrencies result
                             alternateCurrencies
-        Error a -> Error $ ModuleError "Company" "InvCompany" "Invalid Company"
+        Error a -> ErpError.createErrorS "Company" "InvCompany" "Invalid Company"
 resetCounter aCompany aProduct  =
     aCompany {productBatchId = M.insert (show aProduct) 0 (productBatchId aCompany)}
 incrementCounter aCompany aProduct = M.adjust ( + 1) (show aProduct) (productBatchId aCompany)
@@ -167,9 +167,9 @@ createLatitude :: Degrees -> Minutes -> Seconds -> LatDirection ->
     ErpError ModuleError Latitude
 createLatitude d m s dir=
     if (invalid d || invalid m || invalid s) then
-        Error $ ModuleError "Company" "CO001" "Invalid coordinates"
+        ErpError.createErrorS "Company" "CO001" "Invalid coordinates"
     else
-        Success $ Latitude (CoordinateUnit d m s) dir
+        ErpError.createSuccess $ Latitude (CoordinateUnit d m s) dir
 
 data Longitude = Longitude { longitude :: CoordinateUnit,
                             longDirection :: LongDirection}
@@ -179,9 +179,9 @@ createLongitude :: Degrees -> Minutes -> Seconds -> LongDirection ->
        ErpError ModuleError Longitude
 createLongitude d m s dir =
     if invalid d || invalid m || invalid s then
-        Error $ ModuleError "Company" "CO_Inv_Long" "Invalid longitude"
+        ErpError.createErrorS "Company" "CO_Inv_Long" "Invalid longitude"
     else
-        Success $ Longitude (CoordinateUnit d m s) dir
+        ErpError.createSuccess $ Longitude (CoordinateUnit d m s) dir
 
 data Coordinate = Coordinate { x :: Latitude, y :: Longitude}
     deriving (Show, Typeable, Data, Generic, Eq, Ord)
@@ -190,8 +190,8 @@ createCoordinate :: ErpError ModuleError Latitude ->
                     ErpError ModuleError Coordinate
 createCoordinate la lo =
         case (la, lo) of
-            (Success lat, Success long) -> Success $ Coordinate lat long
-            _               -> Error $ ModuleError "Company"
+            (Success lat, Success long) -> ErpError.createSuccess $ Coordinate lat long
+            _               -> ErpError.createErrorS "Company"
                                 "CO_Inv_Coord" "Invalid coordinates"
 
 data GeoLocation = GeoLocation{ uri :: URI,
@@ -200,8 +200,8 @@ data GeoLocation = GeoLocation{ uri :: URI,
 createGeoLocation :: URI -> (ErpError ModuleError Coordinate) -> ErpError ModuleError GeoLocation
 createGeoLocation a b =
     case b of
-        Success b -> Success $ GeoLocation a b
-        _         -> Error $ ModuleError "Company" "Inv_Geo_Loc"
+        Success b -> ErpError.createSuccess $ GeoLocation a b
+        _         -> ErpError.createErrorS "Company" "Inv_Geo_Loc"
                                         "Invalid geo location"
 type VCard = String
 type Address = String
@@ -233,8 +233,8 @@ createParty name add loc contact cat vc categories contacts =
                         alternatePocs = S.fromList[]}
                 result2 = S.fold addAlternateCategories result categories
             in
-                Success $ S.fold addAlternatePocs result2 contacts
-        Error _ -> Error $ ModuleError "Company" "InvParty" "Invalid Party"
+                ErpError.createSuccess $ S.fold addAlternatePocs result2 contacts
+        Error _ -> ErpError.createErrorS "Company" "InvParty" "Invalid Party"
 
 
 addAlternateCategories :: Category -> Party -> Party
@@ -301,6 +301,29 @@ type HoursPerDay = Int
 type DaysPerWeek = Int
 type WeeksPerMonth = Int
 type MonthsPerYear = Int
+
+{-- | The range of the minimum and valid hours per day
+--}
+
+data ValidHoursPerDay = ValidHoursPerDay {
+        minHPD :: HoursPerDay,
+        maxHPD :: HoursPerDay
+        } deriving (Show, Typeable, Generic, Eq, Ord)
+
+thisModule :: String
+thisModule = "Company"
+createValidHoursPerDay :: HoursPerDay -> HoursPerDay -> ErpError
+            ModuleError ValidHoursPerDay
+createValidHoursPerDay a b
+    | a < 0 || b < 0  = ErpError.createErrorS
+                    thisModule
+                    ( "InvRange")
+                    ("Invalid range " ++ (show a) ++ (show b))
+    | a > b = createValidHoursPerDay b a -- flip the arguments.
+    | otherwise    = ErpError.createSuccess ValidHoursPerDay {
+                minHPD = a,
+                maxHPD = b}
+
 data CompanyWorkTime = CompanyWorkTime {
             workTime:: Company,
             hoursPerDay :: HoursPerDay,
@@ -322,13 +345,15 @@ createCompanyWorkTime aCompany hoursPerDay daysPerWeek weeksPerMonth monthsPerYe
         invalidDaysPerWeek daysPerWeek ||
         invalidWeeksPerMonth weeksPerMonth ||
         invalidMonthsPerYear monthsPerYear then
-        Error $ ModuleError "Company" "InvWorkTime" "Invalid Work time"
+        ErpError.createErrorS "Company" "InvWorkTime" "Invalid Work time"
     else
         case aCompany of
-            Success aCom ->
-                    Success $ CompanyWorkTime aCom hoursPerDay daysPerWeek
+            ErpError.Success aCom ->
+                    ErpError.createSuccess $ CompanyWorkTime aCom hoursPerDay daysPerWeek
                         weeksPerMonth monthsPerYear
-            Error _ -> Error $ ModuleError "Company" "InvCompany" "Invalid Company"
+            ErpError.Error _ -> ErpError.createErrorS "Company" "InvCompany" "Invalid Company"
+
+
 invalidHoursPerDay :: Int -> Bool
 invalidHoursPerDay aNumber = aNumber < 0 || aNumber > 10
 

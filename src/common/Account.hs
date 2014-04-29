@@ -103,10 +103,10 @@ createAccount aName aCode aCompany aCurrency aKind
     case aCompany of
     Success aCom ->
             if altCurrency /= aCurrency then
-                Success $ Account aName aCode aCom aCurrency aKind aType deferral altCurrency reconcile note
+                ErpError.createSuccess $ Account aName aCode aCom aCurrency aKind aType deferral altCurrency reconcile note
             else
-                Error $ ModuleError "Account" "InvAccount" "Invalid Account"
-    Error _ -> Error $ ModuleError "Account" "InvCompany" "Invalid Company"
+                ErpError.createErrorS "Account" "InvAccount" "Invalid Account"
+    Error _ -> ErpError.createErrorS "Account" "InvCompany" "Invalid Company"
 validAccount :: ErpError ModuleError Account -> Bool
 validAccount anAccount =
     case anAccount of
@@ -149,10 +149,10 @@ createJournal aName aCode active view updatePosted taxes jType defaultDebitAccou
         _ ->
             case (defaultDebitAccount, defaultCreditAccount) of
                 (Success x, Success y) ->
-                    Success $ Journal aName aCode active view
+                    ErpError.createSuccess $ Journal aName aCode active view
                               updatePosted Nothing jType
                               x y S.empty
-                _  -> Error $ ModuleError "Account" "InvJournal" "Invalid Journal"
+                _  -> ErpError.createErrorS "Account" "InvJournal" "Invalid Journal"
         where
             jObject =
                 case (defaultDebitAccount, defaultCreditAccount) of
@@ -161,7 +161,7 @@ createJournal aName aCode active view updatePosted taxes jType defaultDebitAccou
                         aName aCode active view updatePosted taxes jType
                         x
                         y S.empty
-                    _ -> Error $ ModuleError "Account" "InvJournal" "Invalid Journal"
+                    _ -> ErpError.createErrorS "Account" "InvJournal" "Invalid Journal"
 
 validJournal :: Journal -> Bool
 validJournal aJournal =
@@ -251,7 +251,7 @@ createTaxCode :: Name -> Code -> Boolean ->
 createTaxCode n c a com s =
     case com of
     Success aC -> Success $ TaxCode n c a aC s
-    Error _ -> Error $ ModuleError "Acount" "INVTC" "Invalid tax code"
+    Error _ -> ErpError.createErrorS "Acount" "INVTC" "Invalid tax code"
 
 
 addChild :: (Tr.Tree TaxCode) -> TaxCode -> TaxCode -> Tr.Tree TaxCode
@@ -298,9 +298,9 @@ createTax n c s b se tt co acc1 acc2 a1 a2 a3 a4 =
                 case co of
                     Success aCo ->
                         Success $ Tax n c s b se tt aCo a11 a21 a211 a222 a333 a444
-                    Error _ -> Error $ ModuleError "Account" "InvTax" "Invalid Tax"
-            _ -> Error $ ModuleError "Account" "InvAccount" "Invalid Acccounts"
-    _               -> Error $ ModuleError "Account" "InvAccount" "Invalid Accounts"
+                    Error _ -> ErpError.createErrorS "Account" "InvTax" "Invalid Tax"
+            _ -> ErpError.createErrorS "Account" "InvAccount" "Invalid Acccounts"
+    _               -> ErpError.createErrorS "Account" "InvAccount" "Invalid Accounts"
 
 
 validTax :: Tax -> Bool

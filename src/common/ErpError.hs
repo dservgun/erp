@@ -13,8 +13,11 @@
 -----------------------------------------------------------------------------
 
 module ErpError (
-    ErpError(..),
-    ModuleError(..)
+    ErpError(Error,Success),
+    createError,
+    createSuccess,
+    createErrorS,
+    ModuleError
 ) where
 import Data.Acid.Remote
 import Data.SafeCopy
@@ -22,14 +25,14 @@ import Data.Typeable
 import Data.Data
 import GHC.Generics
 import qualified Data.Aeson as J
-import Data.Text as T
+import Data.Text.Lazy as L
 
 
 data ErpError a b = Error a | Success b deriving (Show, Eq, Ord, Typeable,Generic,Data)
 
-type ModuleName = Text
-type ErrorCode = Text
-type ErrorMessage = Text
+type ModuleName = L.Text
+type ErrorCode = L.Text
+type ErrorMessage = L.Text
 data ModuleError = ModuleError {mName :: ModuleName,
                                 errorCode :: ErrorCode,
                                 errorMessage :: ErrorMessage}
@@ -37,6 +40,11 @@ data ModuleError = ModuleError {mName :: ModuleName,
 
 createError :: ModuleName -> ErrorCode -> ErrorMessage -> ModuleError
 createError = ModuleError
+
+createErrorS :: String -> String -> String -> ErpError ModuleError a
+createErrorS a b c = Error $ createError (L.pack a) (L.pack b)(L.pack c)
+createSuccess a = Success a
+
 
 
 
