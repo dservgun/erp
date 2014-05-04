@@ -254,6 +254,8 @@ createTaxCode n c a com s =
     Error _ -> ErpError.createErrorS "Acount" "INVTC" "Invalid tax code"
 
 
+{-- | Add the child to a parent. If the child exists in the tree,
+        return. --}
 addChild :: (Tr.Tree TaxCode) -> TaxCode -> TaxCode -> Tr.Tree TaxCode
 addChild aTree child parent = undefined
 

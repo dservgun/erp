@@ -96,6 +96,8 @@ createCompany aParty aCurrency alternateCurrencies products =
                     ErpError.createSuccess $ S.fold addAlternateCurrencies result
                             alternateCurrencies
         Error a -> ErpError.createErrorS "Company" "InvCompany" "Invalid Company"
+
+
 resetCounter aCompany aProduct  =
     aCompany {productBatchId = M.insert (show aProduct) 0 (productBatchId aCompany)}
 incrementCounter aCompany aProduct = M.adjust ( + 1) (show aProduct) (productBatchId aCompany)
@@ -205,6 +207,7 @@ createGeoLocation a b =
                                         "Invalid geo location"
 type VCard = String
 type Address = String
+
 data Party = Party {name :: String,
                     address :: Address,
                     maplocation :: GeoLocation,
@@ -217,6 +220,9 @@ data Party = Party {name :: String,
                     deriving (Show, Data, Typeable,Generic, Eq, Ord)
 type Name = String
 
+{-- |
+    Create a party or return an error.
+--}
 createParty :: Name -> Address -> ErpError ModuleError GeoLocation -> Contact -> Category
                     -> VCard -> S.Set Category -> S.Set Contact ->
                     ErpError ModuleError Party
@@ -228,6 +234,7 @@ createParty name add loc contact cat vc categories contacts =
                         maplocation = aLoc,
                         poc = contact,
                         primaryCategory = cat,
+
                         vcard = vc,
                         alternateCategories = S.fromList [],
                         alternatePocs = S.fromList[]}
@@ -236,7 +243,17 @@ createParty name add loc contact cat vc categories contacts =
                 ErpError.createSuccess $ S.fold addAlternatePocs result2 contacts
         Error _ -> ErpError.createErrorS "Company" "InvParty" "Invalid Party"
 
+{-- |
 
+For example, if the main category is say Vendor,
+but the vendor is also a potential customer for the current product because
+of the employees of the vendor, then the alternate category
+could be "Potential Customer". Other classification could be its
+SIC classification: target industry, sub industry etc.
+Alternate categories are probably better represented as minor categories
+in this context.
+
+--}
 addAlternateCategories :: Category -> Party -> Party
 addAlternateCategories aCategory aParty =
     if categoryExists aParty aCategory then
@@ -244,6 +261,9 @@ addAlternateCategories aCategory aParty =
     else
         aParty {alternateCategories = S.insert aCategory (alternateCategories aParty)}
 
+{--|
+    This is the primary category
+--}
 setPrimaryCategory :: Party -> Category -> Party
 setPrimaryCategory aParty aCat =
     if categoryExists aParty aCat then
