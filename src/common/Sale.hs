@@ -99,7 +99,7 @@ data Sale = Sale {
         shipmentCostMethod :: Sh.ShipmentCostMethod,
         returnPolicy :: ReturnPolicy,
         saleSupply :: Bool -- Generate a supply request regardless of stock levels.
-        } deriving (Show, Ord, Eq, Typeable, Generic)
+        } deriving (Show, Ord, Eq, Data, Typeable, Generic)
 
 createSale :: Co.Party -> Co.Address ->
                 Co.Address -> L.Text -> Co.InternalReference

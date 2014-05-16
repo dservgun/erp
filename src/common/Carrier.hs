@@ -16,10 +16,11 @@ import FiscalYear as Fy
 import Company as Co
 import Currency as Cu
 import Bank as Ba
+import Data.Data
 
-data CarrierCostMethod = PercentCostMethod Float | 
+data CarrierCostMethod = PercentCostMethod Float |
                          WeightCostMethod Float deriving (Show, Typeable, Generic, Eq, Ord)
-data Carrier = Carrier {party :: Party} deriving(Show, Typeable, Generic, Eq, Ord)
+data Carrier = Carrier {party :: Party} deriving(Show, Typeable, Generic, Eq, Ord, Data)
 
 
 instance J.ToJSON Carrier

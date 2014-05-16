@@ -18,20 +18,21 @@ import qualified FiscalYear as Fy
 import qualified Company as Co
 import qualified Product as Pr
 import qualified Account as Ac
+import Data.Data
 
 
 
 data LocationType = Storage | Warehouse | Customer | Supplier | LostAndFound
-    deriving(Show, Eq, Ord, Typeable, Generic)
+    deriving(Show, Eq, Ord, Typeable, Generic, Data)
 
-data Location = Location{ 
+data Location = Location{
                 location :: Co.Address,
                 geoLocation :: Co.GeoLocation,
                 locationType :: LocationType
-                } deriving (Show, Eq, Ord, Typeable, Generic)
-                
+                } deriving (Show, Eq, Ord, Typeable, Generic, Data)
+
 data MoveState = Draft | Assigned | Done | Cancel
-    deriving (Show, Eq, Ord, Typeable, Generic)
+    deriving (Show, Eq, Ord, Typeable, Generic, Data)
 data Move = Move {
             product:: Pr.Product,
             sourceLocation :: Location,
@@ -39,29 +40,29 @@ data Move = Move {
             moveState :: MoveState,
             moveDate :: UTCTime,
             lot :: Ac.Lot
-        } 
-        deriving (Show, Eq, Ord, Typeable, Generic)
+        }
+        deriving (Show, Eq, Ord, Typeable, Generic, Data)
 data StockSplit = StockSplit {
     ssMove :: Move,
     quantity :: Ac.Quantity,
     counts :: Int
-    } deriving(Show, Eq, Ord, Typeable, Generic)
-    
+    } deriving(Show, Eq, Ord, Typeable, Generic, Data)
+
 data StockProductLocation = StockProductLocation {
     spProduct :: Pr.Product,
     preferredLocations :: [Location]
-    } deriving (Show, Eq, Ord, Typeable, Generic)
+    } deriving (Show, Eq, Ord, Typeable, Generic, Data)
 -- XXX: Revisit
 
 data ProductQuantities = ProductQuantities {
         pqProd :: Pr.Product,
         pqLoc :: Location,
         pqAmount :: Ac.Amount} deriving(Show, Eq, Ord, Typeable, Generic)
-        
 
-    
-        
-        
+
+
+
+
 $(deriveSafeCopy 0 'base ''Move)
 $(deriveSafeCopy 0 'base ''MoveState)
 $(deriveSafeCopy 0 'base ''Location)
@@ -78,7 +79,7 @@ instance J.FromJSON MoveState
 instance J.ToJSON Location
 instance J.FromJSON Location
 instance J.ToJSON LocationType
-instance J.FromJSON LocationType        
+instance J.FromJSON LocationType
 instance J.ToJSON StockProductLocation
 instance J.FromJSON StockProductLocation
 instance J.ToJSON StockSplit

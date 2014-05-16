@@ -53,7 +53,8 @@ import ErpError
 type SupplierReference = String
 type InternalReference = String
 data CompanyNotFound = CompanyNotFound deriving (Show, Generic, Data, Typeable, Eq, Ord)
-data DuplicateCompaniesFound = DuplicateCompaniesFound deriving (Show, Generic, Data, Typeable, Eq, Ord)
+data DuplicateCompaniesFound = DuplicateCompaniesFound deriving
+    (Show, Generic, Data, Typeable, Eq, Ord)
 instance Exception CompanyNotFound
 instance Exception DuplicateCompaniesFound
 
@@ -311,11 +312,11 @@ data Contact = Contact {contactType :: ContactType,
                         value :: String}
                     deriving(Show, Data, Typeable,Generic, Eq, Ord)
 data Employee = Employee {employeeDetails :: Party, employeeCompany :: Company}
-                    deriving (Show, Typeable, Generic, Eq, Ord)
+                    deriving (Show, Typeable, Generic, Eq, Data, Ord)
 data User = User {mainCompany :: Company,
                   userCompany :: Company,
                   userEmployee :: Employee}
-                  deriving (Show, Typeable, Generic, Eq, Ord)
+                  deriving (Show, Typeable, Generic, Eq, Ord, Data)
 
 type HoursPerDay = Int
 type DaysPerWeek = Int

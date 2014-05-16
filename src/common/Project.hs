@@ -12,6 +12,7 @@ import qualified Data.Text.Lazy.Encoding as E
 import qualified Data.Text.Lazy as L
 import Data.Time.Clock
 import GHC.Generics
+import Data.Data
 import qualified Currency as Cu
 import Entity(EntityState)
 import qualified FiscalYear as Fy
@@ -21,36 +22,36 @@ import qualified Stock as St
 import qualified Account as Ac
 
 type Amount = Ac.Amount
-{-- 
+{--
 XXX: Revisit
 --}
 data ProjectState = Opened | Done
-    deriving(Show, Generic, Typeable, Eq, Ord)
+    deriving(Show, Generic, Typeable, Eq, Ord, Data)
 type Effort = Float
 type Percentage = Float
- 
+
 data Project = Project {
     projectState :: ProjectState,
     party :: Co.Party,
     parent :: Project,
     prDependsOn :: Project,
-    comment :: String}    
-    deriving (Show, Generic, Typeable, Eq, Ord)
-    
+    comment :: String}
+    deriving (Show, Generic, Typeable, Eq, Ord, Data)
+
 data Task = Task {
     parentProject :: Project,
     taskDependsOn :: Task,
     effort :: Effort}
-    deriving (Show, Generic, Typeable, Eq, Ord)
-    
+    deriving (Show, Generic, Typeable, Eq, Ord, Data)
+
 
 data Allocation = Allocation {
         employee :: Co.Employee,
         task :: Task,
         percentage :: Percentage}
-        deriving (Show, Generic, Typeable, Eq, Ord)
-        
-        
+        deriving (Show, Generic, Typeable, Eq, Ord, Data)
+
+
 totalEffort :: Project -> Effort
 -- Effort is the sum of all tasks for the project
 totalEffort aProject = 0

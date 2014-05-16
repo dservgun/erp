@@ -13,6 +13,7 @@ import qualified Data.Text.Lazy as L
 import Data.Time.Clock
 import GHC.Generics
 import qualified Currency as Cu
+import Data.Data
 import Entity(EntityState)
 import qualified FiscalYear as Fy
 import qualified Company as Co
@@ -22,15 +23,15 @@ import qualified Account as Ac
 import qualified Carrier as Ca
 
 data ShipmentCostMethod = OnOrder | OnShipment
-    deriving(Show, Eq, Ord, Typeable, Generic, Enum, Bounded)
+    deriving(Show, Eq, Ord, Typeable, Generic, Enum, Bounded, Data)
 
 data ShipmentMethod = OnOrderProcessed | OnShipmentSent | Manual
-    deriving(Show,Eq, Ord, Enum, Bounded, Typeable, Generic)
+    deriving(Show,Eq, Ord, Enum, Bounded, Typeable, Generic, Data)
 data ShipmentState = Draft | Waiting | Assigned | Done | Cancel
-    deriving(Show, Eq, Ord, Enum, Bounded, Typeable, Generic)
+    deriving(Show, Eq, Ord, Enum, Bounded, Typeable, Generic, Data)
 -- Avoid name collision
 data ShipmentType = Supplier | Customer | Internal | InventoryShipment
-    deriving (Show, Eq, Ord, Typeable, Generic)
+    deriving (Show, Eq, Ord, Typeable, Generic, Data)
 data Shipment = Shipment {
         incoming :: [St.Move],
         inventory :: [St.Move],
@@ -39,7 +40,7 @@ data Shipment = Shipment {
         carrier :: Ca.Carrier,
         cost :: Ac.Amount,
         currency :: Cu.Currency
-        } deriving (Show, Eq, Ord, Typeable, Generic)
+        } deriving (Show, Eq, Ord, Typeable, Generic, Data)
 
 computeCosts :: [Shipment] -> Ac.Amount
 computeCosts = \s -> foldr (\incr acc -> acc + (cost incr)) 0 s
