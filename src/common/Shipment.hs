@@ -21,7 +21,7 @@ import qualified Stock as St
 import qualified Account as Ac
 import qualified Carrier as Ca
 
-data ShipmentCostMethod = OnOrder | OnShipment 
+data ShipmentCostMethod = OnOrder | OnShipment
     deriving(Show, Eq, Ord, Typeable, Generic, Enum, Bounded)
 
 data ShipmentMethod = OnOrderProcessed | OnShipmentSent | Manual
@@ -34,13 +34,13 @@ data ShipmentType = Supplier | Customer | Internal | InventoryShipment
 data Shipment = Shipment {
         incoming :: [St.Move],
         inventory :: [St.Move],
-        shipmentState :: ShipmentState, 
-        shipmentType :: ShipmentType, 
+        shipmentState :: ShipmentState,
+        shipmentType :: ShipmentType,
         carrier :: Ca.Carrier,
         cost :: Ac.Amount,
-        currency :: Cu.Currency 
+        currency :: Cu.Currency
         } deriving (Show, Eq, Ord, Typeable, Generic)
-        
+
 data DropShipment = DropShipment {
     dropShipmentProduct:: Pr.Product, -- name space...
     supplier :: Co.Party,
@@ -48,18 +48,18 @@ data DropShipment = DropShipment {
     dropMoves :: [St.Move],
     dropShipmentState :: ShipmentState
     } deriving (Show, Eq, Ord, Typeable, Generic)
-    
+
 data InventoryLine = InventoryLine {
             product :: Pr.Product,
             quantity :: Ac.Quantity}
         deriving (Show, Eq, Ord, Typeable, Generic)
-        
+
 data Inventory = Inventory {
        storageLocation :: St.LocationType,
        lostAndFound :: St.LocationType,
        inventoryLine :: [InventoryLine]
        } deriving (Show, Eq, Ord, Typeable, Generic)
-       
+
 instance J.ToJSON ShipmentState
 instance J.FromJSON ShipmentState
 instance J.ToJSON ShipmentType

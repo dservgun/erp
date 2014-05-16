@@ -71,7 +71,12 @@ data Account = Account {
         deferral :: Boolean,
         altCurrency :: Cu.Currency,
         reconcile :: Boolean,
-        note :: String}
+        note :: String,
+        -- The dunning sets for the account.
+        -- presumably we can have multiple
+        -- dunning procedures per account?
+        -- Dunning aka payment reminders
+        dunningSet :: S.Set Dunning}
         deriving(Show,Typeable, Data, Generic, Eq, Ord)
 type DebitAccount = ErpError ModuleError Account
 type CreditAccount = ErpError ModuleError Account
@@ -103,7 +108,9 @@ createAccount aName aCode aCompany aCurrency aKind
     case aCompany of
     Success aCom ->
             if altCurrency /= aCurrency then
-                ErpError.createSuccess $ Account aName aCode aCom aCurrency aKind aType deferral altCurrency reconcile note
+                ErpError.createSuccess $
+                    Account aName aCode aCom aCurrency aKind aType deferral
+                    altCurrency reconcile note S.empty
             else
                 ErpError.createErrorS "Account" "InvAccount" "Invalid Account"
     Error _ -> ErpError.createErrorS "Account" "InvCompany" "Invalid Company"
@@ -114,7 +121,7 @@ validAccount anAccount =
         _ -> False
 data JournalType = General | Revenue | Situation | Expense
         | Cash
-        deriving (Show, Typeable, Generic, Eq, Ord)
+        deriving (Show, Typeable, Generic, Eq, Ord, Data)
 data Journal = Journal {
     jName :: Name,
     jCode :: Code,
@@ -133,7 +140,7 @@ data Journal = Journal {
     defaultDebitAccount :: Account,
     defaultCreditAccount :: Account,
     moves :: S.Set Move}
-    deriving (Show, Typeable, Generic, Eq)
+    deriving (Show, Typeable, Generic, Eq, Data)
 
 instance Ord Journal where
     compare  t y = compare (jName t, jCode t) (jName y, jCode y)
@@ -172,7 +179,7 @@ validJournal aJournal =
 
 type ReferenceNumber = String
 data MoveState  = Draft | Posted
-    deriving (Show, Typeable, Generic, Eq, Ord)
+    deriving (Show, Typeable, Generic, Eq, Ord, Data)
 data Move = Move {
     mName :: Name,
     mReference :: String,
@@ -183,7 +190,7 @@ data Move = Move {
     mState :: MoveState,
     moveRefNumber :: ReferenceNumber,
     moveLines :: S.Set MoveLine}
-    deriving (Show, Typeable, Generic, Eq, Ord)
+    deriving (Show, Typeable, Generic, Eq, Ord, Data)
 
 post :: Move -> UTCTime -> ReferenceNumber -> Move
 post aMove aDate aRef =
@@ -216,7 +223,7 @@ balancedMove aMove postDate =
     in
         debitSum - creditSum == 0
 data MoveLineState = MlDraft | MlPosted | MlValid
-    deriving (Show, Typeable, Generic, Eq, Ord, Enum, Bounded)
+    deriving (Show, Typeable, Generic, Eq, Ord, Enum, Bounded, Data)
 data MoveLine = MoveLine {
     mlName :: Name,
     mlReference :: String,
@@ -230,13 +237,13 @@ data MoveLine = MoveLine {
     maturityDate :: UTCTime,
     reconciliation :: Maybe Integer,
     taxLines :: [Distribution]}
-    deriving (Show, Typeable, Generic, Eq, Ord)
+    deriving (Show, Typeable, Generic, Eq, Ord, Data)
 
 {-- XXX: This distribution is a list of amount lines on the account chart ??--}
 {-- This is the list of amounts for all the auto-complete taxes for the account --}
 type Distribution = [(Tax, Amount)]
 data Sign = Positive | Negative
-        deriving (Show, Typeable, Generic, Eq , Ord, Enum, Bounded)
+        deriving (Show, Typeable, Generic, Eq , Ord, Enum, Bounded, Data)
 type Amount = R.Ratio Integer
 type Quantity = R.Ratio Integer
 data TaxCode = TaxCode {
@@ -244,7 +251,7 @@ data TaxCode = TaxCode {
     tcCode :: Code,
     tcActive  :: Boolean,
     tcCompany :: Co.Company,
-    sum :: Amount} deriving (Show, Typeable, Generic, Eq, Ord)
+    sum :: Amount} deriving (Show, Typeable, Generic, Eq, Ord, Data)
 createTaxCode :: Name -> Code -> Boolean ->
     ErpError ModuleError Co.Company -> Amount ->
     ErpError ModuleError TaxCode
@@ -259,9 +266,12 @@ createTaxCode n c a com s =
 addChild :: (Tr.Tree TaxCode) -> TaxCode -> TaxCode -> Tr.Tree TaxCode
 addChild aTree child parent = undefined
 
+removeChild :: (Tr.Tree TaxCode) -> TaxCode -> TaxCode -> Tr.Tree TaxCode
+removeChild aTree child parent = undefined
+
 type Sequence = String
 data TaxType = PercentTaxType Float | FixedTaxType Float
-    deriving (Show, Typeable, Generic, Eq, Ord)
+    deriving (Show, Typeable, Generic, Eq, Ord, Data)
 {--
 Refactoring note: credit note account
 and invoice account repeat fields.
@@ -282,7 +292,7 @@ data Tax = Tax {
  invoiceTaxCode :: AccountCode,
  creditNoteBaseCode :: AccountCode,
  creditNoteTaxCode :: AccountCode
- } deriving(Show, Typeable, Generic, Eq, Ord)
+ } deriving(Show, Typeable, Generic, Eq, Ord, Data)
 
 createTax :: Name -> Code -> String -> Boolean -> Sequence -> TaxType ->
                ErpError ModuleError Co.Company
@@ -337,22 +347,26 @@ computeTaxAmount a t =
     Percentage pct -> a *  (1 + pct/100)
     BasisPoints bps -> a * (1 + bps/ 10000)
 
-data Procedure = Procedure String deriving (Show, Typeable, Generic, Eq, Ord)
+data Procedure = Procedure String deriving (Show, Typeable, Generic, Eq, Ord, Data)
 type Day = Int
-data Level = Level Day deriving (Show, Typeable, Generic, Eq, Ord)
-data DunningState = DDraft | DDone deriving (Show, Typeable, Generic, Eq, Ord, Enum, Bounded)
+data Level = Level Day deriving (Show, Typeable, Generic, Eq, Ord, Data)
 type BatchID = String
+
 data Batch = Batch {
                 batchDate :: UTCTime,
                 batchID :: BatchID }
-                deriving (Show, Typeable, Generic, Eq, Ord)
+                deriving (Show, Typeable, Generic, Eq, Ord, Data)
 
 createBatch :: UTCTime -> BatchID -> Batch
 createBatch = Batch
 
+createNewBatch :: BatchID => IO Batch
 createNewBatch anId = do
     c <- getCurrentTime
     return $ createBatch c anId
+
+data DunningState = DDraft | DDone deriving
+    (Show, Typeable, Generic, Eq, Ord, Enum, Bounded, Data)
 
 data Dunning = Dunning {
         line :: MoveLine,
@@ -361,7 +375,8 @@ data Dunning = Dunning {
         -- If true, the dunning is blocked..
         blocked :: Bool,
         dunningState :: DunningState
-        } deriving (Show, Typeable, Generic, Eq, Ord)
+        } deriving (Show, Typeable, Generic, Eq, Ord, Data)
+
 
 printDunningLetter :: Dunning -> L.Text
 printDunningLetter = L.pack . show
