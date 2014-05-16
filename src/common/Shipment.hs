@@ -41,6 +41,8 @@ data Shipment = Shipment {
         currency :: Cu.Currency
         } deriving (Show, Eq, Ord, Typeable, Generic)
 
+computeCosts :: [Shipment] -> Ac.Amount
+computeCosts = \s -> foldr (\incr acc -> acc + (cost incr)) 0 s
 data DropShipment = DropShipment {
     dropShipmentProduct:: Pr.Product, -- name space...
     supplier :: Co.Party,

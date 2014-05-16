@@ -46,6 +46,11 @@ data ReturnPolicy  = Return {
      }
     deriving (Show, Eq, Ord, Typeable, Generic, Data)
 
+{--| Was the return a user whim (almost rarely)
+
+--}
+userWhim :: Sale -> Bool
+userWhim aSale = (returnReason $ returnPolicy aSale) == UserWhim
 updateReturnPolicy :: ReturnPolicy -> ReturnReason -> ReturnPolicy
 updateReturnPolicy a r = case r of
                         UserWhim -> a {returnType = Receiver}
@@ -139,7 +144,12 @@ validSaleInvariant aSale =
 -- sender is responsible for it.
 
 shippingCosts :: Sale -> Ac.Amount
-shippingCosts aSale = undefined
+shippingCosts aSale =
+    if userWhim aSale then
+        Sh.computeCosts $ shipments aSale
+    else
+        Sh.computeCosts $ (shipments aSale) ++ (returns aSale)
+
 
 
 instance J.ToJSON SaleLineType
