@@ -42,6 +42,8 @@ data Move = Move {
             lot :: Ac.Lot
         }
         deriving (Show, Eq, Ord, Typeable, Generic, Data)
+
+
 data StockSplit = StockSplit {
     ssMove :: Move,
     quantity :: Ac.Quantity,

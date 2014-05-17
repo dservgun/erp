@@ -48,12 +48,24 @@ import Entity(EntityState)
 import qualified FiscalYear as Fy
 import qualified Company as Co
 import qualified Data.Ratio as R
+import qualified Product as Pr
 data InvalidAccountException = InvalidAccountException
     deriving (Show, Typeable, Generic, Data, Eq, Ord)
 type Name = String
 type Code = String
 type Boolean = Bool
-type Lot = String
+
+{-- How to define a lot --}
+{-- A lot is a product unit * a number = lot size --}
+type LotSize = Integer
+-- Design rehash: the dimension key is for the lot
+-- Does that make sense?
+data Lot = Lot { lotNotes :: String
+                , lotSize :: LotSize
+                , dimensionKey :: String} deriving (Show, Typeable, Generic, Data, Eq, Ord)
+
+computeLotWeight :: Pr.Product -> Lot -> Pr.Weight
+computeLotWeight a l = (lotSize l R.% 1)  * (Pr.productWeight a $ dimensionKey l)
 type TimeSpent = Float
 data DaysOfWeek = Sunday | Monday | Tuesday | Wednesday | Thursday | Friday | Saturday
     deriving (Show, Enum, Bounded, Data, Typeable, Generic, Eq, Ord)
@@ -447,6 +459,9 @@ instance J.ToJSON TaxType
 instance J.FromJSON TaxType
 instance J.ToJSON Batch
 instance J.FromJSON Batch
+instance J.ToJSON Lot
+instance J.FromJSON Lot
+
 $(deriveSafeCopy 0 'base ''Dunning)
 $(deriveSafeCopy 0 'base ''DunningState)
 $(deriveSafeCopy 0 'base ''Procedure)
@@ -467,7 +482,7 @@ $(deriveSafeCopy 0 'base ''MoveState)
 $(deriveSafeCopy 0 'base ''MoveLine)
 $(deriveSafeCopy 0 'base ''MoveLineState)
 $(deriveSafeCopy 0 'base ''Batch)
-
+$(deriveSafeCopy 0 'base ''Lot)
 
 
 

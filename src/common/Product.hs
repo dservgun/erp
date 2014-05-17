@@ -8,7 +8,9 @@ module Product (
     , createPrice
     , PriceUOM
     , Product
+    , productWeight
     , Dimensions
+    , Weight
     , createDimensions
     , validDimensions
     )
@@ -23,7 +25,7 @@ import Data.SafeCopy
 import Data.Typeable
 import Data.Data
 import Data.Tree as Tr
-import qualified Data.Map as M
+import Data.Map as M
 import qualified Data.HashMap.Strict as H
 import qualified Data.Set as S
 import qualified Data.Aeson as J
@@ -53,7 +55,7 @@ findCategory aCat aTree =
     _ -> ErpError.createErrorS "Product" "DupCat"
                     "Duplicate categories"
     where
-        r = filter (\x -> x == aCat) (Tr.flatten aTree)
+        r = Prelude.filter (\x -> x == aCat) (Tr.flatten aTree)
 createUOMCategory :: String -> UOMCategory
 createUOMCategory = UOMCategory
 createRootCategory :: UOMCategory -> Tr.Tree UOMCategory
@@ -67,7 +69,7 @@ addChildCategory parent child = parent {subForest = child : (subForest parent)}
 deleteCategory :: Tr.Tree UOMCategory -> Tr.Tree UOMCategory
     -> Tr.Tree UOMCategory
 deleteCategory parent child = parent
-    {subForest = filter (\x -> x /= child) $ subForest parent}
+    {subForest = Prelude.filter (\x -> x /= child) $ subForest parent}
 
 
 updateCategoryTree :: UOM -> Tr.Tree UOMCategory -> UOM
@@ -124,7 +126,7 @@ data ProductType = Goods | Assets | Services
 type UPCCode = Maybe String
 data Attribute = Attribute {attributeName :: String, attrDescription:: String}
     deriving (Show, Generic, Data, Typeable, Eq, Ord)
-type Weight = Float
+type Weight = Rational
 type Height = Float
 type Length = Float
 type Width = Float
@@ -194,6 +196,15 @@ data Product = Product {
         parentProduct :: Product,
         productHistory:: [ProductAudit]}
         deriving (Data,Show, Generic, Typeable, Eq, Ord)
+
+productWeight :: Product -> String -> Weight
+productWeight a dimKey =
+    let dim = M.lookup dimKey $ dimensionsMap a
+    in
+        case dim of
+            Nothing -> 0.0
+            Just (d, _) -> weight d
+
 
 addDimensions :: Product -> Size -> Dimensions -> Image -> Product
 addDimensions aProduct aSize dim image =
