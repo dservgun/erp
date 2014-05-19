@@ -30,7 +30,7 @@ library
                         DataKinds DeriveGeneric NoMonomorphismRestriction
                         OverlappingInstances
     hs-source-dirs: . src/server testsuite/tests src/common src/client
-    other-modules:
+    other-modules: TestSpec ProductSpec SpecHelper
     ghc-options: -fhpc -DDEBUG
 
 executable erp

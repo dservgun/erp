@@ -29,7 +29,8 @@ import ErpError
 import Product as Pr
 import Text.Printf
 import TestHarness
-
+import Test.Hspec
+import ProductSpec
 testEmail = "test@test.org"
 createQueryDatabaseRequest login aPayload =
     encode $ toJSON $ M.Request M.queryDatabaseConstant login $ En.decodeUtf8 aPayload
@@ -122,8 +123,9 @@ serverTest = do
 
 main = do
     serverTest
-
     mapM_ (\(s, a) -> printf "%-25s" s >> a) ( tests)
+    hspec $ describe "ProductSpec" ProductSpec.spec
+
 
 
 

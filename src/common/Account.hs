@@ -62,7 +62,8 @@ type LotSize = Integer
 -- Does that make sense?
 data Lot = Lot { lotNotes :: String
                 , lotSize :: LotSize
-                , dimensionKey :: String} deriving (Show, Typeable, Generic, Data, Eq, Ord)
+                , dimensionKey :: String
+                , product :: Pr.Product} deriving (Show, Typeable, Generic, Data, Eq, Ord)
 
 computeLotWeight :: Pr.Product -> Lot -> Pr.Weight
 computeLotWeight a l = (lotSize l R.% 1)  * (Pr.productWeight a $ dimensionKey l)
