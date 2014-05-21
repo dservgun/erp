@@ -323,27 +323,6 @@ type DaysPerWeek = Int
 type WeeksPerMonth = Int
 type MonthsPerYear = Int
 
-{-- | The range of the minimum and valid hours per day
---}
-
-data ValidHoursPerDay = ValidHoursPerDay {
-        minHPD :: HoursPerDay,
-        maxHPD :: HoursPerDay
-        } deriving (Show, Typeable, Generic, Eq, Ord)
-
-thisModule :: String
-thisModule = "Company"
-createValidHoursPerDay :: HoursPerDay -> HoursPerDay -> ErpError
-            ModuleError ValidHoursPerDay
-createValidHoursPerDay a b
-    | a < 0 || b < 0  = ErpError.createErrorS
-                    thisModule
-                    ( "InvRange")
-                    ("Invalid range " ++ (show a) ++ (show b))
-    | a > b = createValidHoursPerDay b a -- flip the arguments.
-    | otherwise    = ErpError.createSuccess ValidHoursPerDay {
-                minHPD = a,
-                maxHPD = b}
 
 data CompanyWorkTime = CompanyWorkTime {
             workTime:: Company,
