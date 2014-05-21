@@ -20,7 +20,8 @@ module Company (createCompany, validCurrencies,
     GeoLocation, createGeoLocation,
     VCard,
     Address,
-    Party, createParty, validContacts, validCategories,
+    Party, createParty, validContacts, validCategories,findParty,
+    PartyNotFound,
     Contact(..),
     ContactType(..),
     CompanyWorkTime, createCompanyWorkTime, validHours,
@@ -53,11 +54,16 @@ import ErpError
 type SupplierReference = String
 type InternalReference = String
 data CompanyNotFound = CompanyNotFound deriving (Show, Generic, Data, Typeable, Eq, Ord)
+data PartyNotFound = PartyNotFound
+    deriving (Show, Generic, Data, Typeable, Eq, Ord)
 data DuplicateCompaniesFound = DuplicateCompaniesFound deriving
     (Show, Generic, Data, Typeable, Eq, Ord)
+data DuplicatePartiesFound = DuplicatePartiesFound deriving
+    (Show, Generic, Data, Typeable, Eq, Ord)
 instance Exception CompanyNotFound
+instance Exception PartyNotFound
 instance Exception DuplicateCompaniesFound
-
+instance Exception DuplicatePartiesFound
 
 type Percent = Float
 data Day = CalendarDays Int | BusinessDays Int
@@ -243,6 +249,22 @@ createParty name add loc contact cat vc categories contacts =
             in
                 ErpError.createSuccess $ S.fold addAlternatePocs result2 contacts
         Error _ -> ErpError.createErrorS "Company" "InvParty" "Invalid Party"
+
+findParty :: (Name, GeoLocation) -> S.Set Party -> Maybe Party
+findParty (aName,aLocation) aSet =
+     let
+        result = S.filter (\x -> name x == aName && maplocation x == aLocation) aSet
+     in
+        if S.null result then
+            Nothing
+        else
+            case elems result of
+                h:[] -> Just h
+                h:[t] -> throw DuplicatePartiesFound
+            where
+                elems aSet = S.elems aSet
+
+
 
 {-- |
 

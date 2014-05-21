@@ -35,7 +35,8 @@ testEmail = "test@test.org"
 createQueryDatabaseRequest login aPayload =
     encode $ toJSON $ M.Request M.queryDatabaseConstant login $ En.decodeUtf8 aPayload
 
-createLoginRequest login aPayload  = encode( toJSON (M.Request M.loginConstant login $ En.decodeUtf8 aPayload))
+createLoginRequest login aPayload  = encode( toJSON (M.Request M.loginConstant login
+                    $ En.decodeUtf8 aPayload))
 
 createCategoryRequest login aPayload = encode $ toJSON $ M.Request M.categoryConstant
         login $ En.decodeUtf8 aPayload

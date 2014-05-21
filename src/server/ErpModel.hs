@@ -78,12 +78,21 @@ $(deriveSafeCopy 0 'base ''Database)
 $(deriveSafeCopy 0 'base ''ErpModel)
 
 emptyModel = ErpModel{partySet = S.empty,
-              companySet = S.empty,
               categorySet = S.empty,
+              companySet = S.empty,
               login = Lo.empty,
               deleted = False
               }
 updateModel aModel aCategory = aModel{ categorySet = S.insert aCategory (categorySet aModel)}
+
+lookupParty :: String -> String -> Co.GeoLocation -> A.Query Database (Maybe Co.Party)
+lookupParty aLogin aName aLocation  =
+    do
+        Database db <- ask
+        let erp = M.lookup aLogin db
+        case erp of
+            Nothing -> throw Co.CompanyNotFound
+            Just x -> return $ Co.findParty (aName, aLocation) (partySet x)
 
 lookupCompany :: String -> Co.Party -> A.Query Database (Maybe Co.Company)
 lookupCompany aLogin aParty =
@@ -191,6 +200,10 @@ processRequest connection acid r@(Request entity emailId payload)  =
 
 
 deleteLogin acid anEmailId = A.update acid (DeleteLoginI anEmailId)
+
+--Authentication is probably done using an oauth provider
+--such as persona or google. This method simply logs
+--in the user as valid.
 updateLogin acid payload =
      let
         pObject = J.decode $ E.encodeUtf8 $ L.fromStrict payload
