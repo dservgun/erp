@@ -148,7 +148,11 @@ instance Arbitrary (ErpError ModuleError Co.CompanyWorkTime) where
         daysPerWeek <- arbitrary
         weeksPerMonth <- arbitrary
         monthsPerYear <- arbitrary
-        return (Co.createCompanyWorkTime company hoursPerDay daysPerWeek weeksPerMonth monthsPerYear)
+        return (Co.createCompanyWorkTime company
+            hoursPerDay (0, 8)
+            daysPerWeek (0, 5)
+            weeksPerMonth (0, 5)
+            monthsPerYear (0, 12) )
 
 instance Arbitrary Ac.Batch where
     arbitrary = do

@@ -23,19 +23,11 @@ import SpecHelper
 import qualified Company as Co
 
 import Data.Set as S
-createTestParty :: Party
-createTestParty = Co.createParty "ABC" "One ABC Way" location contact category
-                vcard S.empty S.empty
-                where
-                    location = createTestLocation
-                    contact = createTestContact
-                    category = createTestCategory
 spec :: Spec
 spec = do
     describe "Product" $ do
         context "Simple text" $ do
             it "parses exactly as-is" $ do
-                let party = createTestParty in
                 23 `shouldBe` 23
 
 

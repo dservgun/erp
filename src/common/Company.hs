@@ -358,14 +358,20 @@ data InvalidWorkTime = InvalidWorkTime {h :: HoursPerDay, d :: DaysPerWeek, w ::
         deriving (Show, Typeable, Generic, Eq, Ord)
 instance Exception InvalidWorkTime
 
-createCompanyWorkTime :: ErpError ModuleError Company -> HoursPerDay ->
-    DaysPerWeek -> WeeksPerMonth -> MonthsPerYear ->
-    ErpError ModuleError CompanyWorkTime
-createCompanyWorkTime aCompany hoursPerDay daysPerWeek weeksPerMonth monthsPerYear =
-    if invalidHoursPerDay hoursPerDay ||
-        invalidDaysPerWeek daysPerWeek ||
-        invalidWeeksPerMonth weeksPerMonth ||
-        invalidMonthsPerYear monthsPerYear then
+createCompanyWorkTime :: ErpError ModuleError Company
+    -> HoursPerDay -> (HoursPerDay, HoursPerDay)
+    ->DaysPerWeek -> (DaysPerWeek, DaysPerWeek)
+    -> WeeksPerMonth -> (WeeksPerMonth, WeeksPerMonth)
+    -> MonthsPerYear -> (MonthsPerYear, MonthsPerYear)
+    -> ErpError ModuleError CompanyWorkTime
+createCompanyWorkTime aCompany hoursPerDay (minH, maxH)
+        daysPerWeek (minD, maxD)
+        weeksPerMonth (minW, maxW)
+        monthsPerYear (minM, maxM) =
+    if invalidHoursPerDay hoursPerDay (minH, maxH)||
+        invalidDaysPerWeek daysPerWeek (minD, maxD)||
+        invalidWeeksPerMonth weeksPerMonth (minW, maxW) ||
+        invalidMonthsPerYear monthsPerYear (minM, maxM) then
         ErpError.createErrorS "Company" "InvWorkTime" "Invalid Work time"
     else
         case aCompany of
@@ -375,17 +381,18 @@ createCompanyWorkTime aCompany hoursPerDay daysPerWeek weeksPerMonth monthsPerYe
             ErpError.Error _ -> ErpError.createErrorS "Company" "InvCompany" "Invalid Company"
 
 
-invalidHoursPerDay :: Int -> Bool
-invalidHoursPerDay aNumber = aNumber < 0 || aNumber > 10
+invalidHoursPerDay :: Int -> (Int, Int) -> Bool
+invalidHoursPerDay aNumber (min, max) = aNumber < min || aNumber > max
 
-invalidDaysPerWeek :: Int -> Bool
-invalidDaysPerWeek aNumber = aNumber < 0 || aNumber > 6
+invalidDaysPerWeek :: Int -> (Int, Int) -> Bool
+invalidDaysPerWeek aNumber (min, max) = aNumber < min || aNumber > max
 
-invalidWeeksPerMonth :: Int -> Bool
-invalidWeeksPerMonth aNumber = aNumber < 0 || aNumber > 5
+invalidWeeksPerMonth :: Int -> (Int, Int) -> Bool
+invalidWeeksPerMonth aNumber (min, max) = aNumber < min || aNumber > max
 
-invalidMonthsPerYear :: Int -> Bool
-invalidMonthsPerYear aNumber = aNumber < 0 || aNumber > 12
+invalidMonthsPerYear :: Int -> (Int, Int) -> Bool
+invalidMonthsPerYear aNumber (min, max) =
+        aNumber < min || aNumber > max
 
 type Hours = Int
 totalDays :: CompanyWorkTime -> Hours
