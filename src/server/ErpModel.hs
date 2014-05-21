@@ -84,6 +84,7 @@ emptyModel = ErpModel{partySet = S.empty,
               deleted = False
               }
 updateModel aModel aCategory = aModel{ categorySet = S.insert aCategory (categorySet aModel)}
+updateParty aModel aParty = aModel {partySet = S.insert aParty (partySet aModel)}
 
 lookupParty :: String -> String -> Co.GeoLocation -> A.Query Database (Maybe Co.Party)
 lookupParty aLogin aName aLocation  =
@@ -110,8 +111,8 @@ insertLogin aString aLogin =
         let loginErp = emptyModel {login = aLogin}
         put (Database (M.insert aString loginErp db))
 
-deleteLoginI :: String -> A.Update Database ()
-deleteLoginI aString  =
+deleteLogin :: String -> A.Update Database ()
+deleteLogin aString  =
     do
         Database db <- get
         let loginErp = M.lookup aString db
@@ -153,14 +154,25 @@ insertCategory aLogin c@(Co.Category aCatName) =
             Just exists -> put(Database (M.insert aLogin (updateModel exists c) db))
             _       -> return()
 
+insertParty :: String -> Co.Party -> A.Update Database ()
+insertParty aLogin p =
+    do
+        Database db <- get
+        let erp = M.lookup aLogin db
+        case erp of
+            Just exists -> put(Database (M.insert aLogin (updateParty exists p) db))
+            _ -> return ()
+
 getDatabase :: String -> A.Query Database (Maybe ErpModel)
 getDatabase userEmail = do
         Database db <- ask
         let loginErp = M.lookup userEmail db
         return loginErp
 
-$(A.makeAcidic ''Database ['lookupLogin, 'insertLogin, 'deleteLoginI, 'lookupCategory, 'insertCategory
-            , 'getDatabase])
+$(A.makeAcidic ''Database [
+    'lookupLogin, 'insertLogin,
+    'deleteLogin, 'lookupCategory, 'insertCategory
+            , 'getDatabase ])
 
 instance Exception InvalidCategory
 instance Exception InvalidLogin
@@ -188,7 +200,7 @@ updateDatabase connection acid aMessage =
 processRequest connection acid r@(Request entity emailId payload)  =
     case entity of
     "Login" -> updateLogin acid $ L.toStrict payload
-    "DeleteLogin" -> deleteLogin acid emailId
+    "DeleteLogin" -> deleteLoginA acid emailId
     "Category" -> updateCategory acid emailId $ L.toStrict payload
     "QueryDatabase" -> do
             model <- queryDatabase acid emailId $ L.toStrict payload
@@ -199,7 +211,7 @@ processRequest connection acid r@(Request entity emailId payload)  =
     _ -> throw InvalidRequest
 
 
-deleteLogin acid anEmailId = A.update acid (DeleteLoginI anEmailId)
+deleteLoginA acid anEmailId = A.update acid (DeleteLogin anEmailId)
 
 --Authentication is probably done using an oauth provider
 --such as persona or google. This method simply logs
