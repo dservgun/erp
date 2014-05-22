@@ -102,17 +102,19 @@ insertParty aLogin p =
         Database db <- get
         let erp = M.lookup aLogin db
         case erp of
-            Just exists -> put(Database (M.insert aLogin (delParty p exists) db))
+            Just exists -> put(Database (M.insert aLogin (updateParty exists p) db))
             _ -> return ()
-        where
-            delParty p model = model {partySet = S.delete p (partySet model)}
 
 deleteParty :: String -> Co.Party -> A.Update Database ()
 deleteParty aLogin aParty = do
     Database db <- get
     let erp = M.lookup aLogin db
     case erp of
-        Just found -> put (Database (M.delete aLogin (deleteParty found p) db))
+        Just found -> put (Database (M.insert aLogin (delP2 aParty found) db))
+        _ -> return ()
+    where
+        delP2 aParty model = model {partySet = S.delete aParty (partySet model)}
+
 lookupCompany :: String -> Co.Party -> A.Query Database (Maybe Co.Company)
 lookupCompany aLogin aParty =
     do
