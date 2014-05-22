@@ -84,7 +84,9 @@ emptyModel = ErpModel{partySet = S.empty,
               deleted = False
               }
 updateModel aModel aCategory = aModel{ categorySet = S.insert aCategory (categorySet aModel)}
+
 updateParty aModel aParty = aModel {partySet = S.insert aParty (partySet aModel)}
+
 
 lookupParty :: String -> String -> Co.GeoLocation -> A.Query Database (Maybe Co.Party)
 lookupParty aLogin aName aLocation  =
@@ -94,7 +96,23 @@ lookupParty aLogin aName aLocation  =
         case erp of
             Nothing -> throw Co.CompanyNotFound
             Just x -> return $ Co.findParty (aName, aLocation) (partySet x)
+insertParty :: String -> Co.Party -> A.Update Database ()
+insertParty aLogin p =
+    do
+        Database db <- get
+        let erp = M.lookup aLogin db
+        case erp of
+            Just exists -> put(Database (M.insert aLogin (delParty p exists) db))
+            _ -> return ()
+        where
+            delParty p model = model {partySet = S.delete p (partySet model)}
 
+deleteParty :: String -> Co.Party -> A.Update Database ()
+deleteParty aLogin aParty = do
+    Database db <- get
+    let erp = M.lookup aLogin db
+    case erp of
+        Just found -> put (Database (M.delete aLogin (deleteParty found p) db))
 lookupCompany :: String -> Co.Party -> A.Query Database (Maybe Co.Company)
 lookupCompany aLogin aParty =
     do
@@ -154,14 +172,6 @@ insertCategory aLogin c@(Co.Category aCatName) =
             Just exists -> put(Database (M.insert aLogin (updateModel exists c) db))
             _       -> return()
 
-insertParty :: String -> Co.Party -> A.Update Database ()
-insertParty aLogin p =
-    do
-        Database db <- get
-        let erp = M.lookup aLogin db
-        case erp of
-            Just exists -> put(Database (M.insert aLogin (updateParty exists p) db))
-            _ -> return ()
 
 getDatabase :: String -> A.Query Database (Maybe ErpModel)
 getDatabase userEmail = do
