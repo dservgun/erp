@@ -62,7 +62,10 @@ data Database = Database ! (M.Map String ErpModel)
      deriving (Show, Generic, Typeable, Eq, Ord)
 data RequestType = Create | Modify | Retrieve | Delete deriving (Show, Generic, Typeable, Eq, Ord)
 type RequestEntity = String
+type ProtocolVersion = String
+
 data Request = Request {
+                        version :: ProtocolVersion,
                         requestEntity :: RequestEntity,
                         emailId :: String,
                         payload :: L.Text} deriving(Show, Generic, Typeable, Eq, Ord)
@@ -70,6 +73,13 @@ data InvalidRequest = InvalidRequest deriving (Show, Generic, Typeable, Eq, Ord)
 data InvalidLogin = InvalidLogin deriving (Show, Generic, Typeable, Eq, Ord)
 data InvalidCategory = InvalidCategory deriving (Show, Generic, Typeable, Eq, Ord)
 
+-- The current protocol build version.
+-- This needs to be validated before processing
+-- a request.We should get the build version,
+-- from the build instead of using a string as below.
+
+protocolVersion :: ProtocolVersion
+protocolVersion = "0.0.0.1"
 instance J.ToJSON ErpModel
 instance J.FromJSON ErpModel
 
@@ -209,18 +219,21 @@ updateDatabase connection acid aMessage =
         _ -> throw InvalidRequest
 
 
-processRequest connection acid r@(Request entity emailId payload)  =
-    case entity of
-    "Login" -> updateLogin acid $ L.toStrict payload
-    "DeleteLogin" -> deleteLoginA acid emailId
-    "Category" -> updateCategory acid emailId $ L.toStrict payload
-    "QueryDatabase" -> do
-            model <- queryDatabase acid emailId $ L.toStrict payload
-            TIO.putStrLn $ T.pack $ show model
-    "CloseConnection" -> do
-                TIO.putStrLn (T.pack "Closing connection for " `T.append` (T.pack emailId))
-                WS.sendTextData connection $ J.encode r
-    _ -> throw InvalidRequest
+processRequest connection acid r@(Request iProtocolVersion entity emailId payload)  =
+    if iProtocolVersion /= protocolVersion then
+        throw InvalidRequest
+    else
+        case entity of
+        "Login" -> updateLogin acid $ L.toStrict payload
+        "DeleteLogin" -> deleteLoginA acid emailId
+        "Category" -> updateCategory acid emailId $ L.toStrict payload
+        "QueryDatabase" -> do
+                model <- queryDatabase acid emailId $ L.toStrict payload
+                TIO.putStrLn $ T.pack $ show model
+        "CloseConnection" -> do
+                    TIO.putStrLn (T.pack "Closing connection for " `T.append` (T.pack emailId))
+                    WS.sendTextData connection $ J.encode r
+        _ -> throw InvalidRequest
 
 
 deleteLoginA acid anEmailId = A.update acid (DeleteLogin anEmailId)

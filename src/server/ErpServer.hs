@@ -17,20 +17,21 @@ import qualified Login as L
 import GHC.Generics
 import Data.Aeson
 
+
 testServerMain :: MVar String -> FilePath -> IO()
 testServerMain m dbLocation =
   bracket
   (M.initializeDatabase dbLocation)
   M.disconnect
-  (\acid -> do    
+  (\acid -> do
     putStrLn $ "Listening on " ++  show portNumber
     -- This is still not a very good signal..because
     -- we could have an exception in the runServer.
-    -- But runServer is a development tool...not 
+    -- But runServer is a development tool...not
     -- suitable for production use
-    putMVar m "Started..presumably"    
+    putMVar m "Started..presumably"
     WS.runServer "127.0.0.1" portNumber $ handleConnection m acid
-    putStrLn "After the call to the handleConnection" 
+    putStrLn "After the call to the handleConnection"
   )
 
 serverMain :: FilePath -> IO ()
@@ -38,7 +39,7 @@ serverMain dbLocation =
   bracket
   (M.initializeDatabase dbLocation)
   M.disconnect
-  (\acid -> do    
+  (\acid -> do
     TIO.putStrLn $ T.pack("Listening on " ++  show portNumber)
     m <- newEmptyMVar
     WS.runServer "127.0.0.1" portNumber $ handleConnection m acid)
@@ -63,7 +64,7 @@ echo conn acid =
      msg <- WS.receiveData conn
      TIO.putStrLn msg
      M.updateDatabase conn acid msg
-     where       
+     where
        catchDisconnect e =
          case fromException e of
            Just  WS.ConnectionClosed ->

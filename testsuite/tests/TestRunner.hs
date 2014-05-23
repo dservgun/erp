@@ -33,18 +33,23 @@ import Test.Hspec
 import ProductSpec
 testEmail = "test@test.org"
 createQueryDatabaseRequest login aPayload =
-    encode $ toJSON $ M.Request M.queryDatabaseConstant login $ En.decodeUtf8 aPayload
+    encode $ toJSON $ M.Request
+            M.protocolVersion
+            M.queryDatabaseConstant login $ En.decodeUtf8 aPayload
 
-createLoginRequest login aPayload  = encode( toJSON (M.Request M.loginConstant login
+createLoginRequest login aPayload  = encode( toJSON (M.Request M.protocolVersion
+                    M.loginConstant login
                     $ En.decodeUtf8 aPayload))
 
-createCategoryRequest login aPayload = encode $ toJSON $ M.Request M.categoryConstant
+createCategoryRequest login aPayload = encode $ toJSON $ M.Request M.protocolVersion
+        M.categoryConstant
         login $ En.decodeUtf8 aPayload
 createCloseConnection login aPayload =
-    encode $ toJSON $ M.Request M.closeConnection login $ En.decodeUtf8 aPayload
+    encode $ toJSON $ M.Request M.protocolVersion
+            M.closeConnection login $ En.decodeUtf8 aPayload
 
 
-processResponse aRequest@(M.Request entity email payload) = T.pack $ show aRequest
+processResponse aRequest@(M.Request aVersion entity email payload) = T.pack $ show aRequest
 parseMessage :: WS.Connection-> IO ()
 parseMessage conn = do
     msg <- WS.receiveData conn
