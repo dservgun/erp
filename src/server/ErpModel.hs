@@ -45,15 +45,20 @@ loginConstant = "Login"
 categoryConstant = "Category"
 queryDatabaseConstant = "QueryDatabase"
 closeConnection = "CloseConnection"
+
 type Deleted = Bool
+
 data ErpModel = ErpModel
                 {
                     login :: Lo.Login,
                     partySet :: S.Set Co.Party,
                     companySet :: S.Set Co.Company,
                     categorySet :: S.Set Co.Category,
-                    deleted :: Deleted
+                    deleted :: Deleted,
+                    requestSet :: S.Set Request,
+                    responseSet :: S.Set Response
                 } deriving (Show, Generic, Typeable, Eq, Ord)
+
 
 delete anErpModel = anErpModel {deleted = True}
 {-- A given email id can be tied to only a single erp model,
@@ -64,11 +69,15 @@ data RequestType = Create | Modify | Retrieve | Delete deriving (Show, Generic, 
 type RequestEntity = String
 type ProtocolVersion = String
 
+data Response = Response {
+    responseVersion :: ProtocolVersion,
+    incomingRequest :: Request,
+    responsePayload :: L.Text } deriving (Show, Generic, Typeable, Eq, Ord)
 data Request = Request {
-                        version :: ProtocolVersion,
-                        requestEntity :: RequestEntity,
-                        emailId :: String,
-                        payload :: L.Text} deriving(Show, Generic, Typeable, Eq, Ord)
+    requestVersion :: ProtocolVersion,
+    requestEntity :: RequestEntity,
+    emailId :: String,
+    requestPayload :: L.Text} deriving(Show, Generic, Typeable, Eq, Ord)
 data InvalidRequest = InvalidRequest deriving (Show, Generic, Typeable, Eq, Ord)
 data InvalidLogin = InvalidLogin deriving (Show, Generic, Typeable, Eq, Ord)
 data InvalidCategory = InvalidCategory deriving (Show, Generic, Typeable, Eq, Ord)
@@ -77,22 +86,30 @@ data InvalidCategory = InvalidCategory deriving (Show, Generic, Typeable, Eq, Or
 -- This needs to be validated before processing
 -- a request.We should get the build version,
 -- from the build instead of using a string as below.
-
+-- Version naming protocol should be similar to
+-- what most systems do today, so basic
+-- increments will still compare.
+-- We need to maintain some amount
+-- of backward compatibility, though,
+-- that is probably debatable?
 protocolVersion :: ProtocolVersion
 protocolVersion = "0.0.0.1"
-instance J.ToJSON ErpModel
-instance J.FromJSON ErpModel
-
-
-$(deriveSafeCopy 0 'base ''Database)
-$(deriveSafeCopy 0 'base ''ErpModel)
 
 emptyModel = ErpModel{partySet = S.empty,
               categorySet = S.empty,
               companySet = S.empty,
               login = Lo.empty,
+              requestSet = S.empty,
+              responseSet = S.empty,
               deleted = False
               }
+
+insertRequest aModel aRequest = aModel {requestSet =
+            S.insert aRequest (requestSet aModel)}
+insertResponse aModel aResponse = aModel {responseSet =
+            S.insert aResponse (responseSet aModel)}
+
+
 updateModel aModel aCategory = aModel{ categorySet = S.insert aCategory (categorySet aModel)}
 
 updateParty aModel aParty = aModel {partySet = S.insert aParty (partySet aModel)}
@@ -196,15 +213,6 @@ $(A.makeAcidic ''Database [
     'deleteLogin, 'lookupCategory, 'insertCategory
             , 'getDatabase ])
 
-instance Exception InvalidCategory
-instance Exception InvalidLogin
-instance Exception InvalidRequest
-instance J.ToJSON InvalidLogin
-instance J.FromJSON InvalidLogin
-instance J.ToJSON RequestType
-instance J.FromJSON RequestType
-instance J.ToJSON Request
-instance J.FromJSON Request
 
 initializeDatabase  dbLocation = A.openLocalStateFrom dbLocation $ Database M.empty
 disconnect = A.closeAcidState
@@ -275,3 +283,23 @@ queryDatabase acid emailId payload = do
     TIO.putStrLn(displayText lookup)
     return lookup
 
+
+$(deriveSafeCopy 0 'base ''Database)
+$(deriveSafeCopy 0 'base ''ErpModel)
+$(deriveSafeCopy 0 'base ''Request)
+$(deriveSafeCopy 0 'base ''Response)
+
+
+instance Exception InvalidCategory
+instance Exception InvalidLogin
+instance Exception InvalidRequest
+instance J.ToJSON InvalidLogin
+instance J.FromJSON InvalidLogin
+instance J.ToJSON RequestType
+instance J.FromJSON RequestType
+instance J.ToJSON Request
+instance J.FromJSON Request
+instance J.ToJSON ErpModel
+instance J.FromJSON ErpModel
+instance J.ToJSON Response
+instance J.FromJSON Response
