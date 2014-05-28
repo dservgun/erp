@@ -56,7 +56,9 @@ data ErpModel = ErpModel
                     categorySet :: S.Set Co.Category,
                     deleted :: Deleted,
                     requestSet :: S.Set Request,
-                    responseSet :: S.Set Response
+                    responseSet :: S.Set Response,
+                    lastRequestID :: ID,
+                    lastResponseID :: ID
                 } deriving (Show, Generic, Typeable, Eq, Ord)
 
 
@@ -68,12 +70,15 @@ data Database = Database ! (M.Map String ErpModel)
 data RequestType = Create | Modify | Retrieve | Delete deriving (Show, Generic, Typeable, Eq, Ord)
 type RequestEntity = String
 type ProtocolVersion = String
-
+type ID = String
 data Response = Response {
+    responseID :: ID,
     responseVersion :: ProtocolVersion,
     incomingRequest :: Request,
     responsePayload :: L.Text } deriving (Show, Generic, Typeable, Eq, Ord)
+
 data Request = Request {
+    requestID :: ID,
     requestVersion :: ProtocolVersion,
     requestEntity :: RequestEntity,
     emailId :: String,
@@ -101,7 +106,10 @@ emptyModel = ErpModel{partySet = S.empty,
               login = Lo.empty,
               requestSet = S.empty,
               responseSet = S.empty,
-              deleted = False
+              deleted = False,
+              lastRequestID = "0",
+              lastResponseID = "0"
+
               }
 
 insertRequest aModel aRequest = aModel {requestSet =
@@ -227,7 +235,7 @@ updateDatabase connection acid aMessage =
         _ -> throw InvalidRequest
 
 
-processRequest connection acid r@(Request iProtocolVersion entity emailId payload)  =
+processRequest connection acid r@(Request iRequestID iProtocolVersion entity emailId payload)  =
     if iProtocolVersion /= protocolVersion then
         throw InvalidRequest
     else

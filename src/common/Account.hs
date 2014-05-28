@@ -94,8 +94,9 @@ data Account = Account {
 type DebitAccount = ErpError ModuleError Account
 type CreditAccount = ErpError ModuleError Account
 type DisplayView = String
-debit :: Account -> Bool
-debit anAccount =
+{--  Is this a debit account? --}
+isDebit :: Account -> Bool
+isDebit anAccount =
     let accType = acKind anAccount in
     case accType of
         Payable -> True
@@ -103,7 +104,13 @@ debit anAccount =
         Receivable -> False
         AkRevenue -> False
         _ -> False
-credit anAccount =
+
+
+invariantForAccount :: Account -> Bool
+invariantForAccount  a = isDebit a == (not $ isCredit a)
+
+isCredit :: Account -> Bool
+isCredit anAccount =
     let
         accType = acKind anAccount in
         case accType of
@@ -162,7 +169,8 @@ instance Ord Journal where
 createJournal :: Name -> Code -> Bool -> DisplayView -> Bool ->
     Maybe (Tr.Tree Tax) -> JournalType -> DebitAccount -> CreditAccount ->
         ErpError ModuleError Journal
-createJournal aName aCode active view updatePosted taxes jType defaultDebitAccount defaultCreditAccount =
+createJournal aName aCode active view updatePosted taxes jType 
+        defaultDebitAccount defaultCreditAccount =
     case jType of
         Expense -> jObject
         Revenue -> jObject
@@ -187,7 +195,7 @@ validJournal :: Journal -> Bool
 validJournal aJournal =
         case journalType aJournal of
             Expense -> taxes aJournal /= Nothing
-            Revenue -> taxes aJournal /= Nothing
+            Revenue -> taxes aJournal /=  Nothing 
             _       -> taxes aJournal == Nothing
 
 type ReferenceNumber = String
@@ -217,14 +225,14 @@ creditMoves aMove aDate =
         lines = moveLines aMove
         datedLines = S.filter (\y -> moveLineEffectiveDate y <= aDate) lines
     in
-        S.filter (\x -> credit $ account x) datedLines
+        S.filter (\x -> isCredit $ account x) datedLines
 debitMoves :: Move -> UTCTime -> S.Set MoveLine
 debitMoves aMove aDate =
     let
         lines = moveLines aMove
         datedLines = S.filter (\y -> moveLineEffectiveDate y  <= aDate) lines
     in
-        S.filter (\x -> debit $ account x) datedLines
+        S.filter (\x -> isDebit $ account x) datedLines
 
 balancedMove :: Move -> UTCTime -> Bool
 balancedMove aMove postDate =
