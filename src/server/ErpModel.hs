@@ -45,8 +45,16 @@ loginConstant = "Login"
 categoryConstant = "Category"
 queryDatabaseConstant = "QueryDatabase"
 closeConnection = "CloseConnection"
+queryNextSequenceNumber = "QueryNextSequenceNumber"
+
 
 type Deleted = Bool
+
+{-Note about the versioning scheme:.  The versioning scheme is to support 
+a form of an optimistic lock. Server returns the next valid request id to a client. 
+Any request that comes with a value less than the last request id is considered to be
+stale and the stale request is  returned to the client as part of an error. -}
+
 
 data ErpModel = ErpModel
                 {
@@ -77,6 +85,9 @@ type ID = Integer
 nextID :: ID -> ID
 nextID anID =  anID + 1
 
+updateLastRequestID  :: ErpModel ->  ErpModel
+updateLastRequestID aModel = aModel {lastRequestID = nextID (lastRequestID aModel)}
+
 data Response = Response {
     responseID :: ID,
     responseVersion :: ProtocolVersion,
@@ -89,6 +100,7 @@ data Request = Request {
     requestEntity :: RequestEntity,
     emailId :: String,
     requestPayload :: L.Text} deriving(Show, Generic, Typeable, Eq, Ord)
+
 data InvalidRequest = InvalidRequest deriving (Show, Generic, Typeable, Eq, Ord)
 data InvalidLogin = InvalidLogin deriving (Show, Generic, Typeable, Eq, Ord)
 data InvalidCategory = InvalidCategory deriving (Show, Generic, Typeable, Eq, Ord)
@@ -254,7 +266,7 @@ $(A.makeAcidic ''Database [
 initializeDatabase  dbLocation = A.openLocalStateFrom dbLocation $ Database M.empty
 disconnect = A.closeAcidState
 
-pJSON = J.decode . E.encodeUtf8 . L.fromStrict
+
 updateDatabase connection acid aMessage =
     let
         r = J.decode $ E.encodeUtf8 $ L.fromStrict aMessage
@@ -269,13 +281,13 @@ processRequest connection acid r@(Request iRequestID iProtocolVersion entity ema
         throw InvalidRequest
     else
         case entity of
-        "Login" -> updateLogin acid $ L.toStrict payload
-        "DeleteLogin" -> deleteLoginA acid emailId
-        "Category" -> updateCategory acid emailId $ L.toStrict payload
-        "QueryDatabase" -> do
+        loginConstant -> updateLogin acid $ L.toStrict payload
+        deleteCategoryConstant -> deleteLoginA acid emailId
+        updateCategoryConstant -> updateCategory acid emailId $ L.toStrict payload
+        queryDatabaseConstant  -> do
                 model <- queryDatabase acid emailId $ L.toStrict payload
                 TIO.putStrLn $ T.pack $ show model
-        "CloseConnection" -> do
+        closeConnectionConstant -> do
                     TIO.putStrLn (T.pack "Closing connection for " `T.append` (T.pack emailId))
                     WS.sendTextData connection $ J.encode r
         _ -> throw InvalidRequest
@@ -288,7 +300,7 @@ deleteLoginA acid anEmailId = A.update acid (DeleteLogin anEmailId)
 --in the user as valid.
 updateLogin acid payload =
      let
-        pObject = J.decode $ E.encodeUtf8 $ L.fromStrict payload
+        pObject = pJSON payload
      in
         case pObject of
             Just l@(Lo.Login name email) -> do
@@ -313,12 +325,14 @@ updateCategory acid emailId payload =
             Nothing -> throw InvalidCategory
 
 
-displayText = T.pack . show
 
 queryDatabase acid emailId payload = do
     lookup <- A.query acid (GetDatabase emailId)
     TIO.putStrLn(displayText lookup)
     return lookup
+
+displayText = T.pack . show
+pJSON = J.decode . E.encodeUtf8 . L.fromStrict
 
 
 $(deriveSafeCopy 0 'base ''Database)
