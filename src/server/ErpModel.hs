@@ -70,7 +70,13 @@ data Database = Database ! (M.Map String ErpModel)
 data RequestType = Create | Modify | Retrieve | Delete deriving (Show, Generic, Typeable, Eq, Ord)
 type RequestEntity = String
 type ProtocolVersion = String
-type ID = String
+-- ID is a string read and written from an integer
+
+type ID = Integer
+
+nextID :: ID -> ID
+nextID anID =  anID + 1
+
 data Response = Response {
     responseID :: ID,
     responseVersion :: ProtocolVersion,
@@ -100,27 +106,49 @@ data InvalidCategory = InvalidCategory deriving (Show, Generic, Typeable, Eq, Or
 protocolVersion :: ProtocolVersion
 protocolVersion = "0.0.0.1"
 
-emptyModel = ErpModel{partySet = S.empty,
-              categorySet = S.empty,
-              companySet = S.empty,
-              login = Lo.empty,
-              requestSet = S.empty,
-              responseSet = S.empty,
-              deleted = False,
-              lastRequestID = "0",
-              lastResponseID = "0"
 
+
+emptyModel = ErpModel {
+                partySet = S.empty,
+                categorySet = S.empty,
+                companySet = S.empty,
+                login = Lo.empty,
+                requestSet = S.empty,
+                responseSet = S.empty,
+                deleted = False,
+                lastRequestID = 0,
+                lastResponseID = 0
               }
 
-insertRequest aModel aRequest = aModel {requestSet =
-            S.insert aRequest (requestSet aModel)}
+
+ 
+insertRequest ::  ErpModel -> Request -> ErpModel
+insertRequest aModel aRequest = aModel {
+                requestSet = S.insert aRequest (requestSet aModel)
+            ,   lastRequestID = requestID aRequest
+            }
+insertResponse :: ErpModel -> Response -> ErpModel
 insertResponse aModel aResponse = aModel {responseSet =
-            S.insert aResponse (responseSet aModel)}
+            S.insert aResponse (responseSet aModel)
+            , lastResponseID = responseID aResponse
+        }
 
 
+supportedVersions :: ErpModel -> S.Set ProtocolVersion
+supportedVersions aModel = 
+    let 
+        reqVersions = S.map  (\x -> requestVersion x)   ( requestSet aModel)
+        resVersions  = S.map   (\x -> responseVersion x)  (responseSet aModel)
+    in 
+        reqVersions
+ 
+
+updateModel :: ErpModel -> Co.Category -> ErpModel
 updateModel aModel aCategory = aModel{ categorySet = S.insert aCategory (categorySet aModel)}
 
+updateParty :: ErpModel -> Co.Party -> ErpModel
 updateParty aModel aParty = aModel {partySet = S.insert aParty (partySet aModel)}
+
 
 
 lookupParty :: String -> String -> Co.GeoLocation -> A.Query Database (Maybe Co.Party)
@@ -149,6 +177,7 @@ deleteParty aLogin aParty = do
         _ -> return ()
     where
         delP2 aParty model = model {partySet = S.delete aParty (partySet model)}
+
 
 lookupCompany :: String -> Co.Party -> A.Query Database (Maybe Co.Company)
 lookupCompany aLogin aParty =

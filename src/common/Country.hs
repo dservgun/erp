@@ -1,9 +1,5 @@
 module Country where
-import Control.Monad.State
-import Control.Monad.Reader
-import qualified Control.Applicative as C
-import qualified Data.Acid as A
-import Data.Acid.Remote
+
 import Data.SafeCopy
 import Data.Typeable
 import qualified Data.Map as M

@@ -33,7 +33,7 @@ import Test.Hspec
 import ProductSpec
 testEmail = "test@test.org"
 createQueryDatabaseRequest login aPayload =
-    encode $ toJSON $ M.Request
+    encode $ toJSON $ M.Request  
             M.protocolVersion
             M.queryDatabaseConstant login $ En.decodeUtf8 aPayload
 
@@ -66,6 +66,7 @@ parseMessage conn = do
                     TIO.putStrLn $ processResponse aRequest
 
         _ -> throw M.InvalidRequest
+
 
 testLogin = L.Login "test@test.org" True
 

@@ -154,6 +154,7 @@ createDimensions a b c w =
             (show b) ++ "," ++
             (show c) ++ ", " ++ (show w))
 
+
 validDimensions :: Dimensions -> Bool
 validDimensions d  = a > 0 && b > 0 && c > 0 && w > 0
                     where

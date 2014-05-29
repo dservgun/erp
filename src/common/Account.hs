@@ -67,6 +67,7 @@ data Lot = Lot { lotNotes :: String
 
 computeLotWeight :: Pr.Product -> Lot -> Pr.Weight
 computeLotWeight a l = (lotSize l R.% 1)  * (Pr.productWeight a $ dimensionKey l)
+
 type TimeSpent = Float
 data DaysOfWeek = Sunday | Monday | Tuesday | Wednesday | Thursday | Friday | Saturday
     deriving (Show, Enum, Bounded, Data, Typeable, Generic, Eq, Ord)
@@ -218,7 +219,9 @@ post aMove aDate aRef =
     if balancedMove aMove aDate then
         aMove {postDate = aDate, mState = Posted, moveRefNumber = aRef}
     else
+        -- If the move is not balanced,  return .
         aMove
+
 creditMoves :: Move -> UTCTime -> S.Set MoveLine
 creditMoves aMove aDate =
     let
@@ -243,6 +246,7 @@ balancedMove aMove postDate =
         debitSum = S.foldr' (\m acc -> acc + (mlAmount m)) 0 debits
     in
         debitSum - creditSum == 0
+
 data MoveLineState = MlDraft | MlPosted | MlValid
     deriving (Show, Typeable, Generic, Eq, Ord, Enum, Bounded, Data)
 data MoveLine = MoveLine {
@@ -273,6 +277,7 @@ data TaxCode = TaxCode {
     tcActive  :: Boolean,
     tcCompany :: Co.Company,
     sum :: Amount} deriving (Show, Typeable, Generic, Eq, Ord, Data)
+
 createTaxCode :: Name -> Code -> Boolean ->
     ErpError ModuleError Co.Company -> Amount ->
     ErpError ModuleError TaxCode
