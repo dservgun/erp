@@ -240,6 +240,16 @@ lookupLogin aLogin =
             Just erp -> return $ Just $ login erp
             _   -> return Nothing
 
+exists :: Co.Category -> Maybe ErpModel -> Maybe Co.Category
+exists aKey Nothing = Nothing
+exists aKey (Just e) = 
+        let 
+            isMember = S.member aKey $ categorySet e
+        in
+            if isMember then
+                Just aKey
+            else
+                Nothing
 
 lookupCategory :: String -> Co.Category -> A.Query  Database(Maybe Co.Category)
 -- qbe -> query by example
@@ -247,12 +257,7 @@ lookupCategory aLogin qbe =
     do
        Database db <- ask
        let erp = M.lookup aLogin db
-       return (if exists erp then Just qbe else Nothing)
-       where
-        exists erp =
-            case erp of
-            Just e -> S.member qbe (categorySet e)
-            _      -> False
+       return $ exists qbe erp
 
 insertCategory :: String -> Co.Category -> A.Update Database ()
 insertCategory aLogin c@(Co.Category aCatName) =
