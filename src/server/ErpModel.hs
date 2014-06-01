@@ -240,16 +240,17 @@ lookupLogin aLogin =
             Just erp -> return $ Just $ login erp
             _   -> return Nothing
 
+lIsMember :: Co.Category -> S.Set Co.Category -> Maybe Bool
+lIsMember aCategory aSet = if S.member aCategory aSet then Just True else Nothing
+
+decodeCategory :: Maybe Co.Category -> Maybe Bool -> Maybe Co.Category
+decodeCategory Nothing _ = Nothing
+decodeCategory (Just x )  Nothing = Nothing
+decodeCategor (Just x) (Just y) = Just x
+
 exists :: Co.Category -> Maybe ErpModel -> Maybe Co.Category
 exists aKey Nothing = Nothing
-exists aKey (Just e) = 
-        let 
-            isMember = S.member aKey $ categorySet e
-        in
-            if isMember then
-                Just aKey
-            else
-                Nothing
+exists aKey (Just e) = decodeCategory (Just aKey ) (lIsMember aKey $ categorySet e)
 
 lookupCategory :: String -> Co.Category -> A.Query  Database(Maybe Co.Category)
 -- qbe -> query by example
