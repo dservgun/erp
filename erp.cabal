@@ -31,7 +31,7 @@ library
                         OverlappingInstances
     hs-source-dirs: . src/server testsuite/tests src/common src/client
     other-modules: TestSpec ProductSpec SpecHelper
-    ghc-options: -fhpc -DDEBUG
+    ghc-options: -DDEBUG
 
 executable erp
     build-depends: base -any, acid-state >=0.12.1,
@@ -80,4 +80,4 @@ test-suite tests
                         TypeFamilies TemplateHaskell TypeSynonymInstances FlexibleInstances
                         DataKinds DeriveGeneric OverlappingInstances
     hs-source-dirs: testsuite/tests
-    ghc-options: -rtsopts -fhpc
+    ghc-options: -rtsopts 

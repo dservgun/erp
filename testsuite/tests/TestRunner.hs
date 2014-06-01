@@ -32,24 +32,30 @@ import TestHarness
 import Test.Hspec
 import ProductSpec
 testEmail = "test@test.org"
-createQueryDatabaseRequest login aPayload =
-    encode $ toJSON $ M.Request  
+createQueryDatabaseRequest anID login aPayload =
+    encode $ toJSON $ M.Request  anID
             M.protocolVersion
             M.queryDatabaseConstant login $ En.decodeUtf8 aPayload
 
-createLoginRequest login aPayload  = encode( toJSON (M.Request M.protocolVersion
-                    M.loginConstant login
+createLoginRequest anID login aPayload  = encode( toJSON (M.Request 
+                    anID
+                    M.protocolVersion
+                    M.addLoginConstant login
                     $ En.decodeUtf8 aPayload))
 
-createCategoryRequest login aPayload = encode $ toJSON $ M.Request M.protocolVersion
-        M.categoryConstant
+createCategoryRequest anID login aPayload = 
+        encode $ toJSON $ M.Request 
+        anID
+        M.protocolVersion
+        M.updateCategoryConstant
         login $ En.decodeUtf8 aPayload
-createCloseConnection login aPayload =
-    encode $ toJSON $ M.Request M.protocolVersion
-            M.closeConnection login $ En.decodeUtf8 aPayload
+
+createCloseConnection anID login aPayload =
+    encode $ toJSON $ M.Request anID M.protocolVersion
+            M.closeConnectionConstant login $ En.decodeUtf8 aPayload
 
 
-processResponse aRequest@(M.Request aVersion entity email payload) = T.pack $ show aRequest
+processResponse aRequest@(M.Request anID aVersion entity email payload) = T.pack $ show aRequest
 parseMessage :: WS.Connection-> IO ()
 parseMessage conn = do
     msg <- WS.receiveData conn
@@ -76,8 +82,8 @@ loginTest aVer conn = do
     tR <- async( parseMessage conn)
     -- Send a verified user and an unverified user,
     -- the recovery should not be showing the unverified user.
-    WS.sendTextData conn $ createLoginRequest testEmail $ encode (toJSON testLogin)
-    WS.sendTextData conn $ createCloseConnection testEmail $ encode (toJSON testLogin)
+    WS.sendTextData conn $ createLoginRequest 1 testEmail $ encode (toJSON testLogin)
+    WS.sendTextData conn $ createCloseConnection 2 testEmail $ encode (toJSON testLogin)
     wait tR
 
 categoryTest :: String -> WS.ClientApp ()
@@ -86,8 +92,8 @@ categoryTest aString conn =
     TIO.putStrLn "Connected successfully"
 
     tR <- async $ parseMessage conn
-    WS.sendTextData conn $ createCategoryRequest testEmail $ encode $ toJSON $ Co.Category aString
-    WS.sendTextData conn $ createCloseConnection testEmail $ encode $ toJSON testEmail
+    WS.sendTextData conn $ createCategoryRequest 1 testEmail $ encode $ toJSON $ Co.Category aString
+    WS.sendTextData conn $ createCloseConnection 2 testEmail $ encode $ toJSON testEmail
     wait tR
 
 
@@ -95,8 +101,8 @@ databaseTest :: String -> WS.ClientApp ()
 databaseTest aString conn =
     do
     tR <- async $ parseMessage conn
-    WS.sendTextData conn $ createQueryDatabaseRequest testEmail $ encode . toJSON $ aString
-    WS.sendTextData conn $ createCloseConnection testEmail $ encode $ toJSON testEmail
+    WS.sendTextData conn $ createQueryDatabaseRequest 1 testEmail $ encode . toJSON $ aString
+    WS.sendTextData conn $ createCloseConnection 2 testEmail $ encode $ toJSON testEmail
     wait tR
 
 

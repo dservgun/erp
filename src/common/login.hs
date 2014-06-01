@@ -5,6 +5,7 @@
 module Login(Login (..), 
             Email,
             Name,
+            getLoginEmail,
             empty)
 where
 
@@ -33,4 +34,8 @@ instance J.ToJSON Login
 instance J.FromJSON Login
 
 empty = Login {email = "", verified = False}
+create = Login
+verify :: Login -> Login
+verify aLogin = aLogin {verified = True}
+getLoginEmail = email
 $(deriveSafeCopy 0 'base ''Login)

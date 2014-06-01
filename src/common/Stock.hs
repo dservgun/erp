@@ -11,6 +11,7 @@ import qualified Data.Aeson as J
 import qualified Data.Text.Lazy.Encoding as E
 import qualified Data.Text.Lazy as L
 import Data.Time.Clock
+import Data.Data
 import GHC.Generics
 import qualified Currency as Cu
 import Entity(EntityState)
@@ -18,7 +19,7 @@ import qualified FiscalYear as Fy
 import qualified Company as Co
 import qualified Product as Pr
 import qualified Account as Ac
-import Data.Data
+
 
 
 

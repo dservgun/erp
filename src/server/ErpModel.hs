@@ -22,6 +22,7 @@ import Data.Dynamic
 import Data.Time.Clock
 import GHC.Generics
 import qualified Login as Lo
+import qualified SystemSequence as SSeq
 import qualified Company as Co
 import qualified Product as Pr
 import qualified Production as Prod
@@ -36,16 +37,7 @@ data LoginExists = LoginExists deriving (Show, Generic, Typeable, Eq, Ord)
 data LoginStaleException = LoginStaleException deriving (Show, Generic, Typeable, Eq, Ord)
 data CategoryExists = CategoryExists deriving (Show, Generic, Typeable, Eq, Ord)
 data LoginNotFound = LoginNotFound deriving (Show, Generic, Typeable, Eq, Ord)
-instance Exception CategoryExists
-instance Exception LoginExists
-instance Exception LoginStaleException
-instance Exception LoginNotFound
 
-loginConstant = "Login"
-categoryConstant = "Category"
-queryDatabaseConstant = "QueryDatabase"
-closeConnection = "CloseConnection"
-queryNextSequenceNumber = "QueryNextSequenceNumber"
 
 
 type Deleted = Bool
@@ -78,15 +70,14 @@ data Database = Database ! (M.Map String ErpModel)
 data RequestType = Create | Modify | Retrieve | Delete deriving (Show, Generic, Typeable, Eq, Ord)
 type RequestEntity = String
 type ProtocolVersion = String
--- ID is a string read and written from an integer
-
 type ID = Integer
 
-nextID :: ID -> ID
-nextID anID =  anID + 1
-
-updateLastRequestID  :: ErpModel ->  ErpModel
-updateLastRequestID aModel = aModel {lastRequestID = nextID (lastRequestID aModel)}
+data ErrorResponse = ErrorResponse {
+    errorResponseID :: ID,
+    errorResponseVersion :: ProtocolVersion,
+    errorIncomingRequest :: Request,
+    errorMessage :: L.Text 
+} deriving (Show, Generic, Typeable, Eq, Ord)
 
 data Response = Response {
     responseID :: ID,
@@ -94,12 +85,16 @@ data Response = Response {
     incomingRequest :: Request,
     responsePayload :: L.Text } deriving (Show, Generic, Typeable, Eq, Ord)
 
+            
+createNextSequenceResponse emailId c anID = Response anID  protocolVersion c 
+            $ L.pack $ show anID
 data Request = Request {
     requestID :: ID,
     requestVersion :: ProtocolVersion,
     requestEntity :: RequestEntity,
     emailId :: String,
     requestPayload :: L.Text} deriving(Show, Generic, Typeable, Eq, Ord)
+getRequestEmail aRequest = emailId aRequest
 
 data InvalidRequest = InvalidRequest deriving (Show, Generic, Typeable, Eq, Ord)
 data InvalidLogin = InvalidLogin deriving (Show, Generic, Typeable, Eq, Ord)
@@ -117,6 +112,15 @@ data InvalidCategory = InvalidCategory deriving (Show, Generic, Typeable, Eq, Or
 -- that is probably debatable?
 protocolVersion :: ProtocolVersion
 protocolVersion = "0.0.0.1"
+-- ID is a string read and written from an integer
+
+-- Simple integer should suffice.
+nextID :: ID -> ID
+nextID  x =  x + 1
+
+-- Any message with this id is an error id.
+errorID :: ID
+errorID = -1
 
 
 
@@ -133,7 +137,13 @@ emptyModel = ErpModel {
               }
 
 
- 
+uLastRequestID :: ErpModel -> ErpModel 
+uLastRequestID aModel = aModel {lastRequestID = nextID 
+            $ lastRequestID aModel
+        }
+loginEmail :: ErpModel -> Lo.Email 
+loginEmail anErpModel = Lo.getLoginEmail $ login anErpModel
+
 insertRequest ::  ErpModel -> Request -> ErpModel
 insertRequest aModel aRequest = aModel {
                 requestSet = S.insert aRequest (requestSet aModel)
@@ -163,7 +173,8 @@ updateParty aModel aParty = aModel {partySet = S.insert aParty (partySet aModel)
 
 
 
-lookupParty :: String -> String -> Co.GeoLocation -> A.Query Database (Maybe Co.Party)
+lookupParty :: String -> String -> Co.GeoLocation -> 
+    A.Query Database (Maybe Co.Party)
 lookupParty aLogin aName aLocation  =
     do
         Database db <- ask
@@ -171,6 +182,7 @@ lookupParty aLogin aName aLocation  =
         case erp of
             Nothing -> throw Co.CompanyNotFound
             Just x -> return $ Co.findParty (aName, aLocation) (partySet x)
+
 insertParty :: String -> Co.Party -> A.Update Database ()
 insertParty aLogin p =
     do
@@ -200,6 +212,7 @@ lookupCompany aLogin aParty =
             Nothing -> throw Co.CompanyNotFound
             Just x -> return $ Co.findCompany aParty (companySet x)
 
+
 insertLogin :: String -> Lo.Login -> A.Update Database ()
 insertLogin aString aLogin =
     do
@@ -213,7 +226,7 @@ deleteLogin aString  =
         Database db <- get
         let loginErp = M.lookup aString db
         case loginErp of
-            Nothing -> throw LoginNotFound
+            Nothing -> return ()            
             Just x -> put (Database (M.insert aString (delete x) db))
 
 
@@ -257,10 +270,20 @@ getDatabase userEmail = do
         let loginErp = M.lookup userEmail db
         return loginErp
 
+updateLastRequestID :: String -> A.Update Database ()
+updateLastRequestID userEmail = do
+    Database db <- get
+    let loginErp = M.lookup userEmail db
+    case loginErp of
+        Nothing -> return()
+        Just x -> put (Database $M.insert userEmail (uLastRequestID x) db)
+
+   
 $(A.makeAcidic ''Database [
     'lookupLogin, 'insertLogin,
     'deleteLogin, 'lookupCategory, 'insertCategory
-            , 'getDatabase ])
+            , 'getDatabase
+            , 'updateLastRequestID ])
 
 
 initializeDatabase  dbLocation = A.openLocalStateFrom dbLocation $ Database M.empty
@@ -275,23 +298,40 @@ updateDatabase connection acid aMessage =
         Just aRequest -> processRequest connection acid aRequest
         _ -> throw InvalidRequest
 
+sendTextData connection aText = WS.sendTextData connection aText
+sendError connection request aMessage = 
+    let 
+        response = ErrorResponse errorID protocolVersion request aMessage
+    in
+        WS.sendTextData connection $ J.encode response
 
-processRequest connection acid r@(Request iRequestID iProtocolVersion entity emailId payload)  =
+queryNextSequenceConstant = "QueryNextSequence"
+addLoginConstant = "AddLogin"
+deleteLoginConstant = "DeleteLogin"
+updateCategoryConstant = "UpdateCategory"
+queryDatabaseConstant = "QueryDatabase"
+closeConnectionConstant= "CloseConnection"
+processRequest connection acid r@(Request iRequestID 
+        iProtocolVersion entity emailId payload)  =
     if iProtocolVersion /= protocolVersion then
         throw InvalidRequest
     else
         case entity of
-        loginConstant -> updateLogin acid $ L.toStrict payload
-        deleteCategoryConstant -> deleteLoginA acid emailId
-        updateCategoryConstant -> updateCategory acid emailId $ L.toStrict payload
-        queryDatabaseConstant  -> do
-                model <- queryDatabase acid emailId $ L.toStrict payload
-                TIO.putStrLn $ T.pack $ show model
-        closeConnectionConstant -> do
-                    TIO.putStrLn (T.pack "Closing connection for " `T.append` (T.pack emailId))
-                    WS.sendTextData connection $ J.encode r
-        _ -> throw InvalidRequest
-
+            queryNextSequenceConstant-> do
+                response <- queryNextSequence acid $ L.toStrict payload
+                case response of 
+                    Nothing -> sendError connection r "QueryNextSequence failed"
+                    Just x -> sendTextData connection $ J.encode r
+            addLoginConstant -> updateLogin acid $ L.toStrict payload
+            deleteLoginConstant -> deleteLoginA acid emailId
+            updateCategoryConstant -> updateCategory acid emailId $ L.toStrict payload
+            queryDatabaseConstant  -> do
+                    model <- queryDatabase acid emailId $ L.toStrict payload
+                    TIO.putStrLn $ T.pack $ show model
+            closeConnectionConstant -> do
+                        TIO.putStrLn (T.pack "Closing connection for " `T.append` (T.pack emailId))
+                        WS.sendTextData connection $ J.encode r
+            _ -> throw InvalidRequest
 
 deleteLoginA acid anEmailId = A.update acid (DeleteLogin anEmailId)
 
@@ -310,6 +350,25 @@ updateLogin acid payload =
                         Just l2@(Lo.Login name email) -> TIO.putStrLn "Exception?"
             Nothing -> throw InvalidLogin
 
+{-- 
+The name is misleading: we increment the lastRequestID and send 
+the last value to the client.
+--}
+queryNextSequence acid payload = 
+    let
+        pObject = pJSON payload 
+    in
+        case pObject of 
+            Just c -> let emailId = getRequestEmail c 
+                      in do
+                        A.update acid (UpdateLastRequestID emailId)
+                        lookup <- A.query acid (GetDatabase emailId)
+                        case lookup of
+                            Nothing -> return Nothing
+                            Just l -> return $ Just $ createNextSequenceResponse 
+                                            emailId c 
+                                            $ lastRequestID l
+            Nothing -> return Nothing  
 
 updateCategory acid emailId payload =
     let
@@ -317,12 +376,12 @@ updateCategory acid emailId payload =
     in
         case pObject of
             Just c@(Co.Category aCat) -> do
-                infoM "ErpModel" "Processing update category"
+               -- infoM "ErpModel" "Processing update category"
                 lookup <- A.query acid (LookupCategory emailId c)
                 case lookup of
                     Nothing -> A.update acid (InsertCategory emailId c)
-                    Just c@(Co.Category aCat) -> throw CategoryExists
-            Nothing -> throw InvalidCategory
+                    Just c@(Co.Category aCat) -> return ()
+            Nothing -> return ()
 
 
 
@@ -341,6 +400,7 @@ $(deriveSafeCopy 0 'base ''Request)
 $(deriveSafeCopy 0 'base ''Response)
 
 
+
 instance Exception InvalidCategory
 instance Exception InvalidLogin
 instance Exception InvalidRequest
@@ -354,3 +414,5 @@ instance J.ToJSON ErpModel
 instance J.FromJSON ErpModel
 instance J.ToJSON Response
 instance J.FromJSON Response
+instance J.ToJSON ErrorResponse
+instance J.FromJSON ErrorResponse
