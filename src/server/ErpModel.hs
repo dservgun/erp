@@ -82,7 +82,7 @@ data ErrorResponse = ErrorResponse {
 data Response = Response {
     responseID :: ID,
     responseVersion :: ProtocolVersion,
-    incomingRequest :: Request,
+    incomingRequest :: Maybe Request,
     responsePayload :: L.Text } deriving (Show, Generic, Typeable, Eq, Ord)
 
             
@@ -320,7 +320,7 @@ closeConnectionConstant= "CloseConnection"
 processRequest connection acid r@(Request iRequestID 
         iProtocolVersion entity emailId payload)  =
     if iProtocolVersion /= protocolVersion then
-        throw InvalidRequest
+        sendError connection r $ L.pack ("Invalid protocol version : " ++ protocolVersion)
     else
         case entity of
             queryNextSequenceConstant-> do
@@ -328,7 +328,12 @@ processRequest connection acid r@(Request iRequestID
                 case response of 
                     Nothing -> sendError connection r "QueryNextSequence failed"
                     Just x -> sendTextData connection $ J.encode r
-            addLoginConstant -> updateLogin acid $ L.toStrict payload
+            addLoginConstant -> do
+                    updateLogin acid $ L.toStrict payload
+                    nextSequenceResponse <- sendNextSequence acid  $ getEmail (L.toStrict payload)
+                    case nextSequenceResponse of 
+                        Just x -> WS.sendTextData connection  $ J.encode x
+                        Nothing -> sendError connection r "Add login request failed"
             deleteLoginConstant -> deleteLoginA acid emailId
             updateCategoryConstant -> updateCategory acid emailId $ L.toStrict payload
             queryDatabaseConstant  -> do
@@ -341,6 +346,14 @@ processRequest connection acid r@(Request iRequestID
 
 deleteLoginA acid anEmailId = A.update acid (DeleteLogin anEmailId)
 
+getEmail payload = 
+    let
+        pObject = pJSON payload
+    in
+        case pObject of
+            Just (Lo.Login email verified) -> email
+            Nothing -> throw InvalidLogin
+
 --Authentication is probably done using an oauth provider
 --such as persona or google. This method simply logs
 --in the user as valid.
@@ -352,14 +365,18 @@ updateLogin acid payload =
             Just l@(Lo.Login name email) -> do
                     loginLookup <- A.query acid (LookupLogin name)
                     case loginLookup of
-                        Nothing -> A.update acid (InsertLogin name l)
-                        Just l2@(Lo.Login name email) -> TIO.putStrLn "Exception?"
+                        Nothing -> do 
+                                        A.update acid (InsertLogin name l)
+                                        return $ Just name
+                        Just l2@(Lo.Login name email) ->return Nothing
             Nothing -> throw InvalidLogin
 
-{-- 
-The name is misleading: we increment the lastRequestID and send 
-the last value to the client.
---}
+sendNextSequence acid emailId = do
+    lookup <- A.query acid (GetDatabase emailId)
+    case lookup of 
+        Nothing -> return $ Just $ createNextSequenceResponse emailId Nothing $ errorID
+        Just x -> return $ Just $ createNextSequenceResponse emailId Nothing $ lastRequestID x
+
 queryNextSequence acid payload = 
     let
         pObject = pJSON payload 
@@ -372,7 +389,7 @@ queryNextSequence acid payload =
                         case lookup of
                             Nothing -> return Nothing
                             Just l -> return $ Just $ createNextSequenceResponse 
-                                            emailId c 
+                                            emailId (Just c)
                                             $ lastRequestID l
             Nothing -> return Nothing  
 

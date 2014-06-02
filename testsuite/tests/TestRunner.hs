@@ -76,12 +76,13 @@ parseMessage conn = do
 
 testLogin = L.Login "test@test.org" True
 
+
 loginTest :: Int -> WS.ClientApp ()
 loginTest aVer conn = do
     TIO.putStrLn "Client Connected successfully"
     tR <- async( parseMessage conn)
     -- Send a verified user and an unverified user,
-    -- the recovery should not be showing the unverified user.
+    -- Recovery should not be showing the unverified user.
     WS.sendTextData conn $ createLoginRequest 1 testEmail $ encode (toJSON testLogin)
     WS.sendTextData conn $ createCloseConnection 2 testEmail $ encode (toJSON testLogin)
     wait tR
@@ -109,7 +110,6 @@ databaseTest aString conn =
 serverTest = do
     TIO.putStrLn "Cleanup."
     dirExists <- SD.doesDirectoryExist acidStateTestDir
-
     case dirExists of
         True -> SD.removeDirectoryRecursive acidStateTestDir
         False -> TIO.putStrLn "."

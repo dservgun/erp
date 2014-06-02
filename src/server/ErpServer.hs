@@ -53,13 +53,12 @@ instance Show WS.Connection where
 handleConnection m acid pending = do
   conn <- WS.acceptRequest pending
   TIO.putStrLn $ T.pack ("Accepted connection.." ++ show conn)
-
-  a1 <-   async (echo conn acid)
+  a1 <-   async (processMessages conn acid)
   r <- wait a1
   TIO.putStrLn "Handling connection requests ..."
 
 
-echo conn acid =
+processMessages conn acid =
      handle catchDisconnect  $ forever $ do
      msg <- WS.receiveData conn
      TIO.putStrLn msg
