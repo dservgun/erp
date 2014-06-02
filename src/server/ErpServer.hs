@@ -45,11 +45,10 @@ serverMain dbLocation =
     WS.runServer "127.0.0.1" portNumber $ handleConnection m acid)
 
 portNumber = 8082
-{--
-A simple echo.
---}
+
 instance Show WS.Connection where
     show _  = "Connection info.....WS sockets should provide some defaults??"
+    
 handleConnection m acid pending = do
   conn <- WS.acceptRequest pending
   TIO.putStrLn $ T.pack ("Accepted connection.." ++ show conn)

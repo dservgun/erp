@@ -312,11 +312,12 @@ sendError connection request aMessage =
         WS.sendTextData connection $ J.encode response
 
 queryNextSequenceConstant = "QueryNextSequence"
-addLoginConstant = "AddLogin"
+addLoginConstant = "Login"
 deleteLoginConstant = "DeleteLogin"
 updateCategoryConstant = "UpdateCategory"
 queryDatabaseConstant = "QueryDatabase"
 closeConnectionConstant= "CloseConnection"
+
 processRequest connection acid r@(Request iRequestID 
         iProtocolVersion entity emailId payload)  =
     if iProtocolVersion /= protocolVersion then
