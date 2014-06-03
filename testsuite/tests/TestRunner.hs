@@ -19,6 +19,12 @@ import qualified Data.Text.IO as TIO
 import Data.Time.Clock
 import Data.DateTime
 import qualified Network.WebSockets as WS
+import System.Log.Logger
+import System.Log.Handler.Syslog
+import System.Log.Handler.Simple
+import System.Log.Handler (setFormatter) 
+import System.Log.Formatter
+
 import Data.Aeson
 import GHC.Generics
 import qualified Data.Text.Lazy.Encoding as En
@@ -36,6 +42,12 @@ createQueryDatabaseRequest anID login aPayload =
     encode $ toJSON $ M.Request  anID
             M.protocolVersion
             M.queryDatabaseConstant login $ En.decodeUtf8 aPayload
+
+createQueryNextSequenceRequest anID login payload = 
+        encode $ toJSON $ M.Request anID
+            M.protocolVersion
+            M.queryNextSequenceConstant 
+            login $ En.decodeUtf8 payload
 
 createLoginRequest anID login aPayload  = encode( toJSON (M.Request 
                     anID
@@ -71,7 +83,9 @@ parseMessage conn = do
                     TIO.putStrLn $ T.pack ("Received ::" ++ (show aRequest))
                     TIO.putStrLn $ processResponse aRequest
 
-        _ -> throw M.InvalidRequest
+        _ -> do
+            TIO.putStrLn $ T.pack("Invalid Request " ++ (show r))
+            throw M.InvalidRequest
 
 
 testLogin = L.Login "test@test.org" True
@@ -83,8 +97,9 @@ loginTest aVer conn = do
     tR <- async( parseMessage conn)
     -- Send a verified user and an unverified user,
     -- Recovery should not be showing the unverified user.
-    WS.sendTextData conn $ createLoginRequest 1 testEmail $ encode (toJSON testLogin)
-    WS.sendTextData conn $ createCloseConnection 2 testEmail $ encode (toJSON testLogin)
+    WS.sendTextData conn $ createLoginRequest 1 testEmail $ encode $ toJSON testLogin
+    WS.sendTextData conn $ createQueryNextSequenceRequest  M.errorID testEmail $ encode (toJSON testLogin)
+    -- WS.sendTextData conn $ createCloseConnection 2 testEmail $ encode (toJSON testLogin)
     wait tR
 
 categoryTest :: String -> WS.ClientApp ()
@@ -94,7 +109,7 @@ categoryTest aString conn =
 
     tR <- async $ parseMessage conn
     WS.sendTextData conn $ createCategoryRequest 1 testEmail $ encode $ toJSON $ Co.Category aString
-    WS.sendTextData conn $ createCloseConnection 2 testEmail $ encode $ toJSON testEmail
+    -- WS.sendTextData conn $ createCloseConnection 2 testEmail $ encode $ toJSON testEmail
     wait tR
 
 
@@ -103,7 +118,7 @@ databaseTest aString conn =
     do
     tR <- async $ parseMessage conn
     WS.sendTextData conn $ createQueryDatabaseRequest 1 testEmail $ encode . toJSON $ aString
-    WS.sendTextData conn $ createCloseConnection 2 testEmail $ encode $ toJSON testEmail
+    --WS.sendTextData conn $ createCloseConnection 2 testEmail $ encode $ toJSON testEmail
     wait tR
 
 
@@ -123,11 +138,11 @@ serverTest = do
     TIO.putStrLn "Starting client thread"
     TIO.putStrLn $ T.pack("Mvar returned " ++ show mvarValue)
     c <- async (WS.runClient "localhost" 8082 "/" $ loginTest 2)
-    cat <- async(WS.runClient "localhost" 8082 "/" $ categoryTest "Test Category")
-    db <- async (WS.runClient "localhost" 8082 "/" $ databaseTest "Test query database")
+--   cat <- async(WS.runClient "localhost" 8082 "/" $ categoryTest "Test Category")
+--  db <- async (WS.runClient "localhost" 8082 "/" $ databaseTest "Test query database")
     rc <- wait c
-    rCat <- wait cat
-    rdb <- wait db
+  --  rCat <- wait cat
+--    rdb <- wait db
     TIO.putStrLn "End tests"
     -- Cancel the server thread when all tests are done
     cancel s
@@ -135,6 +150,7 @@ serverTest = do
         acidStateTestDir = "./dist/build/tests/state"
 
 main = do
+    updateGlobalLogger ""  $ setLevel DEBUG
     serverTest
     mapM_ (\(s, a) -> printf "%-25s" s >> a) ( tests)
     hspec $ describe "ProductSpec" ProductSpec.spec
