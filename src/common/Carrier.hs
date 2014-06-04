@@ -20,7 +20,7 @@ import Data.Data
 
 data CarrierCostMethod = PercentCostMethod Float |
                          WeightCostMethod Float deriving (Show, Typeable, Generic, Eq, Ord)
-data Carrier = Carrier {party :: Party} deriving(Show, Typeable, Generic, Eq, Ord, Data)
+data Carrier = Carrier {party :: Co.Party} deriving(Show, Typeable, Generic, Eq, Ord, Data)
 
 
 instance J.ToJSON Carrier

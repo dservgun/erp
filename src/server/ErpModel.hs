@@ -327,10 +327,12 @@ closeConnectionConstant= "CloseConnection"
 processRequest connection acid r@(Request iRequestID 
         iProtocolVersion entity emailId payload)  =
     if iProtocolVersion /= protocolVersion then
+        do
+        debugM ErpModel.moduleName $  "Invalid protocol message " ++ iProtocolVersion
         sendError connection r $ L.pack ("Invalid protocol version : " ++ protocolVersion)
     else 
         do
-            debugM ErpModel.moduleName $ "Incoming entity " ++ (show entity)
+
             debugM ErpModel.moduleName $ "Incoming request " ++ (show r)
             case entity of
                 "QueryNextSequence"-> do
@@ -352,7 +354,7 @@ processRequest connection acid r@(Request iRequestID
                         model <- queryDatabase acid emailId $ L.toStrict payload
                         TIO.putStrLn $ T.pack $ show model
                 "CloseConnection" -> do
-                            TIO.putStrLn (T.pack "Closing connection for " `T.append` (T.pack emailId))
+                            debugM ErpModel.moduleName $  "Closing connection for "  ++ emailId                            
                             WS.sendTextData connection $ J.encode r
                 _ -> throw InvalidRequest
 

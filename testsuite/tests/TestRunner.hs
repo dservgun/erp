@@ -1,3 +1,5 @@
+-- Declaring this as part of modules is breaking the tests??
+--FIX this
 import qualified Data.Map as Map
 import qualified ErpModel as M
 import qualified Login as L
@@ -5,6 +7,12 @@ import qualified Data.Aeson as J
 import qualified Company as Co
 import qualified Currency as Cu
 import qualified Account as Ac
+
+import System.Log.Logger
+import System.Log.Handler.Syslog
+import System.Log.Handler.Simple
+import System.Log.Handler (setFormatter)
+import System.Log.Formatter
 
 import ErpServer(testServerMain)
 import Control.Monad(forever, unless)
@@ -67,29 +75,32 @@ createCloseConnection anID login aPayload =
             M.closeConnectionConstant login $ En.decodeUtf8 aPayload
 
 
-processResponse aRequest@(M.Request anID aVersion entity email payload) = T.pack $ show aRequest
+processResponse aRequest@(M.Request anID aVersion entity email payload) = 
+        debugM testModuleName $ "Processing response " ++ (show aRequest)
+
 parseMessage :: WS.Connection-> IO ()
 parseMessage conn = do
     msg <- WS.receiveData conn
+    debugM testModuleName $ "Parsing message " ++ (show msg)
     let
         r = J.decode $ En.encodeUtf8 $ La.fromStrict msg
     case r of
         Just aRequest ->
             case M.requestEntity aRequest of
                 "CloseConnection" -> do
-                    TIO.putStrLn "Received :: "
+                    debugM testModuleName "Received :: "
                     WS.sendClose conn ("Closing" :: T.Text)
                 _ -> do
-                    TIO.putStrLn $ T.pack ("Received ::" ++ (show aRequest))
-                    TIO.putStrLn $ processResponse aRequest
+                    debugM testModuleName $ ("Received ::" ++ (show aRequest))
+                    processResponse aRequest
 
         _ -> do
-            TIO.putStrLn $ T.pack("Invalid Request " ++ (show r))
-            throw M.InvalidRequest
+            debugM testModuleName $ "Invalid Request. Unhandled response " ++ (show msg)
+            WS.sendClose conn $ ("Unhandled response. Bye" :: T.Text)
 
 
 testLogin = L.Login "test@test.org" True
-
+testModuleName = "TestRunner" 
 
 loginTest :: Int -> WS.ClientApp ()
 loginTest aVer conn = do
@@ -97,9 +108,11 @@ loginTest aVer conn = do
     tR <- async( parseMessage conn)
     -- Send a verified user and an unverified user,
     -- Recovery should not be showing the unverified user.
+    debugM testModuleName  "Sending login request"
     WS.sendTextData conn $ createLoginRequest 1 testEmail $ encode $ toJSON testLogin
     WS.sendTextData conn $ createQueryNextSequenceRequest  M.errorID testEmail $ encode (toJSON testLogin)
-    -- WS.sendTextData conn $ createCloseConnection 2 testEmail $ encode (toJSON testLogin)
+    debugM testModuleName "Sending close connection"
+    WS.sendTextData conn $ createCloseConnection 2 testEmail $ encode (toJSON testLogin)
     wait tR
 
 categoryTest :: String -> WS.ClientApp ()
@@ -123,6 +136,8 @@ databaseTest aString conn =
 
 
 serverTest = do
+    updateGlobalLogger M.moduleName $ setLevel DEBUG
+    updateGlobalLogger testModuleName $ setLevel DEBUG
     TIO.putStrLn "Cleanup."
     dirExists <- SD.doesDirectoryExist acidStateTestDir
     case dirExists of
@@ -149,17 +164,8 @@ serverTest = do
     where
         acidStateTestDir = "./dist/build/tests/state"
 
-main = do
-    updateGlobalLogger ""  $ setLevel DEBUG
-    serverTest
-    mapM_ (\(s, a) -> printf "%-25s" s >> a) ( tests)
-    hspec $ describe "ProductSpec" ProductSpec.spec
-
-
-
-
-
-
+main = serverTest
+ 
 tests = [
          ("properties_tests" :: String, quickCheck prop1)
          , ("currency_valid" :: String, quickCheck prop_currency)
