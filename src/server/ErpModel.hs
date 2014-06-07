@@ -1,4 +1,5 @@
 module ErpModel where
+
 import System.Log.Logger
 import Data.Maybe
 import Control.Monad.State
@@ -91,7 +92,17 @@ data Response = Response {
     incomingRequest :: Maybe Request,
     responsePayload :: L.Text } deriving (Show, Generic, Typeable, Eq, Ord)
 
-            
+-- Unwrap the request type from the response
+getResponseEntity :: Response -> Maybe RequestEntity
+getResponseEntity aResponse = do
+    incomingRequest <- incomingRequest aResponse
+    return $ getRequestEntity incomingRequest
+
+createCloseConnectionResponse r = Response (requestID r) 
+                                                            protocolVersion
+                                                            (Just r) 
+                                                            $ L.pack $ show r
+-- Create a new response with the next id.
 createNextSequenceResponse emailId c anID = Response anID  protocolVersion c 
             $ L.pack $ show anID
 data Request = Request {
@@ -101,6 +112,7 @@ data Request = Request {
     emailId :: String,
     requestPayload :: L.Text} deriving(Show, Generic, Typeable, Eq, Ord)
 getRequestEmail aRequest = emailId aRequest
+getRequestEntity aRequest = requestEntity aRequest
 
 data InvalidRequest = InvalidRequest deriving (Show, Generic, Typeable, Eq, Ord)
 data InvalidLogin = InvalidLogin deriving (Show, Generic, Typeable, Eq, Ord)
@@ -332,19 +344,18 @@ processRequest connection acid r@(Request iRequestID
         sendError connection r $ L.pack ("Invalid protocol version : " ++ protocolVersion)
     else 
         do
-
             debugM ErpModel.moduleName $ "Incoming request " ++ (show r)
             case entity of
                 "QueryNextSequence"-> do
                     debugM ErpModel.moduleName $ "Processing message  " ++ (show entity)
-                    response <- queryNextSequence acid emailId
+                    response <- queryNextSequence acid r
                     debugM ErpModel.moduleName $  "processing " ++ (show response)
                     case response of 
                         Nothing -> sendError connection r "QueryNextSequence failed"
                         Just x -> sendTextData connection $ J.encode x
                 "Login" -> do
                         updateLogin acid $ L.toStrict payload
-                        nextSequenceResponse <- sendNextSequence acid  $ getEmail (L.toStrict payload)
+                        nextSequenceResponse <- sendNextSequence acid  r
                         case nextSequenceResponse of 
                             Just x -> WS.sendTextData connection  $ J.encode x
                             Nothing -> sendError connection r "Add login request failed"
@@ -353,10 +364,16 @@ processRequest connection acid r@(Request iRequestID
                 "QueryDatabase"  -> do
                         model <- queryDatabase acid emailId $ L.toStrict payload
                         TIO.putStrLn $ T.pack $ show model
-                "CloseConnection" -> do
-                            debugM ErpModel.moduleName $  "Closing connection for "  ++ emailId                            
-                            WS.sendTextData connection $ J.encode r
-                _ -> throw InvalidRequest
+                "CloseConnection" -> 
+                            let 
+                                response = createCloseConnectionResponse r 
+                            in 
+                            do
+                            debugM ErpModel.moduleName $ "ErpModel::Sending " ++ (show 
+                                    response)                            
+                            WS.sendTextData connection $ J.encode response
+                _ -> do
+                            errorM ErpModel.moduleName $ "Invalid request received " ++ (show r)
 
 deleteLoginA acid anEmailId = A.update acid (DeleteLogin anEmailId)
 
@@ -385,35 +402,44 @@ updateLogin acid payload =
                         Just l2@(Lo.Login name email) ->return Nothing
             Nothing -> throw InvalidLogin
 
-sendNextSequence acid emailId = do
-    debugM ErpModel.moduleName $ "Sending next sequence number " ++ emailId
-    lookup <- A.query acid (GetDatabase emailId)
-    case lookup of 
-        Nothing -> 
-            do
-                let 
-                    res =createNextSequenceResponse emailId Nothing $ errorID
-                debugM ErpModel.moduleName $ "Could not find database " ++ (show res)
-                return $ Just res 
-        Just x -> 
-            do
-                let 
-                    res = createNextSequenceResponse emailId Nothing $ lastRequestID x
-                debugM ErpModel.moduleName $ "Database found " ++ (show res)
-                debugM ErpModel.moduleName $ show res
-                return $ Just res
-
-queryNextSequence acid emailId = 
-    do
-        debugM ErpModel.moduleName $ "Querying for " ++ emailId
-        A.update acid (UpdateLastRequestID emailId)
+sendNextSequence acid request = 
+    let
+        emailId = getRequestEmail request 
+    in
+        do
         lookup <- A.query acid (GetDatabase emailId)
-        debugM ErpModel.moduleName $ "Lookup " ++ (show lookup)
-        case lookup of
-            Nothing -> return Nothing
-            Just l -> return $ Just $ createNextSequenceResponse 
-                            emailId Nothing
-                            $ lastRequestID l
+        case lookup of 
+            Nothing -> 
+                do
+                    let 
+                        res = createNextSequenceResponse emailId (Just request)
+                                 $ errorID
+                    debugM ErpModel.moduleName $ "Could not find database " ++ (show res)
+                    return $ Just res 
+            Just x -> 
+                do
+                    let 
+                        res = createNextSequenceResponse emailId ( Just request) 
+                                $ lastRequestID x
+                    debugM ErpModel.moduleName $ "Database found " ++ (show res)
+                    debugM ErpModel.moduleName $ show res
+                    return $ Just res
+
+
+queryNextSequence acid request = 
+    let 
+        emailId = getRequestEmail request
+    in 
+        do
+            debugM ErpModel.moduleName $ "Querying for " ++ emailId
+            A.update acid (UpdateLastRequestID emailId)
+            lookup <- A.query acid (GetDatabase emailId)
+            debugM ErpModel.moduleName $ "Lookup " ++ (show lookup)
+            case lookup of
+                Nothing -> return Nothing
+                Just l -> return $ Just $ createNextSequenceResponse 
+                                emailId Nothing
+                                $ lastRequestID l
 
 updateCategory acid emailId payload =
     let

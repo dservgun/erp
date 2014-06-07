@@ -17,6 +17,13 @@ import qualified Login as L
 import GHC.Generics
 import Data.Aeson
 
+import System.Log.Logger
+import System.Log.Handler.Syslog
+import System.Log.Handler.Simple
+import System.Log.Handler (setFormatter)
+import System.Log.Formatter
+
+
 
 testServerMain :: MVar String -> FilePath -> IO()
 testServerMain m dbLocation =
@@ -56,19 +63,19 @@ handleConnection m acid pending = do
   r <- wait a1
   TIO.putStrLn "Handling connection requests ..."
 
-
+serverModuleName = "ErpServer"
 processMessages conn acid =
      handle catchDisconnect  $ forever $ do
      msg <- WS.receiveData conn
-     TIO.putStrLn msg
+     debugM serverModuleName $ "Processing " ++ (show msg)
      M.updateDatabase conn acid msg
      where
        catchDisconnect e =
          case fromException e of
            Just  WS.ConnectionClosed ->
                  do
-                        TIO.putStrLn "Connection closed "
+                        infoM serverModuleName  "Connection closed "
                         return ()
            _ -> do
-            TIO.putStrLn (T.pack ("Unknown exception " ++ show e))
+            errorM serverModuleName $ serverModuleName ++ " catchDisconnect:: Unknown exception " ++ show e
             return ()

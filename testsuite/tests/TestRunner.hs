@@ -74,9 +74,10 @@ createCloseConnection anID login aPayload =
     encode $ toJSON $ M.Request anID M.protocolVersion
             M.closeConnectionConstant login $ En.decodeUtf8 aPayload
 
-
-processResponse aRequest@(M.Request anID aVersion entity email payload) = 
-        debugM testModuleName $ "Processing response " ++ (show aRequest)
+processResponse :: M.Response -> IO ()
+processResponse aResponse = 
+        debugM testModuleName $ "processResponse:: " ++ 
+                            "Processing response " ++ (show aResponse)
 
 parseMessage :: WS.Connection-> IO ()
 parseMessage conn = do
@@ -85,18 +86,29 @@ parseMessage conn = do
     let
         r = J.decode $ En.encodeUtf8 $ La.fromStrict msg
     case r of
-        Just aRequest ->
-            case M.requestEntity aRequest of
-                "CloseConnection" -> do
-                    debugM testModuleName "Received :: "
-                    WS.sendClose conn ("Closing" :: T.Text)
-                _ -> do
-                    debugM testModuleName $ ("Received ::" ++ (show aRequest))
-                    processResponse aRequest
-
-        _ -> do
-            debugM testModuleName $ "Invalid Request. Unhandled response " ++ (show msg)
-            WS.sendClose conn $ ("Unhandled response. Bye" :: T.Text)
+        Just aResponse -> do
+                debugM testModuleName $ "parseMessage :: Processing response "  
+                                ++ show r
+                let responseEntity = M.getResponseEntity aResponse
+                case responseEntity of 
+                    Just re -> 
+                        case re of
+                            "CloseConnection" -> do
+                                debugM testModuleName $ "Received :: " ++ (show responseEntity)
+                                WS.sendClose conn  ("Bye." ::T.Text)
+                            _ -> do
+                                        debugM testModuleName $ "Received ->" ++ re ++ "->" 
+                                            ++(show aResponse)
+                                        parseMessage conn
+                    Nothing -> do
+                            debugM testModuleName "Unknown response"
+                            --close the connection here
+                            parseMessage conn   
+        
+        Nothing -> do
+            debugM testModuleName $ "Invalid Request. Unhandled response " 
+                    ++ (show msg)
+            
 
 
 testLogin = L.Login "test@test.org" True
@@ -110,10 +122,10 @@ loginTest aVer conn = do
     -- Recovery should not be showing the unverified user.
     debugM testModuleName  "Sending login request"
     WS.sendTextData conn $ createLoginRequest 1 testEmail $ encode $ toJSON testLogin
-    WS.sendTextData conn $ createQueryNextSequenceRequest  M.errorID testEmail $ encode (toJSON testLogin)
-    debugM testModuleName "Sending close connection"
-    WS.sendTextData conn $ createCloseConnection 2 testEmail $ encode (toJSON testLogin)
+    WS.sendTextData conn $  createCloseConnection 2 testEmail $ 
+                encode $ toJSON testLogin
     wait tR
+    debugM testModuleName "parseMessage thread exited"
 
 categoryTest :: String -> WS.ClientApp ()
 categoryTest aString conn =
@@ -138,27 +150,25 @@ databaseTest aString conn =
 serverTest = do
     updateGlobalLogger M.moduleName $ setLevel DEBUG
     updateGlobalLogger testModuleName $ setLevel DEBUG
-    TIO.putStrLn "Cleanup."
+    infoM testModuleName "Cleaning up past state"
     dirExists <- SD.doesDirectoryExist acidStateTestDir
     case dirExists of
         True -> SD.removeDirectoryRecursive acidStateTestDir
-        False -> TIO.putStrLn "."
+        False -> infoM testModuleName "Directory does not exist"
     m <- newEmptyMVar
     s <- async (testServerMain m acidStateTestDir)
-    TIO.putStrLn "Starting server"
 
-    TIO.putStrLn "Starting..."
+
+    infoM testModuleName "SERVER started"
     mvarValue <- takeMVar m
-    TIO.putStrLn "Server ready."
-    TIO.putStrLn "Starting client thread"
-    TIO.putStrLn $ T.pack("Mvar returned " ++ show mvarValue)
+    infoM testModuleName "SERVER ready"
     c <- async (WS.runClient "localhost" 8082 "/" $ loginTest 2)
 --   cat <- async(WS.runClient "localhost" 8082 "/" $ categoryTest "Test Category")
 --  db <- async (WS.runClient "localhost" 8082 "/" $ databaseTest "Test query database")
     rc <- wait c
   --  rCat <- wait cat
 --    rdb <- wait db
-    TIO.putStrLn "End tests"
+    infoM testModuleName "End tests"
     -- Cancel the server thread when all tests are done
     cancel s
     where
