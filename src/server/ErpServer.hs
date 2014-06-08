@@ -1,5 +1,6 @@
 
 module ErpServer(serverMain, testServerMain)where
+import Control.Exception
 import Control.Monad.State
 import Control.Monad.Reader
 import Control.Applicative ( (<$>) )
@@ -9,11 +10,18 @@ import Control.Concurrent
 import Control.Concurrent.Async(async, wait)
 import qualified Data.Text as T
 import qualified Data.Text.IO as TIO
+import Data.Acid as A
 import qualified Network.WebSockets as WS
 import System.Environment(getEnv)
+import Data.Aeson as J
+import GHC.Generics
+import Data.Typeable
+import qualified Data.Text as T
+import qualified Data.Text.Lazy as L
+import qualified Data.Text.IO as TIO
+
+import qualified Data.Text.Lazy.Encoding as E
 import qualified Data.Map as Map
-import qualified ErpModel as M
-import qualified Login as L
 import GHC.Generics
 import Data.Aeson
 
@@ -23,6 +31,14 @@ import System.Log.Handler.Simple
 import System.Log.Handler (setFormatter)
 import System.Log.Formatter
 
+import qualified ErpModel as M
+import qualified Login as Lo
+import qualified Company as Co
+
+
+data InvalidRequest = InvalidRequest deriving (Show, Generic, Typeable, Eq, Ord)
+data InvalidLogin = InvalidLogin deriving (Show, Generic, Typeable, Eq, Ord)
+data InvalidCategory = InvalidCategory deriving (Show, Generic, Typeable, Eq, Ord)
 
 
 testServerMain :: MVar String -> FilePath -> IO()
@@ -68,7 +84,7 @@ processMessages conn acid =
      handle catchDisconnect  $ forever $ do
      msg <- WS.receiveData conn
      debugM serverModuleName $ "Processing " ++ (show msg)
-     M.updateDatabase conn acid msg
+     updateDatabase conn acid msg
      where
        catchDisconnect e =
          case fromException e of
@@ -79,3 +95,145 @@ processMessages conn acid =
            _ -> do
             errorM serverModuleName $ serverModuleName ++ " catchDisconnect:: Unknown exception " ++ show e
             return ()
+
+updateDatabase connection acid aMessage =
+    let
+        r = J.decode $ E.encodeUtf8 $ L.fromStrict aMessage
+    in
+        case r of
+        Just aRequest -> processRequest connection acid aRequest
+        _ -> throw InvalidRequest
+
+processRequest connection acid r@(M.Request iRequestID 
+        iProtocolVersion entity emailId payload)  =
+    if iProtocolVersion /= M.protocolVersion then
+        do
+        debugM M.moduleName $  "Invalid protocol message " ++ iProtocolVersion
+        M.sendError connection r $ 
+          L.pack ("Invalid protocol version : " ++ M.protocolVersion)
+    else 
+        do
+            debugM M.moduleName $ "Incoming request " ++ (show r)
+            case entity of
+                "QueryNextSequence"-> do
+                    debugM M.moduleName $ "Processing message  " ++ (show entity)
+                    response <- queryNextSequence acid r
+                    debugM M.moduleName $  "processing " ++ (show response)
+                    case response of 
+                        Nothing -> M.sendError connection r "QueryNextSequence failed"
+                        Just x -> M.sendTextData connection $ J.encode x
+                "Login" -> do
+                        updateLogin acid $ L.toStrict payload
+                        nextSequenceResponse <- sendNextSequence acid  r
+                        case nextSequenceResponse of 
+                            Just x -> WS.sendTextData connection  $ J.encode x
+                            Nothing -> M.sendError connection r "Add login request failed"
+                "DeleteLogin" -> deleteLoginA acid emailId
+                "UpdateCategory" -> updateCategory acid emailId $ L.toStrict payload
+                "QueryDatabase"  -> do
+                        model <- queryDatabase acid emailId $ L.toStrict payload
+                        TIO.putStrLn $ T.pack $ show model
+                "CloseConnection" -> 
+                            let 
+                                response = M.createCloseConnectionResponse r 
+                            in 
+                            do
+                            debugM M.moduleName $ "ErpModel::Sending " ++ (show 
+                                    response)                            
+                            WS.sendTextData connection $ J.encode response
+                _ -> do
+                            errorM M.moduleName $ "Invalid request received " ++ (show r)
+
+deleteLoginA acid anEmailId = A.update acid (M.DeleteLogin anEmailId)
+
+getEmail payload = 
+    let
+        pObject = pJSON payload
+    in
+        case pObject of
+            Just (Lo.Login email verified) -> email
+            Nothing -> throw InvalidLogin
+
+--Authentication is probably done using an oauth provider
+--such as persona or google. This method simply logs
+--in the user as valid.
+updateLogin acid payload =
+     let
+        pObject = pJSON payload
+     in
+        case pObject of
+            Just l@(Lo.Login name email) -> do
+                    loginLookup <- A.query acid (M.LookupLogin name)
+                    case loginLookup of
+                        Nothing -> do 
+                                        A.update acid (M.InsertLogin name l)
+                                        return $ Just name
+                        Just l2@(Lo.Login name email) ->return Nothing
+            Nothing -> throw InvalidLogin
+
+sendNextSequence acid request = 
+    let
+        emailId = M.getRequestEmail request 
+    in
+        do
+        lookup <- A.query acid (M.GetDatabase emailId)
+        case lookup of 
+            Nothing -> 
+                do
+                    let 
+                        res = M.createNextSequenceResponse emailId (Just request)
+                                 $ M.errorID
+                    debugM M.moduleName $ "Could not find database " ++ (show res)
+                    return $ Just res 
+            Just x -> 
+                do
+                    let 
+                        res = M.createNextSequenceResponse emailId ( Just request) 
+                                $ M.lastRequestID x
+                    debugM M.moduleName $ "Database found " ++ (show res)
+                    debugM M.moduleName $ show res
+                    return $ Just res
+
+
+queryNextSequence acid request = 
+    let 
+        emailId = M.getRequestEmail request
+    in 
+        do
+            debugM M.moduleName $ "Querying for " ++ emailId
+            A.update acid (M.UpdateLastRequestID emailId)
+            lookup <- A.query acid (M.GetDatabase emailId)
+            debugM M.moduleName $ "Lookup " ++ (show lookup)
+            case lookup of
+                Nothing -> return Nothing
+                Just l -> return $ Just $ M.createNextSequenceResponse 
+                                emailId Nothing
+                                $ M.lastRequestID l
+
+updateCategory acid emailId payload =
+    let
+        pObject = pJSON payload
+    in
+        case pObject of
+            Just c@(Co.Category aCat) -> do
+               -- infoM "ErpModel" "Processing update category"
+                lookup <- A.query acid (M.LookupCategory emailId c)
+                case lookup of
+                    Nothing -> A.update acid (M.InsertCategory emailId c)
+                    Just c@(Co.Category aCat) -> return ()
+            Nothing -> return ()
+queryDatabase acid emailId payload = do
+    debugM  M.moduleName $ "Querying database " ++ emailId
+    lookup <- A.query acid (M.GetDatabase emailId)
+    debugM M.moduleName $ "Query returned " ++ (show lookup)
+    return lookup
+
+displayText = T.pack . show
+pJSON = J.decode . E.encodeUtf8 . L.fromStrict
+
+
+instance Exception InvalidCategory
+instance Exception InvalidLogin
+instance Exception InvalidRequest
+instance J.ToJSON InvalidLogin
+instance J.FromJSON InvalidLogin
