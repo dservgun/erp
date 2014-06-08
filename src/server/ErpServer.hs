@@ -70,7 +70,7 @@ serverMain dbLocation =
 portNumber = 8082
 
 instance Show WS.Connection where
-    show _  = "Connection info.....WS sockets should provide some defaults??"
+    show _  = "Connection info...TBD"
     
 handleConnection m acid pending = do
   conn <- WS.acceptRequest pending
@@ -123,7 +123,7 @@ processRequest connection acid r@(M.Request iRequestID
                         Nothing -> M.sendError connection r "QueryNextSequence failed"
                         Just x -> M.sendTextData connection $ J.encode x
                 "Login" -> do
-                        updateLogin acid $ L.toStrict payload
+                        updateLogin acid r
                         nextSequenceResponse <- sendNextSequence acid  r
                         case nextSequenceResponse of 
                             Just x -> WS.sendTextData connection  $ J.encode x
@@ -157,18 +157,20 @@ getEmail payload =
 --Authentication is probably done using an oauth provider
 --such as persona or google. This method simply logs
 --in the user as valid.
-updateLogin acid payload =
+updateLogin acid r =
      let
-        pObject = pJSON payload
+        payload = L.toStrict (M.requestPayload r)
+        pObject = pJSON  $ L.toStrict (M.requestPayload $ r)
      in
         case pObject of
             Just l@(Lo.Login name email) -> do
                     loginLookup <- A.query acid (M.LookupLogin name)
                     case loginLookup of
                         Nothing -> do 
-                                        A.update acid (M.InsertLogin name l)
+                                        A.update acid (M.InsertLogin name r l)
                                         return $ Just name
-                        Just l2@(Lo.Login name email) ->return Nothing
+                        Just l2@(Lo.Login name email) ->
+                            return Nothing
             Nothing -> throw InvalidLogin
 
 sendNextSequence acid request = 
@@ -189,7 +191,7 @@ sendNextSequence acid request =
                 do
                     let 
                         res = M.createNextSequenceResponse emailId ( Just request) 
-                                $ M.lastRequestID x
+                                $ (M.nextRequestID  x)
                     debugM M.moduleName $ "Database found " ++ (show res)
                     debugM M.moduleName $ show res
                     return $ Just res
@@ -201,14 +203,13 @@ queryNextSequence acid request =
     in 
         do
             debugM M.moduleName $ "Querying for " ++ emailId
-            A.update acid (M.UpdateLastRequestID emailId)
             lookup <- A.query acid (M.GetDatabase emailId)
             debugM M.moduleName $ "Lookup " ++ (show lookup)
             case lookup of
                 Nothing -> return Nothing
                 Just l -> return $ Just $ M.createNextSequenceResponse 
                                 emailId Nothing
-                                $ M.lastRequestID l
+                                 (M.nextRequestID l) 
 
 updateCategory acid emailId payload =
     let

@@ -79,6 +79,39 @@ processResponse aResponse =
         debugM testModuleName $ "processResponse:: " ++ 
                             "Processing response " ++ (show aResponse)
 
+parseLoginTestMessages :: WS.Connection -> IO()
+parseLoginTestMessages conn = do
+    infoM testModuleName "parseLoginTestMessages..."
+    msg <- WS.receiveData conn
+    let 
+        r = J.decode $ En.encodeUtf8 $ La.fromStrict msg
+    case r of
+        Just aResponse -> do
+            let responseEntity = M.getResponseEntity aResponse
+            infoM testModuleName $ "parseLoginTestMessages::Processing response " 
+                    ++ (show responseEntity)
+            case responseEntity of
+                Just re ->
+                        case re of
+                            "Login" ->
+                                    let 
+                                        nextSequence = M.getSequenceNumber aResponse in 
+                                    do
+                                        debugM testModuleName $ " Using sequence number " ++ (show nextSequence)
+                                        WS.sendTextData conn $  createCloseConnection nextSequence
+                                                testEmail $ 
+                                                encode $ toJSON testLogin
+                                        parseLoginTestMessages conn       
+                            "CloseConnection" -> do
+                                        debugM testModuleName $ "Received :: " ++ (show responseEntity)
+                                        WS.sendClose conn  ("Bye." ::T.Text)
+                Nothing -> do
+                                    debugM testModuleName $ "Received " ++ (show aResponse)
+                                    WS.sendClose conn ("Unhandled command for this test case " 
+                                                :: T.Text)                       
+        Nothing -> do
+                        debugM testModuleName $ "Unknown response. Quit here?"
+                        WS.sendClose conn ("Unhandled command " :: T.Text)
 parseMessage :: WS.Connection-> IO ()
 parseMessage conn = do
     msg <- WS.receiveData conn
@@ -117,13 +150,11 @@ testModuleName = "TestRunner"
 loginTest :: Int -> WS.ClientApp ()
 loginTest aVer conn = do
     TIO.putStrLn "Client Connected successfully"
-    tR <- async( parseMessage conn)
+    tR <- async( parseLoginTestMessages conn)
     -- Send a verified user and an unverified user,
     -- Recovery should not be showing the unverified user.
     debugM testModuleName  "Sending login request"
     WS.sendTextData conn $ createLoginRequest 1 testEmail $ encode $ toJSON testLogin
-    WS.sendTextData conn $  createCloseConnection 2 testEmail $ 
-                encode $ toJSON testLogin
     wait tR
     debugM testModuleName "parseMessage thread exited"
 
@@ -150,7 +181,7 @@ databaseTest aString conn =
 serverTest = do
     updateGlobalLogger M.moduleName $ setLevel DEBUG
     updateGlobalLogger testModuleName $ setLevel DEBUG
-    infoM testModuleName "Cleaning up past state"
+    infoM testModuleName "Cleaning up past state."
     dirExists <- SD.doesDirectoryExist acidStateTestDir
     case dirExists of
         True -> SD.removeDirectoryRecursive acidStateTestDir
@@ -163,11 +194,11 @@ serverTest = do
     mvarValue <- takeMVar m
     infoM testModuleName "SERVER ready"
     c <- async (WS.runClient "localhost" 8082 "/" $ loginTest 2)
-    cat <- async(WS.runClient "localhost" 8082 "/" $ categoryTest "Test Category")
-    db <- async (WS.runClient "localhost" 8082 "/" $ databaseTest "Test query database")
+    -- cat <- async(WS.runClient "localhost" 8082 "/" $ categoryTest "Test Category")
+    -- db <- async (WS.runClient "localhost" 8082 "/" $ databaseTest "Test query database")
     rc <- wait c
-    rCat <- wait cat
-    rdb <- wait db
+    -- rCat <- wait cat
+    -- rdb <- wait db
     infoM testModuleName "End tests"
     -- Cancel the server thread when all tests are done
     cancel s
