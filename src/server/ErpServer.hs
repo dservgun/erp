@@ -101,8 +101,16 @@ updateDatabase connection acid aMessage =
         r = J.decode $ E.encodeUtf8 $ L.fromStrict aMessage
     in
         case r of
-        Just aRequest -> processRequest connection acid aRequest
+        Just aRequest -> do
+                processRequest connection acid aRequest
+                postProcessRequest connection acid aRequest
         _ -> throw InvalidRequest
+
+postProcessRequest connection acid r = do
+  nextSequenceResponse <- sendNextSequence acid  r
+  case nextSequenceResponse of 
+    Just x -> WS.sendTextData connection  $ J.encode x
+    Nothing -> M.sendError connection r "Add login request failed"
 
 processRequest connection acid r@(M.Request iRequestID 
         iProtocolVersion entity emailId payload)  =
@@ -115,24 +123,13 @@ processRequest connection acid r@(M.Request iRequestID
         do
             debugM M.moduleName $ "Incoming request " ++ (show r)
             case entity of
-                "QueryNextSequence"-> do
-                    debugM M.moduleName $ "Processing message  " ++ (show entity)
-                    response <- queryNextSequence acid r
-                    debugM M.moduleName $  "processing " ++ (show response)
-                    case response of 
-                        Nothing -> M.sendError connection r "QueryNextSequence failed"
-                        Just x -> M.sendTextData connection $ J.encode x
-                "Login" -> do
-                        updateLogin acid r
-                        nextSequenceResponse <- sendNextSequence acid  r
-                        case nextSequenceResponse of 
-                            Just x -> WS.sendTextData connection  $ J.encode x
-                            Nothing -> M.sendError connection r "Add login request failed"
+                "QueryNextSequence"-> debugM M.moduleName $ "Processing message  " ++ (show entity)
+                "Login" -> updateLogin acid r
                 "DeleteLogin" -> deleteLoginA acid emailId
                 "UpdateCategory" -> updateCategory acid emailId $ L.toStrict payload
-                "QueryDatabase"  -> do
-                        model <- queryDatabase acid emailId $ L.toStrict payload
-                        TIO.putStrLn $ T.pack $ show model
+                "QueryDatabase"  ->do
+                     model <- queryDatabase acid emailId $ L.toStrict payload 
+                     TIO.putStrLn $ T.pack $ show model                       
                 "CloseConnection" -> 
                             let 
                                 response = M.createCloseConnectionResponse r 
@@ -143,6 +140,7 @@ processRequest connection acid r@(M.Request iRequestID
                             WS.sendTextData connection $ J.encode response
                 _ -> do
                             errorM M.moduleName $ "Invalid request received " ++ (show r)
+                         
 
 deleteLoginA acid anEmailId = A.update acid (M.DeleteLogin anEmailId)
 
@@ -168,9 +166,8 @@ updateLogin acid r =
                     case loginLookup of
                         Nothing -> do 
                                         A.update acid (M.InsertLogin name r l)
-                                        return $ Just name
                         Just l2@(Lo.Login name email) ->
-                            return Nothing
+                            return ()
             Nothing -> throw InvalidLogin
 
 sendNextSequence acid request = 

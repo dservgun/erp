@@ -112,6 +112,7 @@ parseLoginTestMessages conn = do
         Nothing -> do
                         debugM testModuleName $ "Unknown response. Quit here?"
                         WS.sendClose conn ("Unhandled command " :: T.Text)
+
 parseMessage :: WS.Connection-> IO ()
 parseMessage conn = do
     msg <- WS.receiveData conn
