@@ -240,7 +240,7 @@ insertResponse  aResponse =
                                     Nothing -> put (Database $ M.insert (emailId iR) (update emptyModel) db)
 
             Nothing -> throw InvalidResponse
-
+ 
 insertRequest ::  ErpModel -> Request -> A.Update Database ()
 insertRequest aModel aRequest =  
 
