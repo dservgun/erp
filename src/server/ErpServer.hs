@@ -109,8 +109,11 @@ updateDatabase connection acid aMessage =
 postProcessRequest connection acid r = do
   nextSequenceResponse <- sendNextSequence acid  r
   case nextSequenceResponse of 
-    Just x -> WS.sendTextData connection  $ J.encode x
+    Just x -> do
+              WS.sendTextData connection  $ J.encode x
+              A.update acid (M.InsertResponse x)
     Nothing -> M.sendError connection r "Add login request failed"
+
 
 processRequest connection acid r@(M.Request iRequestID 
         iProtocolVersion entity emailId payload)  =
@@ -122,25 +125,30 @@ processRequest connection acid r@(M.Request iRequestID
     else 
         do
             debugM M.moduleName $ "Incoming request " ++ (show r)
-            case entity of
-                "QueryNextSequence"-> debugM M.moduleName $ "Processing message  " ++ (show entity)
-                "Login" -> updateLogin acid r
-                "DeleteLogin" -> deleteLoginA acid emailId
-                "UpdateCategory" -> updateCategory acid emailId $ L.toStrict payload
-                "QueryDatabase"  ->do
-                     model <- queryDatabase acid emailId $ L.toStrict payload 
-                     TIO.putStrLn $ T.pack $ show model                       
-                "CloseConnection" -> 
-                            let 
-                                response = M.createCloseConnectionResponse r 
-                            in 
-                            do
-                            debugM M.moduleName $ "ErpModel::Sending " ++ (show 
-                                    response)                            
-                            WS.sendTextData connection $ J.encode response
-                _ -> do
-                            errorM M.moduleName $ "Invalid request received " ++ (show r)
-                         
+            currentRequest <- checkRequest acid r
+            if currentRequest then
+                case entity of
+                    "QueryNextSequence"-> debugM M.moduleName $ "Processing message  " ++ (show entity)
+                    "Login" -> updateLogin acid r
+                    "DeleteLogin" -> deleteLoginA acid emailId
+                    "UpdateCategory" -> updateCategory acid emailId $ L.toStrict payload
+                    "QueryDatabase"  ->do
+                         model <- queryDatabase acid emailId $ L.toStrict payload 
+                         TIO.putStrLn $ T.pack $ show model                       
+                    "CloseConnection" -> 
+                                let 
+                                    response = M.createCloseConnectionResponse r 
+                                in 
+                                do
+                                debugM M.moduleName $ "ErpModel::Sending " ++ (show 
+                                        response)                            
+                                WS.sendTextData connection $ J.encode response
+                    _ -> do
+                                errorM M.moduleName $ "Invalid request received " ++ (show r)
+            else
+                do
+                  M.sendError connection  r "Stale message. Not processing"                            
+
 
 deleteLoginA acid anEmailId = A.update acid (M.DeleteLogin anEmailId)
 
@@ -152,9 +160,19 @@ getEmail payload =
             Just (Lo.Login email verified) -> email
             Nothing -> throw InvalidLogin
 
+
+
+checkRequest acid r@(M.Request iRequestID 
+    iProtocolVersion entity emailId payload) =
+    do
+      erp <- A.query acid (M.GetDatabase emailId)
+      case erp of
+        Nothing ->  return True
+        Just x -> return $  M.nextRequestID x == iRequestID
 --Authentication is probably done using an oauth provider
 --such as persona or google. This method simply logs
 --in the user as valid.
+
 updateLogin acid r =
      let
         payload = L.toStrict (M.requestPayload r)

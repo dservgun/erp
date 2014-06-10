@@ -44,8 +44,9 @@ data LoginExists = LoginExists deriving (Show, Generic, Typeable, Eq, Ord)
 data LoginStaleException = LoginStaleException deriving (Show, Generic, Typeable, Eq, Ord)
 data CategoryExists = CategoryExists deriving (Show, Generic, Typeable, Eq, Ord)
 data LoginNotFound = LoginNotFound deriving (Show, Generic, Typeable, Eq, Ord)
+data InvalidResponse = InvalidResponse deriving (Show, Generic, Typeable, Eq, Ord)
 
-
+instance Exception InvalidResponse
 
 type Deleted = Bool
 
@@ -62,15 +63,15 @@ data ErpModel = ErpModel
                     companySet :: S.Set Co.Company,
                     categorySet :: S.Set Co.Category,
                     deleted :: Deleted,
-                    requestSet :: [Request],
-                    responseSet :: [Response]                
+                    requests :: [Request],
+                    responses :: [Response]                
                 } deriving (Show, Generic, Typeable, Eq, Ord)
 
 -- The next request id for this model.
 nextRequestID :: ErpModel -> ID
 nextRequestID aModel = 
-        let requests = requestSet aModel in
-        case requests of 
+        let lRequests = requests aModel in
+        case lRequests of 
             [] -> 0
             h:t -> (requestID h + 1)
 
@@ -103,6 +104,9 @@ getResponseEntity :: Response -> Maybe RequestEntity
 getResponseEntity aResponse = do
     incomingRequest <- incomingRequest aResponse
     return $ getRequestEntity incomingRequest
+unwrapRequest :: Response -> Maybe Request
+unwrapRequest = incomingRequest 
+
 
 createCloseConnectionResponse r = Response (requestID r) (requestID r)
                                                             protocolVersion
@@ -151,8 +155,8 @@ emptyModel = ErpModel {
                 categorySet = S.empty,
                 companySet = S.empty,
                 login = Lo.empty,
-                requestSet = [],
-                responseSet = [],
+                requests= [],
+                responses = [],
                 deleted = False
               }
 
@@ -160,17 +164,13 @@ emptyModel = ErpModel {
 loginEmail :: ErpModel -> Lo.Email 
 loginEmail anErpModel = Lo.getLoginEmail $ login anErpModel
 
-insertResponse :: ErpModel -> Response -> ErpModel
-insertResponse aModel aResponse = aModel {
-            responseSet = aResponse : (responseSet aModel) 
-        }
 
 
 supportedVersions :: ErpModel -> S.Set ProtocolVersion
 supportedVersions aModel = 
     let 
-        reqVersions = map  (\x -> requestVersion x)   ( requestSet aModel)
-        resVersions  = map   (\x -> responseVersion x)  (responseSet aModel)
+        reqVersions = map  (\x -> requestVersion x)   ( requests aModel)
+        resVersions  = map   (\x -> responseVersion x)  (responses aModel)
     in 
         S.fromList reqVersions
  
@@ -222,13 +222,31 @@ lookupCompany aLogin aParty =
             Nothing -> throw Co.CompanyNotFound
             Just x -> return $ Co.findCompany aParty (companySet x)
 
-insertRequest ::  ErpModel -> Request -> A.Update Database ()
+insertResponse :: Response -> A.Update Database ()
+insertResponse  aResponse = 
+    let 
+        update aModel = aModel {responses = aResponse : (responses aModel)}
+    in
+    do
+        Database db <- get
+        let iRequest = incomingRequest aResponse
+        case iRequest of
+            Just iR -> 
+                        let erp = M.lookup (emailId iR) db
+                        in
+                            do
+                                case erp of
+                                    Just m -> put (Database $ M.insert (emailId iR) (update m) db)
+                                    Nothing -> put (Database $ M.insert (emailId iR) (update emptyModel) db)
 
+            Nothing -> throw InvalidResponse
+
+insertRequest ::  ErpModel -> Request -> A.Update Database ()
 insertRequest aModel aRequest =  
 
     let 
         aModel = aModel {
-                requestSet = aRequest : (requestSet aModel)
+                requests = aRequest : (requests aModel)
             }
         email = emailId aRequest
     in
@@ -236,15 +254,16 @@ insertRequest aModel aRequest =
         Database db <- get
         let erp = M.lookup email db
         case erp of
-            Just m ->put (Database $ M.insert email m db)
+            Just m ->put (Database $ M.insert email aModel db)
             Nothing -> put (Database $ M.insert email emptyModel db)
+
 
 insertLogin :: String -> Request -> Lo.Login -> A.Update Database ()
 insertLogin aString r aLogin =
     do
         Database db <- get
         let loginErp = emptyModel {login = aLogin, 
-                requestSet = r : (requestSet emptyModel)}
+                requests = r : (requests emptyModel)}
         put (Database (M.insert aString loginErp db))
 
 deleteLogin :: String -> A.Update Database ()
@@ -309,7 +328,8 @@ $(A.makeAcidic ''Database [
     'lookupLogin, 'insertLogin,
     'deleteLogin, 'lookupCategory, 'insertCategory
             , 'getDatabase
-            , 'insertRequest ])
+            , 'insertRequest
+            , 'insertResponse ])
 
 
 initializeDatabase  dbLocation = A.openLocalStateFrom dbLocation $ Database M.empty

@@ -195,11 +195,11 @@ serverTest = do
     mvarValue <- takeMVar m
     infoM testModuleName "SERVER ready"
     c <- async (WS.runClient "localhost" 8082 "/" $ loginTest 2)
-    -- cat <- async(WS.runClient "localhost" 8082 "/" $ categoryTest "Test Category")
-    -- db <- async (WS.runClient "localhost" 8082 "/" $ databaseTest "Test query database")
+    cat <- async(WS.runClient "localhost" 8082 "/" $ categoryTest "Test Category")
+    db <- async (WS.runClient "localhost" 8082 "/" $ databaseTest "Test query database")
     rc <- wait c
-    -- rCat <- wait cat
-    -- rdb <- wait db
+    rCat <- wait cat
+    rdb <- wait db
     infoM testModuleName "End tests"
     -- Cancel the server thread when all tests are done
     cancel s
