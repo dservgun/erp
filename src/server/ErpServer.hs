@@ -102,8 +102,8 @@ updateDatabase connection acid aMessage =
     in
         case r of
         Just aRequest -> do
-                A.update acid(M.InsertRequest aRequest)
                 processRequest connection acid aRequest
+                A.update acid(M.InsertRequest aRequest)
                 postProcessRequest connection acid aRequest
         _ -> do
               errorM serverModuleName (show r)
@@ -176,7 +176,7 @@ checkRequest acid r@(M.Request iRequestID
       infoM serverModuleName ("checkRequest " ++ (show erp))
       case erp of
         Nothing ->  return True
-        Just x -> return $  M.nextRequestID x == iRequestID
+        Just x -> return $  ( M.nextRequestID x ) == iRequestID
 --Authentication is probably done using an oauth provider
 --such as persona or google. This method simply logs
 --in the user as valid.

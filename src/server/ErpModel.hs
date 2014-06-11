@@ -72,7 +72,7 @@ nextRequestID :: ErpModel -> ID
 nextRequestID aModel = 
         let lRequests = requests aModel in
         case lRequests of 
-            [] -> 0
+            [] -> 1 -- When the requests are empty seed it with 1
             h:t -> (requestID h + 1)
 
 delete anErpModel = anErpModel {deleted = True}

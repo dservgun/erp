@@ -14,7 +14,7 @@ import System.Log.Handler.Simple
 import System.Log.Handler (setFormatter)
 import System.Log.Formatter
 
-import ErpServer(testServerMain, serverModuleName)
+import ErpServer (testServerMain, serverModuleName)
 import Control.Monad(forever, unless)
 import Control.Monad.Trans (liftIO)
 import Control.Exception
@@ -113,7 +113,8 @@ parseLoginTestMessages conn = do
                                             createCategoryRequest nextSequenceNumber testEmail $ encode $ toJSON $ Co.Category "Test category"
                                         parseLoginTestMessages conn    
                                 "UpdateCategory" -> do 
-                                        WS.sendTextData conn $ createQueryDatabaseRequest 1 testEmail $ encode . toJSON $ 
+                                        WS.sendTextData conn $ createQueryDatabaseRequest 
+                                            nextSequenceNumber testEmail $ encode . toJSON $ 
                                             ("Test query database" :: String)
                                         parseLoginTestMessages conn
                                 "QueryDatabase" -> endSession aResponse conn
