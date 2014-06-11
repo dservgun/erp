@@ -67,13 +67,13 @@ data ErpModel = ErpModel
                     responses :: [Response]                
                 } deriving (Show, Generic, Typeable, Eq, Ord)
 
+
+nextRequest :: [Request] -> Integer
+nextRequest [] = 1
+nextRequest (h:t) = (requestID h) + 1
 -- The next request id for this model.
 nextRequestID :: ErpModel -> ID
-nextRequestID aModel = 
-        let lRequests = requests aModel in
-        case lRequests of 
-            [] -> 1 -- When the requests are empty seed it with 1
-            h:t -> (requestID h + 1)
+nextRequestID aModel = nextRequest (requests aModel)
 
 delete anErpModel = anErpModel {deleted = True}
 {-- A given email id can be tied to only a single erp model,

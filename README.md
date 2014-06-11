@@ -22,6 +22,12 @@ We need a request log to manage log for the requests : time, ip etc.
  * Seaside or ScalaFX: My opinion is that ui has an oo bias and Smalltalk is a better solution. Need to investigate that.
  * For internal testing, wxPython seems to be a more suitable option. Though that is still debatable.
  * [Haxe](http://haxe.org)
+ 
+## Coding standards (mostly borrowed from haskellwiki)
+The server (ErpServer.hs) and the model (ErpModel.hs) are getting out of control. Needs a rewrite.
+Naming of variables: this happens when we do a match for maybe and have to come
+up with another set of readable names for each case. 
+
 
 ## Notes (discrepancies between the tryton and the current model):
   * The accounting method that simplifies computation of inventory and probably preferable is to manage products as batches
