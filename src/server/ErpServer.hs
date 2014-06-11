@@ -1,5 +1,5 @@
 
-module ErpServer(serverMain, testServerMain)where
+module ErpServer(serverMain, testServerMain, serverModuleName)where
 import Control.Exception
 import Control.Monad.State
 import Control.Monad.Reader
@@ -102,17 +102,21 @@ updateDatabase connection acid aMessage =
     in
         case r of
         Just aRequest -> do
+                A.update acid(M.InsertRequest aRequest)
                 processRequest connection acid aRequest
                 postProcessRequest connection acid aRequest
-        _ -> throw InvalidRequest
+        _ -> do
+              errorM serverModuleName (show r)
+              M.sendError connection Nothing "Error"
 
 postProcessRequest connection acid r = do
   nextSequenceResponse <- sendNextSequence acid  r
+  debugM serverModuleName $ "postProcessRequest" ++ (show nextSequenceResponse)
   case nextSequenceResponse of 
     Just x -> do
               WS.sendTextData connection  $ J.encode x
               A.update acid (M.InsertResponse x)
-    Nothing -> M.sendError connection r "Add login request failed"
+    Nothing -> M.sendError connection (Just r) "Error"
 
 
 processRequest connection acid r@(M.Request iRequestID 
@@ -120,7 +124,7 @@ processRequest connection acid r@(M.Request iRequestID
     if iProtocolVersion /= M.protocolVersion then
         do
         debugM M.moduleName $  "Invalid protocol message " ++ iProtocolVersion
-        M.sendError connection r $ 
+        M.sendError connection (Just r) $ 
           L.pack ("Invalid protocol version : " ++ M.protocolVersion)
     else 
         do
@@ -128,13 +132,14 @@ processRequest connection acid r@(M.Request iRequestID
             currentRequest <- checkRequest acid r
             if currentRequest then
                 case entity of
-                    "QueryNextSequence"-> debugM M.moduleName $ "Processing message  " ++ (show entity)
+                    "QueryNextSequence"-> 
+                        debugM M.moduleName $ "Processing message  " ++ (show entity)
                     "Login" -> updateLogin acid r
                     "DeleteLogin" -> deleteLoginA acid emailId
                     "UpdateCategory" -> updateCategory acid emailId $ L.toStrict payload
                     "QueryDatabase"  ->do
                          model <- queryDatabase acid emailId $ L.toStrict payload 
-                         TIO.putStrLn $ T.pack $ show model                       
+                         infoM serverModuleName (show model)                       
                     "CloseConnection" -> 
                                 let 
                                     response = M.createCloseConnectionResponse r 
@@ -147,7 +152,8 @@ processRequest connection acid r@(M.Request iRequestID
                                 errorM M.moduleName $ "Invalid request received " ++ (show r)
             else
                 do
-                  M.sendError connection  r "Stale message. Not processing"                            
+                  errorM M.moduleName $ "Stale message " ++ (show r)
+                  M.sendError connection  (Just r)  "Stale message. Not processing"                            
 
 
 deleteLoginA acid anEmailId = A.update acid (M.DeleteLogin anEmailId)
@@ -165,7 +171,9 @@ getEmail payload =
 checkRequest acid r@(M.Request iRequestID 
     iProtocolVersion entity emailId payload) =
     do
+      infoM serverModuleName ("checkRequest" ++ (show r))
       erp <- A.query acid (M.GetDatabase emailId)
+      infoM serverModuleName ("checkRequest " ++ (show erp))
       case erp of
         Nothing ->  return True
         Just x -> return $  M.nextRequestID x == iRequestID

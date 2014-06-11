@@ -14,7 +14,7 @@ import System.Log.Handler.Simple
 import System.Log.Handler (setFormatter)
 import System.Log.Formatter
 
-import ErpServer(testServerMain)
+import ErpServer(testServerMain, serverModuleName)
 import Control.Monad(forever, unless)
 import Control.Monad.Trans (liftIO)
 import Control.Exception
@@ -79,70 +79,55 @@ processResponse aResponse =
         debugM testModuleName $ "processResponse:: " ++ 
                             "Processing response " ++ (show aResponse)
 
+endSession :: M.Response -> WS.Connection -> IO()
+endSession aResponse conn = 
+                    let 
+                        nextSequence = M.getSequenceNumber aResponse in 
+                    do
+                        debugM testModuleName $ " Using sequence number " ++ (show nextSequence)
+                        WS.sendTextData conn $  createCloseConnection nextSequence
+                                testEmail $ 
+                                encode $ toJSON testLogin
+                        parseLoginTestMessages conn       
+    
 parseLoginTestMessages :: WS.Connection -> IO()
 parseLoginTestMessages conn = do
     infoM testModuleName "parseLoginTestMessages..."
     msg <- WS.receiveData conn
     let 
         r = J.decode $ En.encodeUtf8 $ La.fromStrict msg
-    case r of
-        Just aResponse -> do
-            let responseEntity = M.getResponseEntity aResponse
-            infoM testModuleName $ "parseLoginTestMessages::Processing response " 
-                    ++ (show responseEntity)
-            case responseEntity of
-                Just re ->
-                        case re of
-                            "Login" ->
-                                    let 
-                                        nextSequence = M.getSequenceNumber aResponse in 
-                                    do
-                                        debugM testModuleName $ " Using sequence number " ++ (show nextSequence)
-                                        WS.sendTextData conn $  createCloseConnection nextSequence
-                                                testEmail $ 
-                                                encode $ toJSON testLogin
-                                        parseLoginTestMessages conn       
-                            "CloseConnection" -> do
-                                        debugM testModuleName $ "Received :: " ++ (show responseEntity)
-                                        WS.sendClose conn  ("Bye." ::T.Text)
-                Nothing -> do
-                                    debugM testModuleName $ "Received " ++ (show aResponse)
-                                    WS.sendClose conn ("Unhandled command for this test case " 
-                                                :: T.Text)                       
-        Nothing -> do
-                        debugM testModuleName $ "Unknown response. Quit here?"
-                        WS.sendClose conn ("Unhandled command " :: T.Text)
-
-parseMessage :: WS.Connection-> IO ()
-parseMessage conn = do
-    msg <- WS.receiveData conn
-    debugM testModuleName $ "Parsing message " ++ (show msg)
-    let
-        r = J.decode $ En.encodeUtf8 $ La.fromStrict msg
-    case r of
-        Just aResponse -> do
-                debugM testModuleName $ "parseMessage :: Processing response "  
-                                ++ show r
-                let responseEntity = M.getResponseEntity aResponse
-                case responseEntity of 
-                    Just re -> 
-                        case re of
-                            "CloseConnection" -> do
-                                debugM testModuleName $ "Received :: " ++ (show responseEntity)
-                                WS.sendClose conn  ("Bye." ::T.Text)
-                            _ -> do
-                                        debugM testModuleName $ "Received ->" ++ re ++ "->" 
-                                            ++(show aResponse)
-                                        parseMessage conn
+    do
+        debugM testModuleName  ("before case " ++ (show r))
+        case r of
+            Just aResponse -> do
+                let 
+                    responseEntity = M.getResponseEntity aResponse
+                    nextSequenceNumber = M.getSequenceNumber aResponse
+                infoM testModuleName $ "parseLoginTestMessages::Processing response " 
+                        ++ (show responseEntity)
+                case responseEntity of
+                    Just re ->
+                            case re of
+                                "Login" -> do
+                                        WS.sendTextData conn $ 
+                                            createCategoryRequest nextSequenceNumber testEmail $ encode $ toJSON $ Co.Category "Test category"
+                                        parseLoginTestMessages conn    
+                                "UpdateCategory" -> do 
+                                        WS.sendTextData conn $ createQueryDatabaseRequest 1 testEmail $ encode . toJSON $ 
+                                            ("Test query database" :: String)
+                                        parseLoginTestMessages conn
+                                "QueryDatabase" -> endSession aResponse conn
+                                "CloseConnection" -> do
+                                            debugM testModuleName $ "Received :: " ++ (show responseEntity)
+                                            WS.sendClose conn  ("Bye." ::T.Text)
                     Nothing -> do
-                            debugM testModuleName "Unknown response"
-                            --close the connection here
-                            parseMessage conn   
-        
-        Nothing -> do
-            debugM testModuleName $ "Invalid Request. Unhandled response " 
-                    ++ (show msg)
-            
+                                        debugM testModuleName $ "Received " ++ (show aResponse)
+                                        WS.sendClose conn ("Unhandled command for this test case " 
+                                                    :: T.Text)                       
+            Nothing -> do
+                            debugM testModuleName $ "Unknown response. Quit here?"
+                            WS.sendClose conn ("Unhandled command " :: T.Text)
+
 
 
 testLogin = L.Login "test@test.org" True
@@ -157,31 +142,14 @@ loginTest aVer conn = do
     debugM testModuleName  "Sending login request"
     WS.sendTextData conn $ createLoginRequest 1 testEmail $ encode $ toJSON testLogin
     wait tR
-    debugM testModuleName "parseMessage thread exited"
+    debugM testModuleName "loginTest complete."
 
-categoryTest :: String -> WS.ClientApp ()
-categoryTest aString conn =
-    do
-    TIO.putStrLn "Connected successfully"
-
-    tR <- async $ parseMessage conn
-    WS.sendTextData conn $ createCategoryRequest 1 testEmail $ encode $ toJSON $ Co.Category aString
-    WS.sendTextData conn $ createCloseConnection 2 testEmail $ encode $ toJSON testEmail
-    wait tR
-
-
-databaseTest :: String -> WS.ClientApp ()
-databaseTest aString conn =
-    do
-    tR <- async $ parseMessage conn
-    WS.sendTextData conn $ createQueryDatabaseRequest 1 testEmail $ encode . toJSON $ aString
-    WS.sendTextData conn $ createCloseConnection 2 testEmail $ encode $ toJSON testEmail
-    wait tR
 
 
 serverTest = do
     updateGlobalLogger M.moduleName $ setLevel DEBUG
     updateGlobalLogger testModuleName $ setLevel DEBUG
+    updateGlobalLogger ErpServer.serverModuleName $ setLevel DEBUG
     infoM testModuleName "Cleaning up past state."
     dirExists <- SD.doesDirectoryExist acidStateTestDir
     case dirExists of
@@ -195,11 +163,7 @@ serverTest = do
     mvarValue <- takeMVar m
     infoM testModuleName "SERVER ready"
     c <- async (WS.runClient "localhost" 8082 "/" $ loginTest 2)
-    cat <- async(WS.runClient "localhost" 8082 "/" $ categoryTest "Test Category")
-    db <- async (WS.runClient "localhost" 8082 "/" $ databaseTest "Test query database")
     rc <- wait c
-    rCat <- wait cat
-    rdb <- wait db
     infoM testModuleName "End tests"
     -- Cancel the server thread when all tests are done
     cancel s

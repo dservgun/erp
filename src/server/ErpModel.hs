@@ -88,7 +88,7 @@ type ID = Integer
 data ErrorResponse = ErrorResponse {
     errorResponseID :: ID,
     errorResponseVersion :: ProtocolVersion,
-    errorIncomingRequest :: Request,
+    errorIncomingRequest :: Maybe Request,
     errorMessage :: L.Text 
 } deriving (Show, Generic, Typeable, Eq, Ord)
 
@@ -176,10 +176,12 @@ supportedVersions aModel =
  
 
 updateModel :: ErpModel -> Co.Category -> ErpModel
-updateModel aModel aCategory = aModel{ categorySet = S.insert aCategory (categorySet aModel)}
+updateModel aModel aCategory = 
+    aModel{ categorySet = S.insert aCategory (categorySet aModel)}
 
 updateParty :: ErpModel -> Co.Party -> ErpModel
-updateParty aModel aParty = aModel {partySet = S.insert aParty (partySet aModel)}
+updateParty aModel aParty = 
+    aModel {partySet = S.insert aParty (partySet aModel)}
 
 
 
@@ -240,30 +242,27 @@ insertResponse  aResponse =
                                     Nothing -> put (Database $ M.insert (emailId iR) (update emptyModel) db)
 
             Nothing -> throw InvalidResponse
- 
-insertRequest ::  ErpModel -> Request -> A.Update Database ()
-insertRequest aModel aRequest =  
+
+insertRequest ::  Request -> A.Update Database ()
+insertRequest aRequest =  
 
     let 
-        aModel = aModel {
-                requests = aRequest : (requests aModel)
-            }
         email = emailId aRequest
+        update model = model {requests = aRequest : (requests model) }
     in
     do
         Database db <- get
         let erp = M.lookup email db
         case erp of
-            Just m ->put (Database $ M.insert email aModel db)
-            Nothing -> put (Database $ M.insert email emptyModel db)
+            Just m ->put (Database $ M.insert email (update m) db)
+            Nothing -> put (Database $ M.insert email (update emptyModel) db)
 
 
 insertLogin :: String -> Request -> Lo.Login -> A.Update Database ()
 insertLogin aString r aLogin =
     do
         Database db <- get
-        let loginErp = emptyModel {login = aLogin, 
-                requests = r : (requests emptyModel)}
+        let loginErp = emptyModel {login = aLogin}
         put (Database (M.insert aString loginErp db))
 
 deleteLogin :: String -> A.Update Database ()
