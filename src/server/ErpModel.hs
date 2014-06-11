@@ -175,8 +175,8 @@ supportedVersions aModel =
         S.fromList reqVersions
  
 
-updateModel :: ErpModel -> Co.Category -> ErpModel
-updateModel aModel aCategory = 
+updateCategory :: ErpModel -> Co.Category -> ErpModel
+updateCategory aModel aCategory = 
     aModel{ categorySet = S.insert aCategory (categorySet aModel)}
 
 updateParty :: ErpModel -> Co.Party -> ErpModel
@@ -311,7 +311,7 @@ insertCategory aLogin c@(Co.Category aCatName) =
         Database db <- get
         let erp = M.lookup aLogin db
         case erp of
-            Just exists -> put(Database (M.insert aLogin (updateModel exists c) db))
+            Just exists -> put(Database (M.insert aLogin (updateCategory exists c) db))
             _       -> return()
 
 
