@@ -164,18 +164,9 @@ emptyModel = ErpModel {
 loginEmail :: ErpModel -> Lo.Email 
 loginEmail anErpModel = Lo.getLoginEmail $ login anErpModel
 
-
-lIsMember :: Co.Category -> S.Set Co.Category -> Bool
-lIsMember aCategory aSet = S.member aCategory aSet 
-
-decodeCategory :: Maybe Co.Category -> Bool -> Maybe Co.Category
-decodeCategory Nothing _ = Nothing
-decodeCategory (Just x )  False = Nothing
-decodeCategory (Just x) (True) = Just x
-
-exists :: Co.Category -> Maybe ErpModel -> Maybe Co.Category
-exists aKey Nothing = Nothing
-exists aKey (Just e) = decodeCategory (Just aKey ) (lIsMember aKey $ categorySet e)
+exists :: Co.Category -> Maybe ErpModel -> Bool
+exists aKey Nothing = False
+exists aKey (Just e) = (S.member aKey $ categorySet e)
 
 
 supportedVersions :: ErpModel -> S.Set ProtocolVersion
@@ -298,7 +289,7 @@ lookupLogin aLogin =
             _   -> return Nothing
 
 
-lookupCategory :: String -> Co.Category -> A.Query  Database(Maybe Co.Category)
+lookupCategory :: String -> Co.Category -> A.Query  Database(Bool)
 -- qbe -> query by example
 lookupCategory aLogin qbe =
     do

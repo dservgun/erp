@@ -242,9 +242,10 @@ updateCategory acid emailId payload =
             Just c@(Co.Category aCat) -> do
                -- infoM "ErpModel" "Processing update category"
                 lookup <- A.query acid (M.LookupCategory emailId c)
-                case lookup of
-                    Nothing -> A.update acid (M.InsertCategory emailId c)
-                    Just c@(Co.Category aCat) -> return ()
+                if lookup == False then 
+                    A.update acid (M.InsertCategory emailId c)
+                else
+                    return ()
             Nothing -> return ()
 queryDatabase acid emailId payload = do
     debugM  M.moduleName $ "Querying database " ++ emailId
