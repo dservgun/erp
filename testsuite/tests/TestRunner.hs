@@ -84,7 +84,6 @@ endSession aResponse conn =
                     let 
                         nextSequence = M.getSequenceNumber aResponse in 
                     do
-                        debugM testModuleName $ " Using sequence number " ++ (show nextSequence)
                         WS.sendTextData conn $  createCloseConnection nextSequence
                                 testEmail $ 
                                 encode $ toJSON testLogin
@@ -136,7 +135,7 @@ testModuleName = "TestRunner"
 
 loginTest :: Int -> WS.ClientApp ()
 loginTest aVer conn = do
-    TIO.putStrLn "Client Connected successfully"
+    debugM testModuleName "Client Connected successfully"
     tR <- async( parseLoginTestMessages conn)
     -- Send a verified user and an unverified user,
     -- Recovery should not be showing the unverified user.

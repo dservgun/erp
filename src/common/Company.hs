@@ -140,17 +140,22 @@ data CompanyReport = CompanyReport {fiscalYear :: Fy.FiscalYear,
                         deriving (Show, Data, Typeable,Generic)
 
 type URI = String
-findCompany :: Party -> S.Set Company -> Maybe Company
+
+
+findCompany :: Party -> S.Set Company -> ErpError ModuleError Company
 findCompany aParty aCompanySet =
     let
         result = S.filter (\x -> party x == aParty) aCompanySet
     in
         if S.null result then
-            Nothing
+            ErpError.createErrorS "Company" "C0002" "Company Not found"
         else
             case elems result of
-                h:[] -> Just h
-                h:[t] -> throw DuplicateCompaniesFound
+                [h] -> ErpError.createSuccess h
+                -- This should never happen? 
+                -- What does it mean, when this happens?
+                h:t -> ErpError.createErrorS "Company" "C0003" 
+                    $ "Duplicate companies " ++ show h ++ " and " ++ show t
              where
                 elems aSet = S.elems aSet
 

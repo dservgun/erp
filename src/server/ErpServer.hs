@@ -63,7 +63,7 @@ serverMain dbLocation =
   (M.initializeDatabase dbLocation)
   M.disconnect
   (\acid -> do
-    TIO.putStrLn $ T.pack("Listening on " ++  show portNumber)
+    infoM serverModuleName $ "Listening on " ++ show portNumber
     m <- newEmptyMVar
     WS.runServer "127.0.0.1" portNumber $ handleConnection m acid)
 
@@ -74,10 +74,10 @@ instance Show WS.Connection where
     
 handleConnection m acid pending = do
   conn <- WS.acceptRequest pending
-  TIO.putStrLn $ T.pack ("Accepted connection.." ++ show conn)
+  infoM serverModuleName $ "Accepted connection " ++ show conn
   a1 <-   async (processMessages conn acid)
   r <- wait a1
-  TIO.putStrLn "Handling connection requests ..."
+  infoM serverModuleName "Handling connections..."
 
 serverModuleName = "ErpServer"
 processMessages conn acid =

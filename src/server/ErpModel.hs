@@ -17,6 +17,7 @@ import qualified Data.Acid as A
 import Data.Acid.Remote
 import Data.SafeCopy
 import Data.Typeable
+
 import qualified Data.Map as M
 import qualified Data.Set as S
 import qualified Data.Aeson as J
@@ -28,6 +29,7 @@ import qualified Network.WebSockets.Connection as WS
 import Data.Dynamic
 import Data.Time.Clock
 import GHC.Generics
+import qualified ErpError as ErEr
 import qualified Login as Lo
 import qualified SystemSequence as SSeq
 import qualified Company as Co
@@ -187,7 +189,10 @@ updateParty aModel aParty =
     aModel {partySet = S.insert aParty (partySet aModel)}
 
 
-
+-- Query a party by the email id, name 
+-- and the geographical location
+-- The assumption being that a given party and 
+-- location will be unique.
 lookupParty :: String -> String -> Co.GeoLocation -> 
     A.Query Database (Maybe Co.Party)
 lookupParty aLogin aName aLocation  =
@@ -197,6 +202,7 @@ lookupParty aLogin aName aLocation  =
         case erp of
             Nothing -> throw Co.CompanyNotFound
             Just x -> return $ Co.findParty (aName, aLocation) (partySet x)
+
 
 insertParty :: String -> Co.Party -> A.Update Database ()
 insertParty aLogin p =
@@ -218,13 +224,15 @@ deleteParty aLogin aParty = do
         delP2 aParty model = model {partySet = S.delete aParty (partySet model)}
 
 
-lookupCompany :: String -> Co.Party -> A.Query Database (Maybe Co.Company)
+lookupCompany :: String -> Co.Party -> 
+    A.Query Database (ErEr.ErpError ErEr.ModuleError Co.Company)
 lookupCompany aLogin aParty =
     do
         Database db <- ask
         let erp = M.lookup aLogin db
         case erp of
-            Nothing -> throw Co.CompanyNotFound
+            Nothing -> return $ ErEr.createErrorS "ErpModel" "EM001" 
+                        $ "Party not found " ++ show aParty ++ " for " ++ aLogin
             Just x -> return $ Co.findCompany aParty (companySet x)
 
 insertResponse :: Response -> A.Update Database ()
