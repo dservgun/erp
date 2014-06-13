@@ -17,6 +17,7 @@ module ErpError (
     createError,
     createSuccess,
     createErrorS,
+    getString,
     ModuleError
 ) where
 import Data.Acid.Remote
@@ -44,6 +45,13 @@ createError = ModuleError
 createErrorS :: String -> String -> String -> ErpError ModuleError a
 createErrorS a b c = Error $ createError (L.pack a) (L.pack b)(L.pack c)
 createSuccess a = Success a
+
+
+-- This function was implemented to work around the typesystem. 
+
+getString :: ErpError ModuleError a0 -> L.Text
+getString e@(Error modError) = L.pack $ (L.unpack $ mName modError) ++ (L.unpack $ errorCode modError) ++ 
+	(L.unpack $ errorMessage modError)
 
 $(deriveSafeCopy 0 'base ''ErpError)
 $(deriveSafeCopy 0 'base ''ModuleError)

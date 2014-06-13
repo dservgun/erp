@@ -1,0 +1,37 @@
+The everything list
+==
+
+### Dev env setup
+
+. Nix package manager
+. Setup java
+. Setup maven
+. Setup ant
+. Setup scala
+. Setup spray
+. Setup liferay : 6.2 branch and master.
+. Gridgain
+. Gridgain enable liferay installation
+. Postgres
+. Eclipse
+. Tmux
+. Setup liferay for automated tests
+. Implement security cookbook recepies
+. Install OAUTH provider
+. Grails 2.2.4
+. Sublime haskell
+. Enable erp CI using travis
+
+### Dev tasks (should probably go in the readme.md)
+
+. Add ErpHelper module to handle imports for the project in one place
+. Replace JSON messages (a bit clunky) with show instances for each data constructor. Make this configurable
+  to be able to switch it between raw messages and data messages.
+. Checkin a reference test output that can be reliable across different runs - this would most likely 
+	need a split between the server and the client threads and only single threaded tests to prevent 
+	interleaving of output??
+. Move the current thead into snap
+. Implement product rest services.
+. Make lenses for manipulating the model.
+. RabbitMQ or ZeroMQ for messaging infrastructure support. 
+. Distributed haskell for distributing the application.

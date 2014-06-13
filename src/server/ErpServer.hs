@@ -120,8 +120,9 @@ postProcessRequest connection acid r = do
               WS.sendTextData connection  $ J.encode x
               A.update acid (M.InsertResponse x)
     Nothing -> do
-        M.sendError connection (Just r) "Error"
-        return $ ErEr.createErrorS "ErpServer" "ES001" $ "Invalid response " ++ (show r)
+        let moduleError = ErEr.createErrorS "ErpServer" "ES001" $ "Invalid response " ++ show r
+        M.sendError connection (Just r) $ L.pack $ show moduleError
+        return moduleError
 
 processRequest connection acid r@(M.Request iRequestID 
         iProtocolVersion entity emailId payload)  =
@@ -156,8 +157,8 @@ processRequest connection acid r@(M.Request iRequestID
                                 errorM M.moduleName $ "Invalid request received " ++ (show r)
             else
                 do
-                  errorM M.moduleName $ "Stale message " ++ (show r)
-                  M.sendError connection  (Just r)  "Stale message. Not processing"                            
+                  let moduleError = ErEr.createErrorS "ErpServer" "ES002" $ "Stale message " ++ show r
+                  M.sendError connection  (Just r)  $ ErEr.getString moduleError
 
 
 deleteLoginA acid anEmailId = A.update acid (M.DeleteLogin anEmailId)
@@ -224,7 +225,6 @@ sendNextSequence acid request =
                         res = M.createNextSequenceResponse emailId ( Just request) 
                                 $ (M.nextRequestID  x)
                     debugM M.moduleName $ "Database found " ++ (show res)
-                    debugM M.moduleName $ show res
                     return $ Just res
 
 
