@@ -42,6 +42,7 @@ import qualified Purchase as Pu
 import qualified Sale as Sa
 import qualified Forecast as Fo
 import qualified Timesheet as Ts
+import qualified SystemSequence as Seq
 data LoginExists = LoginExists deriving (Show, Generic, Typeable, Eq, Ord)
 data LoginStaleException = LoginStaleException deriving (Show, Generic, Typeable, Eq, Ord)
 data CategoryExists = CategoryExists deriving (Show, Generic, Typeable, Eq, Ord)
@@ -74,7 +75,7 @@ nextRequest :: [Request] -> Integer
 nextRequest [] = 1
 nextRequest (h:t) = (requestID h) + 1
 -- The next request id for this model.
-nextRequestID :: ErpModel -> ID
+nextRequestID :: ErpModel -> SSeq.ID
 nextRequestID aModel = nextRequest (requests aModel)
 
 delete anErpModel = anErpModel {deleted = True}
@@ -85,14 +86,7 @@ data Database = Database ! (M.Map String ErpModel)
 data RequestType = Create | Modify | Retrieve | Delete deriving (Show, Generic, Typeable, Eq, Ord)
 type RequestEntity = String
 type ProtocolVersion = String
-type ID = Integer
-
-data ErrorResponse = ErrorResponse {
-    errorResponseID :: ID,
-    errorResponseVersion :: ProtocolVersion,
-    errorIncomingRequest :: Maybe Request,
-    errorMessage :: L.Text 
-} deriving (Show, Generic, Typeable, Eq, Ord)
+type ID = SSeq.ID
 
 data Response = Response {
     responseID :: ID,
@@ -117,6 +111,7 @@ createCloseConnectionResponse r = Response (requestID r) (requestID r)
 -- Create a new response with the next id.
 createNextSequenceResponse emailId c anID = Response anID  anID protocolVersion c 
             $ L.pack $ show anID
+
 getSequenceNumber aResponse = requestIDToUse aResponse
 data Request = Request {
     requestID :: ID,
@@ -140,15 +135,8 @@ getRequestEntity aRequest = requestEntity aRequest
 -- that is probably debatable?
 protocolVersion :: ProtocolVersion
 protocolVersion = "0.0.0.1"
+
 -- ID is a string read and written from an integer
-
--- Simple integer should suffice.
-nextID :: ID -> ID
-nextID  x =  x + 1
-
--- Any message with this id is an error id.
-errorID :: ID
-errorID = -1
 
 
 
@@ -235,7 +223,7 @@ lookupCompany aLogin aParty =
                         $ "Party not found " ++ show aParty ++ " for " ++ aLogin
             Just x -> return $ Co.findCompany aParty (companySet x)
 
-insertResponse :: Response -> A.Update Database ()
+insertResponse :: Response -> A.Update Database (ErEr.ErpError ErEr.ModuleError Response)
 insertResponse  aResponse = 
     let 
         update aModel = aModel {responses = aResponse : (responses aModel)}
@@ -249,10 +237,13 @@ insertResponse  aResponse =
                         in
                             do
                                 case erp of
-                                    Just m -> put (Database $ M.insert (emailId iR) (update m) db)
-                                    Nothing -> put (Database $ M.insert (emailId iR) (update emptyModel) db)
-
-            Nothing -> throw InvalidResponse
+                                    Just m -> do
+                                            put (Database $ M.insert (emailId iR) (update m) db)
+                                            return $ ErEr.createSuccess aResponse
+                                    Nothing -> do
+                                            put (Database $ M.insert (emailId iR) (update emptyModel) db)
+                                            return $ ErEr.createErrorS "ErpModel" "EM002"$ show aResponse
+            Nothing -> return $ ErEr.createErrorS "ErpModel" "EM002" $ "Could not parse request " ++ (show aResponse)
 
 insertRequest ::  Request -> A.Update Database ()
 insertRequest aRequest =  
@@ -338,7 +329,7 @@ disconnect = A.closeAcidState
 sendTextData connection aText = WS.sendTextData connection aText
 sendError connection request aMessage = 
     let 
-        response = ErrorResponse errorID protocolVersion request aMessage
+        response = Response (SSeq.errorID) (SSeq.errorID) protocolVersion request aMessage
     in
         WS.sendTextData connection $ J.encode response
 
@@ -370,5 +361,3 @@ instance J.ToJSON ErpModel
 instance J.FromJSON ErpModel
 instance J.ToJSON Response
 instance J.FromJSON Response
-instance J.ToJSON ErrorResponse
-instance J.FromJSON ErrorResponse

@@ -1,50 +1,52 @@
 -- Declaring this as part of modules is breaking the tests??
 --FIX this
-import qualified Data.Map as Map
-import qualified ErpModel as M
-import qualified Login as L
-import qualified Data.Aeson as J
-import qualified Company as Co
-import qualified Currency as Cu
-import qualified Account as Ac
 
-import System.Log.Logger
-import System.Log.Handler.Syslog
-import System.Log.Handler.Simple
-import System.Log.Handler (setFormatter)
-import System.Log.Formatter
 
-import ErpServer (testServerMain, serverModuleName)
-import Control.Monad(forever, unless)
-import Control.Monad.Trans (liftIO)
-import Control.Exception
+
 import Control.Concurrent
 import Control.Concurrent.Async(async, wait, cancel)
+import Control.Exception
+import Control.Monad(forever, unless)
+import Control.Monad.Trans (liftIO)
+import Data.Aeson
+import Data.DateTime
 import Data.Text (Text)
+import Data.Time.Clock
+import ErpError
+import ErpServer (testServerMain, serverModuleName)
+import GHC.Generics
+import Product as Pr
+import ProductSpec
+import qualified Account as Ac
+import qualified Company as Co
+import qualified Currency as Cu
+import qualified Data.Aeson as J
+import qualified Data.Map as Map
 import qualified Data.Set as S
 import qualified Data.Text as T
 import qualified Data.Text.IO as TIO
-import Data.Time.Clock
-import Data.DateTime
-import qualified Network.WebSockets as WS
-import System.Log.Logger
-import System.Log.Handler.Syslog
-import System.Log.Handler.Simple
-import System.Log.Handler (setFormatter) 
-import System.Log.Formatter
-
-import Data.Aeson
-import GHC.Generics
-import qualified Data.Text.Lazy.Encoding as En
 import qualified Data.Text.Lazy as La
+import qualified Data.Text.Lazy.Encoding as En
+import qualified ErpModel as M
+import qualified Login as L
+import qualified Network.WebSockets as WS
 import qualified System.Directory as SD
-import Test.QuickCheck
-import ErpError
-import Product as Pr
-import Text.Printf
-import TestHarness
+import System.Log.Formatter
+import System.Log.Formatter
+import System.Log.Handler (setFormatter)
+import System.Log.Handler (setFormatter) 
+import System.Log.Handler.Simple
+import System.Log.Handler.Simple
+import System.Log.Handler.Syslog
+import System.Log.Handler.Syslog
+import System.Log.Logger
+import System.Log.Logger
 import Test.Hspec
-import ProductSpec
+import Test.QuickCheck
+import TestHarness
+import Text.Printf
+
+
 testEmail = "test@test.org"
 createQueryDatabaseRequest anID login aPayload =
     encode $ toJSON $ M.Request  anID

@@ -45,6 +45,8 @@ createErrorS :: String -> String -> String -> ErpError ModuleError a
 createErrorS a b c = Error $ createError (L.pack a) (L.pack b)(L.pack c)
 createSuccess a = Success a
 
+$(deriveSafeCopy 0 'base ''ErpError)
+$(deriveSafeCopy 0 'base ''ModuleError)
 
 
 

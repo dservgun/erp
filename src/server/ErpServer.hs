@@ -30,8 +30,9 @@ import System.Log.Handler.Syslog
 import System.Log.Handler.Simple
 import System.Log.Handler (setFormatter)
 import System.Log.Formatter
-
+import qualified SystemSequence as SSeq
 import qualified ErpModel as M
+import qualified ErpError as ErEr
 import qualified Login as Lo
 import qualified Company as Co
 
@@ -102,13 +103,15 @@ updateDatabase connection acid aMessage =
     in
         case r of
         Just aRequest -> do
-                processRequest connection acid aRequest
-                A.update acid(M.InsertRequest aRequest)
+                res  <- processRequest connection acid aRequest
+                res2 <- updateRequests connection acid aRequest
                 postProcessRequest connection acid aRequest
         _ -> do
               errorM serverModuleName (show r)
               M.sendError connection Nothing "Error"
+              return $ ErEr.createErrorS "ErpServer" "ES002" $ "Invalid message " ++ (show aMessage)
 
+updateRequests connection acid r = A.update acid(M.InsertRequest r)
 postProcessRequest connection acid r = do
   nextSequenceResponse <- sendNextSequence acid  r
   debugM serverModuleName $ "postProcessRequest" ++ (show nextSequenceResponse)
@@ -116,8 +119,9 @@ postProcessRequest connection acid r = do
     Just x -> do
               WS.sendTextData connection  $ J.encode x
               A.update acid (M.InsertResponse x)
-    Nothing -> M.sendError connection (Just r) "Error"
-
+    Nothing -> do
+        M.sendError connection (Just r) "Error"
+        return $ ErEr.createErrorS "ErpServer" "ES001" $ "Invalid response " ++ (show r)
 
 processRequest connection acid r@(M.Request iRequestID 
         iProtocolVersion entity emailId payload)  =
@@ -179,7 +183,10 @@ checkRequest acid r@(M.Request iRequestID
         Just x -> return $  ( M.nextRequestID x ) == iRequestID
 --Authentication is probably done using an oauth provider
 --such as persona or google. This method simply logs
---in the user as valid.
+--in the user as valid. If the user is already registered,
+-- nothing needs to be done. Else, 
+-- the user is verified and a new erp model is associated
+-- with this email id. tl;dr
 
 updateLogin acid r =
      let
@@ -196,6 +203,7 @@ updateLogin acid r =
                             return ()
             Nothing -> throw InvalidLogin
 
+
 sendNextSequence acid request = 
     let
         emailId = M.getRequestEmail request 
@@ -207,7 +215,7 @@ sendNextSequence acid request =
                 do
                     let 
                         res = M.createNextSequenceResponse emailId (Just request)
-                                 $ M.errorID
+                                 $ SSeq.errorID
                     debugM M.moduleName $ "Could not find database " ++ (show res)
                     return $ Just res 
             Just x -> 

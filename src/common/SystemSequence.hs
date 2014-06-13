@@ -5,7 +5,7 @@ each client will have a sequence number for the corresponding
 model.
 --}
 
-module SystemSequence 
+module SystemSequence(ID, nextID, errorID)
 where
 
 import Data.SafeCopy
@@ -21,4 +21,13 @@ import GHC.Generics
 import qualified Login as Lo
 
 
+type ID = Integer
+
+-- Simple integer should suffice for now.
+nextID :: ID -> ID
+nextID  x =  x + 1
+
+-- Any message with this id is an error id.
+errorID :: ID
+errorID = -1
 
