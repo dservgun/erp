@@ -163,6 +163,7 @@ processRequest connection acid r@(M.Request iRequestID
 
 deleteLoginA acid anEmailId = A.update acid (M.DeleteLogin anEmailId)
 
+
 getEmail payload = 
     let
         pObject = pJSON payload
@@ -172,16 +173,22 @@ getEmail payload =
             Nothing -> throw InvalidLogin
 
 
+-- The return should be more than a boolean.
+-- When no model is found, we would like the caller
+-- to create an empty model. 
+-- Returning true doesnt capture  this.
 
 checkRequest acid r@(M.Request iRequestID 
     iProtocolVersion entity emailId payload) =
     do
-      infoM serverModuleName ("checkRequest" ++ (show r))
+      infoM serverModuleName ("checkRequest " ++ (show r))
       erp <- A.query acid (M.GetDatabase emailId)
-      infoM serverModuleName ("checkRequest " ++ (show erp))
+      infoM serverModuleName ("Querying erp returned " ++ (show erp))
       case erp of
         Nothing ->  return True
         Just x -> return $  ( M.nextRequestID x ) == iRequestID
+
+
 --Authentication is probably done using an oauth provider
 --such as persona or google. This method simply logs
 --in the user as valid. If the user is already registered,

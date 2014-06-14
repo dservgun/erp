@@ -182,7 +182,7 @@ updateParty aModel aParty =
 -- The assumption being that a given party and 
 -- location will be unique.
 lookupParty :: String -> String -> Co.GeoLocation -> 
-    A.Query Database (Maybe Co.Party)
+    A.Query Database (ErEr.ErpError ErEr.ModuleError Co.Party)
 lookupParty aLogin aName aLocation  =
     do
         Database db <- ask

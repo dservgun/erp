@@ -20,7 +20,14 @@ The everything list
 . Install OAUTH provider
 . Grails 2.2.4
 . Sublime haskell
+. Sublime git
 . Enable erp CI using travis
+. Enable osgi for liferay
+. Enable osgi in general?
+. Install haxe ?? or should it be spray?
+. Install and get familiar with xmonad -- This can be sort of tmux?
+. Get better at using the ghci: how to look at the type signature of methods not exposed in the module
+. As a corollary, improve the interface. Keep a lot of things private
 
 ### Dev tasks (should probably go in the readme.md)
 

@@ -255,17 +255,17 @@ createParty name add loc contact cat vc categories contacts =
                 ErpError.createSuccess $ S.fold addAlternatePocs result2 contacts
         Error _ -> ErpError.createErrorS "Company" "InvParty" "Invalid Party"
 
-findParty :: (Name, GeoLocation) -> S.Set Party -> Maybe Party
-findParty (aName,aLocation) aSet =
+findParty :: (Name, GeoLocation) -> S.Set Party -> ErpError ModuleError Party
+findParty a@(aName,aLocation) aSet =
      let
         result = S.filter (\x -> name x == aName && maplocation x == aLocation) aSet
      in
         if S.null result then
-            Nothing
+            ErpError.createErrorS "Company" "C002" $ "Party not found " ++ (show a)
         else
             case elems result of
-                h:[] -> Just h
-                h:[t] -> throw DuplicatePartiesFound
+                h:[] -> ErpError.createSuccess h
+                h:t -> ErpError.createErrorS "Company" "C0003" $ "Duplicate parties found " ++ (show h) ++ (show t)
             where
                 elems aSet = S.elems aSet
 
