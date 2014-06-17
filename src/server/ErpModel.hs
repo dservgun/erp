@@ -181,9 +181,9 @@ updateParty aModel aParty =
 -- and the geographical location
 -- The assumption being that a given party and 
 -- location will be unique.
-lookupParty :: String -> String -> Co.GeoLocation -> 
+queryParty :: String -> String -> Co.GeoLocation -> 
     A.Query Database (ErEr.ErpError ErEr.ModuleError Co.Party)
-lookupParty aLogin aName aLocation  =
+queryParty aLogin aName aLocation  =
     do
         Database db <- ask
         let erp = M.lookup aLogin db
@@ -312,14 +312,14 @@ getDatabase userEmail = do
         let loginErp = M.lookup userEmail db
         return loginErp
 
-
    
 $(A.makeAcidic ''Database [
     'lookupLogin, 'insertLogin,
     'deleteLogin, 'lookupCategory, 'insertCategory
             , 'getDatabase
             , 'insertRequest
-            , 'insertResponse ])
+            , 'insertResponse
+            , 'queryParty ])
 
 
 initializeDatabase  dbLocation = A.openLocalStateFrom dbLocation $ Database M.empty

@@ -36,6 +36,9 @@ import qualified ErpError as ErEr
 import qualified Login as Lo
 import qualified Company as Co
 
+displayText = T.pack . show
+pJSON = J.decode . E.encodeUtf8 . L.fromStrict
+
 
 data InvalidRequest = InvalidRequest deriving (Show, Generic, Typeable, Eq, Ord)
 data InvalidLogin = InvalidLogin deriving (Show, Generic, Typeable, Eq, Ord)
@@ -262,14 +265,20 @@ updateCategory acid emailId payload =
                 else
                     return ()
             Nothing -> return ()
+
+
 queryDatabase acid emailId payload = do
     debugM  M.moduleName $ "Querying database " ++ emailId
     lookup <- A.query acid (M.GetDatabase emailId)
     debugM M.moduleName $ "Query returned " ++ (show lookup)
     return lookup
 
-displayText = T.pack . show
-pJSON = J.decode . E.encodeUtf8 . L.fromStrict
+queryParty acid emailId name aLocation payload = do
+  debugM M.moduleName $ "Querying party" ++ emailId
+  lookup <- A.query acid(M.QueryParty emailId name aLocation)
+  return lookup
+
+
 
 
 instance Exception InvalidCategory

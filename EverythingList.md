@@ -4,6 +4,8 @@ The everything list
 ### Dev env setup
 
 . Nix package manager
+. Chef (we probably need both chef and nix because liferay is probably chef friendly)
+. Install ruby
 . Setup java
 . Setup maven
 . Setup ant
@@ -28,6 +30,8 @@ The everything list
 . Install and get familiar with xmonad -- This can be sort of tmux?
 . Get better at using the ghci: how to look at the type signature of methods not exposed in the module
 . As a corollary, improve the interface. Keep a lot of things private
+. Really really add features to the model. We need to start processing messages for the model.
+. Closure compiler - understand code
 
 ### Dev tasks (should probably go in the readme.md)
 
