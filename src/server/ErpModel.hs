@@ -1,4 +1,44 @@
-module ErpModel where
+module ErpModel (
+        createRequest, 
+        createResponse,
+        delete,
+        getResponseEntity,
+        createCloseConnectionResponse,
+        createNextSequenceResponse,
+        protocolVersion,
+        loginEmail,
+        exists,
+        supportedVersions,
+        QueryParty(..),
+        InsertParty(..),
+        DeleteParty(..),
+        QueryCompany(..),
+        InsertResponse(..),
+        InsertRequest(..),
+        InsertLogin(..),
+        DeleteLogin(..),
+        QueryLogin(..),
+        QueryCategory(..),
+        InsertCategory(..),
+        sendTextData,
+        sendError, 
+        modelModuleName,
+        nextRequestID,
+        getRequestEmail,
+        initializeDatabase,
+        disconnect,
+        Request(..),
+        RequestType(..),
+        Response(..),
+        GetDatabase(..)
+        , queryDatabaseConstant
+        , queryNextSequenceConstant
+        , addLoginConstant
+        , updateCategoryConstant
+        , closeConnectionConstant
+        , getSequenceNumber
+        )        
+        where
 
 import System.Log.Logger
 import Data.Maybe
@@ -83,10 +123,23 @@ delete anErpModel = anErpModel {deleted = True}
  though a given model can be associated with multiple email ids--}
 data Database = Database ! (M.Map String ErpModel)
      deriving (Show, Generic, Typeable, Eq, Ord)
-data RequestType = Create | Modify | Retrieve | Delete deriving (Show, Generic, Typeable, Eq, Ord)
+{-- Query and retrieve are similar, but the distinction that we are trying to make 
+here is that one is a database operation, while the other is a query in general??--}
+data RequestType = Create | Retrieve | Update | Delete | Query | Command 
+    deriving (Show, Generic, Typeable, Eq, Ord)
 type RequestEntity = String
 type ProtocolVersion = String
 type ID = SSeq.ID
+data Request = Request {
+    requestID :: ID,
+    requestType :: RequestType,
+    requestVersion :: ProtocolVersion,
+    requestEntity :: RequestEntity,
+    emailId :: String,
+    requestPayload :: L.Text} deriving(Show, Generic, Typeable, Eq, Ord)
+
+createRequest anID aVersion entity aType  emailId aPayload = 
+    Request anID aVersion entity aType emailId aPayload
 
 data Response = Response {
     responseID :: ID,
@@ -94,6 +147,9 @@ data Response = Response {
     responseVersion :: ProtocolVersion,
     incomingRequest :: Maybe Request,
     responsePayload :: L.Text } deriving (Show, Generic, Typeable, Eq, Ord)
+
+createResponse anID nextIDToUse responseVersion request payload =
+    Response anID nextIDToUse responseVersion request payload
 
 -- Unwrap the request type from the response
 getResponseEntity :: Response -> Maybe RequestEntity
@@ -113,12 +169,6 @@ createNextSequenceResponse emailId c anID = Response anID  anID protocolVersion 
             $ L.pack $ show anID
 
 getSequenceNumber aResponse = requestIDToUse aResponse
-data Request = Request {
-    requestID :: ID,
-    requestVersion :: ProtocolVersion,
-    requestEntity :: RequestEntity,
-    emailId :: String,
-    requestPayload :: L.Text} deriving(Show, Generic, Typeable, Eq, Ord)
 getRequestEmail aRequest = emailId aRequest
 getRequestEntity aRequest = requestEntity aRequest
 
@@ -212,9 +262,9 @@ deleteParty aLogin aParty = do
         delP2 aParty model = model {partySet = S.delete aParty (partySet model)}
 
 
-lookupCompany :: String -> Co.Party -> 
+queryCompany :: String -> Co.Party -> 
     A.Query Database (ErEr.ErpError ErEr.ModuleError Co.Company)
-lookupCompany aLogin aParty =
+queryCompany aLogin aParty =
     do
         Database db <- ask
         let erp = M.lookup aLogin db
@@ -247,7 +297,6 @@ insertResponse  aResponse =
 
 insertRequest ::  Request -> A.Update Database ()
 insertRequest aRequest =  
-
     let 
         email = emailId aRequest
         update model = model {requests = aRequest : (requests model) }
@@ -278,8 +327,8 @@ deleteLogin aString  =
 
 
 
-lookupLogin :: String -> A.Query  Database (Maybe Lo.Login)
-lookupLogin aLogin =
+queryLogin :: String -> A.Query  Database (Maybe Lo.Login)
+queryLogin aLogin =
     do
         Database db <- ask
         let erp = M.lookup aLogin db
@@ -288,9 +337,9 @@ lookupLogin aLogin =
             _   -> return Nothing
 
 
-lookupCategory :: String -> Co.Category -> A.Query  Database(Bool)
+queryCategory :: String -> Co.Category -> A.Query  Database(Bool)
 -- qbe -> query by example
-lookupCategory aLogin qbe =
+queryCategory aLogin qbe =
     do
        Database db <- ask
        let erp = M.lookup aLogin db
@@ -314,12 +363,15 @@ getDatabase userEmail = do
 
    
 $(A.makeAcidic ''Database [
-    'lookupLogin, 'insertLogin,
-    'deleteLogin, 'lookupCategory, 'insertCategory
+    'queryLogin, 'insertLogin,
+    'deleteLogin, 'queryCategory, 'insertCategory
             , 'getDatabase
             , 'insertRequest
             , 'insertResponse
-            , 'queryParty ])
+            , 'queryParty
+            , 'insertParty
+            , 'deleteParty
+            , 'queryCompany ])
 
 
 initializeDatabase  dbLocation = A.openLocalStateFrom dbLocation $ Database M.empty
@@ -341,8 +393,8 @@ queryDatabaseConstant = "QueryDatabase"
 closeConnectionConstant= "CloseConnection"
 
 
-moduleName :: String
-moduleName = "ErpModel"
+modelModuleName :: String
+modelModuleName = "ErpModel"
 
 
 
@@ -350,7 +402,7 @@ $(deriveSafeCopy 0 'base ''Database)
 $(deriveSafeCopy 0 'base ''ErpModel)
 $(deriveSafeCopy 0 'base ''Request)
 $(deriveSafeCopy 0 'base ''Response)
-
+$(deriveSafeCopy 0 'base ''RequestType)
 
 
 instance J.ToJSON RequestType

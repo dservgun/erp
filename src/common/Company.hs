@@ -232,6 +232,14 @@ data Party = Party {name :: String,
                     deriving (Show, Data, Typeable,Generic, Eq, Ord)
 type Name = String
 
+
+-- A query data type that the client uses to query a party 
+
+data QueryParty = QueryParty {
+    qName :: String,
+    qMapLocation :: GeoLocation
+} deriving (Show, Data, Typeable, Generic, Eq, Ord)
+
 {-- |
     Create a party or return an error.
 --}
@@ -404,8 +412,15 @@ type Hours = Int
 totalDays :: CompanyWorkTime -> Hours
 totalDays aCompanyWorkTime = (hoursPerDay aCompanyWorkTime) * (daysPerWeek aCompanyWorkTime) *(weeksPerMonth  aCompanyWorkTime) * (monthsPerYear  aCompanyWorkTime)
 
-validHours :: CompanyWorkTime -> Bool
-validHours aCompanyWorkTime = 2500 > (totalDays aCompanyWorkTime)
+validHours :: CompanyWorkTime -> Hours -> Bool
+validHours aCompanyWorkTime maxHours =  (totalDays aCompanyWorkTime) < maxHours
+
+
+getContactTypes = map(\x -> (L.pack (show x),x)) ([minBound..maxBound]::[ContactType])
+
+
+
+
 instance J.ToJSON GeoLocation
 instance J.FromJSON GeoLocation
 instance J.ToJSON Latitude
@@ -446,6 +461,10 @@ instance J.ToJSON PaymentTerm
 instance J.FromJSON  PaymentTerm
 instance J.ToJSON Day
 instance J.FromJSON Day
+instance J.ToJSON QueryParty
+instance J.FromJSON QueryParty
+
+
 $(deriveSafeCopy 0 'base ''Category)
 $(deriveSafeCopy 0 'base ''Company)
 $(deriveSafeCopy 0 'base ''Contact)
@@ -465,6 +484,4 @@ $(deriveSafeCopy 0 'base ''CompanyReport)
 $(deriveSafeCopy 0 'base ''Coordinate)
 $(deriveSafeCopy 0 'base ''PaymentTerm)
 $(deriveSafeCopy 0 'base ''Day)
-getContactTypes = map(\x -> (L.pack (show x),x)) ([minBound..maxBound]::[ContactType])
-
-
+$(deriveSafeCopy 0 'base ''QueryParty)

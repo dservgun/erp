@@ -49,18 +49,19 @@ import Text.Printf
 
 testEmail = "test@test.org"
 createQueryDatabaseRequest anID login aPayload =
-    encode $ toJSON $ M.Request  anID
+    encode $ toJSON $ M.Request  anID M.Retrieve
             M.protocolVersion
             M.queryDatabaseConstant login $ En.decodeUtf8 aPayload
 
 createQueryNextSequenceRequest anID login payload = 
-        encode $ toJSON $ M.Request anID
+        encode $ toJSON $ M.Request anID M.Query
             M.protocolVersion
             M.queryNextSequenceConstant 
             login $ En.decodeUtf8 payload
 
 createLoginRequest anID login aPayload  = encode( toJSON (M.Request 
                     anID
+                    M.Create
                     M.protocolVersion
                     M.addLoginConstant login
                     $ En.decodeUtf8 aPayload))
@@ -68,12 +69,14 @@ createLoginRequest anID login aPayload  = encode( toJSON (M.Request
 createCategoryRequest anID login aPayload = 
         encode $ toJSON $ M.Request 
         anID
+        M.Create
         M.protocolVersion
         M.updateCategoryConstant
         login $ En.decodeUtf8 aPayload
 
 createCloseConnection anID login aPayload =
-    encode $ toJSON $ M.Request anID M.protocolVersion
+    encode $ toJSON $ M.Request anID M.Command 
+            M.protocolVersion
             M.closeConnectionConstant login $ En.decodeUtf8 aPayload
 
 processResponse :: M.Response -> IO ()
@@ -149,7 +152,7 @@ loginTest aVer conn = do
 
 
 serverTest = do
-    updateGlobalLogger M.moduleName $ setLevel DEBUG
+    updateGlobalLogger M.modelModuleName $ setLevel DEBUG
     updateGlobalLogger testModuleName $ setLevel DEBUG
     updateGlobalLogger ErpServer.serverModuleName $ setLevel DEBUG
     infoM testModuleName "Cleaning up past state."
@@ -193,7 +196,7 @@ prop_currency (ErpError.Error _) = True
 prop_company_time :: ErpError ModuleError Co.CompanyWorkTime -> Bool
 prop_company_time a =
     case a of
-    ErpError.Success aCom -> Co.validHours aCom
+    ErpError.Success aCom -> Co.validHours aCom 2000
     ErpError.Error _ -> True
 
 prop_party_categories :: ErpError ModuleError Co.Party -> Bool

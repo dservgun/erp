@@ -127,23 +127,23 @@ postProcessRequest connection acid r = do
         M.sendError connection (Just r) $ L.pack $ show moduleError
         return moduleError
 
-processRequest connection acid r@(M.Request iRequestID 
+processRequest connection acid r@(M.Request iRequestID requestType
         iProtocolVersion entity emailId payload)  =
     if iProtocolVersion /= M.protocolVersion then
         do
-        debugM M.moduleName $  "Invalid protocol message " ++ iProtocolVersion
+        debugM M.modelModuleName $  "Invalid protocol message " ++ iProtocolVersion
         M.sendError connection (Just r) $ 
           L.pack ("Invalid protocol version : " ++ M.protocolVersion)
     else 
         do
-            debugM M.moduleName $ "Incoming request " ++ (show r)
+            debugM M.modelModuleName $ "Incoming request " ++ (show r)
             currentRequest <- checkRequest acid r
             if currentRequest then
                 case entity of
                     "QueryNextSequence"-> 
-                        debugM M.moduleName $ "Processing message  " ++ (show entity)
+                        debugM M.modelModuleName $ "Processing message  " ++ (show entity)
                     "Login" -> updateLogin acid r
-                    "DeleteLogin" -> deleteLoginA acid emailId
+                    "deleteLogin" -> deleteLoginA acid emailId
                     "UpdateCategory" -> updateCategory acid emailId $ L.toStrict payload
                     "QueryDatabase"  ->do
                          model <- queryDatabase acid emailId $ L.toStrict payload 
@@ -153,11 +153,11 @@ processRequest connection acid r@(M.Request iRequestID
                                     response = M.createCloseConnectionResponse r 
                                 in 
                                 do
-                                debugM M.moduleName $ "ErpModel::Sending " ++ (show 
+                                debugM M.modelModuleName $ "ErpModel::Sending " ++ (show 
                                         response)                            
                                 WS.sendTextData connection $ J.encode response
                     _ -> do
-                                errorM M.moduleName $ "Invalid request received " ++ (show r)
+                                errorM M.modelModuleName $ "Invalid request received " ++ (show r)
             else
                 do
                   let moduleError = ErEr.createErrorS "ErpServer" "ES002" $ "Stale message " ++ show r
@@ -181,7 +181,7 @@ getEmail payload =
 -- to create an empty model. 
 -- Returning true doesnt capture  this.
 
-checkRequest acid r@(M.Request iRequestID 
+checkRequest acid r@(M.Request iRequestID requestType 
     iProtocolVersion entity emailId payload) =
     do
       infoM serverModuleName ("checkRequest " ++ (show r))
@@ -206,7 +206,7 @@ updateLogin acid r =
      in
         case pObject of
             Just l@(Lo.Login name email) -> do
-                    loginLookup <- A.query acid (M.LookupLogin name)
+                    loginLookup <- A.query acid (M.QueryLogin name)
                     case loginLookup of
                         Nothing -> do 
                                         A.update acid (M.InsertLogin name r l)
@@ -227,14 +227,14 @@ sendNextSequence acid request =
                     let 
                         res = M.createNextSequenceResponse emailId (Just request)
                                  $ SSeq.errorID
-                    debugM M.moduleName $ "Could not find database " ++ (show res)
+                    debugM M.modelModuleName $ "Could not find database " ++ (show res)
                     return $ Just res 
             Just x -> 
                 do
                     let 
                         res = M.createNextSequenceResponse emailId ( Just request) 
                                 $ (M.nextRequestID  x)
-                    debugM M.moduleName $ "Database found " ++ (show res)
+                    debugM M.modelModuleName $ "Database found " ++ (show res)
                     return $ Just res
 
 
@@ -243,9 +243,9 @@ queryNextSequence acid request =
         emailId = M.getRequestEmail request
     in 
         do
-            debugM M.moduleName $ "Querying for " ++ emailId
+            debugM M.modelModuleName $ "Querying for " ++ emailId
             lookup <- A.query acid (M.GetDatabase emailId)
-            debugM M.moduleName $ "Lookup " ++ (show lookup)
+            debugM M.modelModuleName $ "Lookup " ++ (show lookup)
             case lookup of
                 Nothing -> return Nothing
                 Just l -> return $ Just $ M.createNextSequenceResponse 
@@ -259,7 +259,7 @@ updateCategory acid emailId payload =
         case pObject of
             Just c@(Co.Category aCat) -> do
                -- infoM "ErpModel" "Processing update category"
-                lookup <- A.query acid (M.LookupCategory emailId c)
+                lookup <- A.query acid (M.QueryCategory emailId c)
                 if lookup == False then 
                     A.update acid (M.InsertCategory emailId c)
                 else
@@ -268,14 +268,15 @@ updateCategory acid emailId payload =
 
 
 queryDatabase acid emailId payload = do
-    debugM  M.moduleName $ "Querying database " ++ emailId
+    debugM  M.modelModuleName $ "Querying database " ++ emailId
     lookup <- A.query acid (M.GetDatabase emailId)
-    debugM M.moduleName $ "Query returned " ++ (show lookup)
+    debugM M.modelModuleName $ "Query returned " ++ (show lookup)
     return lookup
 
 queryParty acid emailId name aLocation payload = do
-  debugM M.moduleName $ "Querying party" ++ emailId
+  debugM M.modelModuleName $ "Querying party" ++ emailId
   lookup <- A.query acid(M.QueryParty emailId name aLocation)
+
   return lookup
 
 
