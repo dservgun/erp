@@ -150,8 +150,11 @@ loginTest aVer conn = do
     debugM testModuleName "loginTest complete."
 
 
+sampleCategoryMessages :: IO[Co.Category]
+sampleCategoryMessages = sample' arbitrary
 
-serverTest = do
+
+serverTest = do 
     updateGlobalLogger M.modelModuleName $ setLevel DEBUG
     updateGlobalLogger testModuleName $ setLevel DEBUG
     updateGlobalLogger ErpServer.serverModuleName $ setLevel DEBUG
@@ -176,7 +179,6 @@ serverTest = do
         acidStateTestDir = "./dist/build/tests/state"
 
 main = serverTest
- 
 tests = [
          ("properties_tests" :: String, quickCheck prop1)
          , ("currency_valid" :: String, quickCheck prop_currency)
