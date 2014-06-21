@@ -31,6 +31,10 @@ import Data.Text.Lazy as L
 
 data ErpError a b = Error a | Success b deriving (Show, Eq, Ord, Typeable,Generic,Data)
 
+newtype ErpErrorT m a b = ErpErrorT {
+    runMaybeT :: m (ErpError a b)
+}
+
 type ModuleName = L.Text
 type ErrorCode = L.Text
 type ErrorMessage = L.Text
@@ -47,8 +51,7 @@ createErrorS a b c = Error $ createError (L.pack a) (L.pack b)(L.pack c)
 createSuccess a = Success a
 
 
--- This function was implemented to work around the typesystem. 
-
+-- hack to work around the typesystem.
 getString :: ErpError ModuleError a0 -> L.Text
 getString e@(Error modError) = L.pack $ (L.unpack $ mName modError) ++ (L.unpack $ errorCode modError) ++ 
 	(L.unpack $ errorMessage modError)
