@@ -87,14 +87,12 @@ serverModuleName = "ErpServer"
 processMessages conn acid =
      handle catchDisconnect  $ forever $ do
      msg <- WS.receiveData conn
-     debugM serverModuleName $ "Processing " ++ (show msg)
      updateDatabase conn acid msg
      where
        catchDisconnect e =
          case fromException e of
            Just  WS.ConnectionClosed ->
                  do
-                        infoM serverModuleName  "Connection closed "
                         return ()
            _ -> do
             errorM serverModuleName $ serverModuleName ++ " catchDisconnect:: Unknown exception " ++ show e
@@ -117,7 +115,6 @@ updateDatabase connection acid aMessage =
 updateRequests connection acid r = A.update acid(M.InsertRequest r)
 postProcessRequest connection acid r = do
   nextSequenceResponse <- sendNextSequence acid  r
-  debugM serverModuleName $ "postProcessRequest" ++ (show nextSequenceResponse)
   case nextSequenceResponse of 
     Just x -> do
               WS.sendTextData connection  $ J.encode x
@@ -234,7 +231,6 @@ sendNextSequence acid request =
                     let 
                         res = M.createNextSequenceResponse emailId ( Just request) 
                                 $ (M.nextRequestID  x)
-                    debugM M.modelModuleName $ "Database found " ++ (show res)
                     return $ Just res
 
 

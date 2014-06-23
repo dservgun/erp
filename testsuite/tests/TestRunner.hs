@@ -79,57 +79,57 @@ createCloseConnection anID login aPayload =
             M.protocolVersion
             M.closeConnectionConstant login $ En.decodeUtf8 aPayload
 
-processResponse :: M.Response -> IO ()
-processResponse aResponse = 
-        debugM testModuleName $ "processResponse:: " ++ 
-                            "Processing response " ++ (show aResponse)
-
 endSession :: M.Response -> WS.Connection -> IO()
 endSession aResponse conn = 
-                    let 
-                        nextSequence = M.getSequenceNumber aResponse in 
-                    do
-                        WS.sendTextData conn $  createCloseConnection nextSequence
-                                testEmail $ 
-                                encode $ toJSON testLogin
-                        parseLoginTestMessages conn       
+    let 
+        nextSequence = M.getSequenceNumber aResponse in 
+    do
+        WS.sendTextData conn $  createCloseConnection nextSequence
+                testEmail $ 
+                encode $ toJSON testLogin
+        parseLoginTestMessages conn       
     
+
+
+clientStateMachine :: WS.Connection ->  M.Response -> IO ()
+clientStateMachine conn aResponse =     
+   let 
+        responseEntity = M.getResponseEntity aResponse
+        nextSequenceNumber = M.getSequenceNumber aResponse
+    in
+
+    do
+
+        case responseEntity of
+            Just re ->
+                    case re of
+                        "Login" -> do
+                                WS.sendTextData conn $ 
+                                    createCategoryRequest nextSequenceNumber testEmail $ encode $ toJSON $ Co.Category "Test category"
+                                parseLoginTestMessages conn    
+                        "UpdateCategory" -> do 
+                                WS.sendTextData conn $ createQueryDatabaseRequest 
+                                    nextSequenceNumber testEmail $ encode . toJSON $ 
+                                    ("Test query database" :: String)
+                                parseLoginTestMessages conn
+                        "QueryDatabase" -> endSession aResponse conn
+                        "CloseConnection" -> do
+                                    debugM testModuleName $ "Received :: " ++ (show responseEntity)
+                                    WS.sendClose conn  ("Bye." ::T.Text)
+            Nothing -> do
+                                debugM testModuleName $ "Received " ++ (show aResponse)
+                                WS.sendClose conn ("Unhandled command for this test case " 
+                                            :: T.Text)                       
+
 
 parseLoginTestMessages :: WS.Connection -> IO()
 parseLoginTestMessages conn = do
-    infoM testModuleName "parseLoginTestMessages..."
     msg <- WS.receiveData conn
     let 
         r = J.decode $ En.encodeUtf8 $ La.fromStrict msg
     do
-        debugM testModuleName  ("before case " ++ (show r))
         case r of
-            Just aResponse -> do
-                let 
-                    responseEntity = M.getResponseEntity aResponse
-                    nextSequenceNumber = M.getSequenceNumber aResponse
-                infoM testModuleName $ "parseLoginTestMessages::Processing response " 
-                        ++ (show responseEntity)
-                case responseEntity of
-                    Just re ->
-                            case re of
-                                "Login" -> do
-                                        WS.sendTextData conn $ 
-                                            createCategoryRequest nextSequenceNumber testEmail $ encode $ toJSON $ Co.Category "Test category"
-                                        parseLoginTestMessages conn    
-                                "UpdateCategory" -> do 
-                                        WS.sendTextData conn $ createQueryDatabaseRequest 
-                                            nextSequenceNumber testEmail $ encode . toJSON $ 
-                                            ("Test query database" :: String)
-                                        parseLoginTestMessages conn
-                                "QueryDatabase" -> endSession aResponse conn
-                                "CloseConnection" -> do
-                                            debugM testModuleName $ "Received :: " ++ (show responseEntity)
-                                            WS.sendClose conn  ("Bye." ::T.Text)
-                    Nothing -> do
-                                        debugM testModuleName $ "Received " ++ (show aResponse)
-                                        WS.sendClose conn ("Unhandled command for this test case " 
-                                                    :: T.Text)                       
+            Just aResponse -> clientStateMachine conn aResponse
             Nothing -> do
                             debugM testModuleName $ "Unknown response. Quit here?"
                             WS.sendClose conn ("Unhandled command " :: T.Text)
@@ -156,8 +156,8 @@ sampleCategoryMessages = sample' arbitrary
 
 
 serverTest = do 
-    updateGlobalLogger M.modelModuleName $ setLevel DEBUG
-    updateGlobalLogger testModuleName $ setLevel DEBUG
+    updateGlobalLogger M.modelModuleName $ setLevel DEBUG  
+    updateGlobalLogger testModuleName $ setLevel DEBUG 
     updateGlobalLogger ErpServer.serverModuleName $ setLevel DEBUG
     infoM testModuleName "Cleaning up past state."
     dirExists <- SD.doesDirectoryExist acidStateTestDir
