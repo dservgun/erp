@@ -137,8 +137,7 @@ processRequest connection acid r@(M.Request iRequestID requestType
             currentRequest <- checkRequest acid r
             if currentRequest then
                 case entity of
-                    "QueryNextSequence"-> 
-                        debugM M.modelModuleName $ "Processing message  " ++ (show entity)
+                    "QueryNextSequence"-> return ()
                     "Login" -> updateLogin acid r
                     "deleteLogin" -> deleteLoginA acid emailId
                     "UpdateCategory" -> updateCategory acid emailId $ L.toStrict payload
