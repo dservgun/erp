@@ -13,7 +13,7 @@ import Data.DateTime
 import Data.Text (Text)
 import Data.Time.Clock
 import ErpError
-import ErpServer (testServerMain, serverModuleName)
+import ErpServer (testServerMain, serverModuleName, IncomingRequestType(..))
 import GHC.Generics
 import Product as Pr
 import ProductSpec
@@ -51,19 +51,20 @@ testEmail = "test@test.org"
 createQueryDatabaseRequest anID login aPayload =
     encode $ toJSON $ M.Request  anID M.Retrieve
             M.protocolVersion
-            M.queryDatabaseConstant login $ En.decodeUtf8 aPayload
+            (show QueryDatabase)
+            login $ En.decodeUtf8 aPayload
 
 createQueryNextSequenceRequest anID login payload = 
         encode $ toJSON $ M.Request anID M.Query
             M.protocolVersion
-            M.queryNextSequenceConstant 
+            (show QueryNextSequence )
             login $ En.decodeUtf8 payload
 
 createLoginRequest anID login aPayload  = encode( toJSON (M.Request 
                     anID
                     M.Create
                     M.protocolVersion
-                    M.addLoginConstant login
+                    (show Login) login
                     $ En.decodeUtf8 aPayload))
 
 createCategoryRequest anID login aPayload = 
@@ -71,13 +72,13 @@ createCategoryRequest anID login aPayload =
         anID
         M.Create
         M.protocolVersion
-        M.updateCategoryConstant
+        (show UpdateCategory)
         login $ En.decodeUtf8 aPayload
 
 createCloseConnection anID login aPayload =
     encode $ toJSON $ M.Request anID M.Command 
             M.protocolVersion
-            M.closeConnectionConstant login $ En.decodeUtf8 aPayload
+            (show CloseConnection) login $ En.decodeUtf8 aPayload
 
 endSession :: M.Response -> WS.Connection -> IO()
 endSession aResponse conn = 
@@ -105,7 +106,8 @@ clientStateMachine conn aResponse =
                     case re of
                         "Login" -> do
                                 WS.sendTextData conn $ 
-                                    createCategoryRequest nextSequenceNumber testEmail $ encode $ toJSON $ Co.Category "Test category"
+                                    createCategoryRequest nextSequenceNumber testEmail 
+                                        $ encode $ toJSON $ Co.Category "Test category"
                                 parseLoginTestMessages conn    
                         "UpdateCategory" -> do 
                                 WS.sendTextData conn $ createQueryDatabaseRequest 

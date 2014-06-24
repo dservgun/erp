@@ -1,5 +1,6 @@
 
-module ErpServer(serverMain, testServerMain, serverModuleName)where
+module ErpServer(serverMain, testServerMain, serverModuleName, 
+    IncomingRequestType(..))where
 import Control.Exception
 import Control.Monad.State
 import Control.Monad.Reader
@@ -286,3 +287,5 @@ instance Exception InvalidLogin
 instance Exception InvalidRequest
 instance J.ToJSON InvalidLogin
 instance J.FromJSON InvalidLogin
+instance J.ToJSON IncomingRequestType
+instance J.FromJSON IncomingRequestType

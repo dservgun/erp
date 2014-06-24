@@ -30,13 +30,8 @@ module ErpModel (
         Request(..),
         RequestType(..),
         Response(..),
-        GetDatabase(..)
-        , queryDatabaseConstant
-        , queryNextSequenceConstant
-        , addLoginConstant
-        , updateCategoryConstant
-        , closeConnectionConstant
-        , getSequenceNumber
+        GetDatabase(..),
+        getSequenceNumber
         )        
         where
 
@@ -384,13 +379,6 @@ sendError connection request aMessage =
         response = Response (SSeq.errorID) (SSeq.errorID) protocolVersion request aMessage
     in
         WS.sendTextData connection $ J.encode response
-
-queryNextSequenceConstant = "QueryNextSequence"
-addLoginConstant = "Login"
-deleteLoginConstant = "DeleteLogin"
-updateCategoryConstant = "UpdateCategory"
-queryDatabaseConstant = "QueryDatabase"
-closeConnectionConstant= "CloseConnection"
 
 
 modelModuleName :: String
