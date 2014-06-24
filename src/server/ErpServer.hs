@@ -43,6 +43,8 @@ pJSON = J.decode . E.encodeUtf8 . L.fromStrict
 data InvalidRequest = InvalidRequest deriving (Show, Generic, Typeable, Eq, Ord)
 data InvalidLogin = InvalidLogin deriving (Show, Generic, Typeable, Eq, Ord)
 data InvalidCategory = InvalidCategory deriving (Show, Generic, Typeable, Eq, Ord)
+data IncomingRequestType = QueryNextSequence | Login | DeleteLogin | UpdateCategory | QueryDatabase | CloseConnection
+    deriving (Show, Read, Generic, Typeable, Eq, Ord)
 
 
 testServerMain :: MVar String -> FilePath -> IO()
@@ -124,6 +126,7 @@ postProcessRequest connection acid r = do
         M.sendError connection (Just r) $ L.pack $ show moduleError
         return moduleError
 
+
 processRequest connection acid r@(M.Request iRequestID requestType
         iProtocolVersion entity emailId payload)  =
     if iProtocolVersion /= M.protocolVersion then
@@ -132,19 +135,22 @@ processRequest connection acid r@(M.Request iRequestID requestType
         M.sendError connection (Just r) $ 
           L.pack ("Invalid protocol version : " ++ M.protocolVersion)
     else 
+        let
+          entityType = read entity
+        in 
         do
             debugM M.modelModuleName $ "Incoming request " ++ (show r)
             currentRequest <- checkRequest acid r
             if currentRequest then
-                case entity of
-                    "QueryNextSequence"-> return ()
-                    "Login" -> updateLogin acid r
-                    "deleteLogin" -> deleteLoginA acid emailId
-                    "UpdateCategory" -> updateCategory acid emailId $ L.toStrict payload
-                    "QueryDatabase"  ->do
+                case entityType of
+                    QueryNextSequence-> return ()
+                    Login -> updateLogin acid r
+                    DeleteLogin -> deleteLoginA acid emailId
+                    UpdateCategory -> updateCategory acid emailId $ L.toStrict payload
+                    QueryDatabase  ->do
                          model <- queryDatabase acid emailId $ L.toStrict payload 
                          infoM serverModuleName (show model)                       
-                    "CloseConnection" -> 
+                    CloseConnection -> 
                                 let 
                                     response = M.createCloseConnectionResponse r 
                                 in 
@@ -152,8 +158,6 @@ processRequest connection acid r@(M.Request iRequestID requestType
                                 debugM M.modelModuleName $ "ErpModel::Sending " ++ (show 
                                         response)                            
                                 WS.sendTextData connection $ J.encode response
-                    _ -> do
-                                errorM M.modelModuleName $ "Invalid request received " ++ (show r)
             else
                 do
                   let moduleError = ErEr.createErrorS "ErpServer" "ES002" $ "Stale message " ++ show r

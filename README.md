@@ -6,6 +6,12 @@ Also, the conventional support for an inheritance based generic class, such as
 RequestType, Entity (where entity could be a data constructor) is not a recommended pattern, therefore we need to model entity as case expression when processing the entity.
 We need a request log to manage log for the requests : time, ip etc.
 
+
+## General running installation guide
+ * cabal clean
+ * cabal configure --enable-tests --user (i dont recall the need for this flag, its on haskellwiki somewhere)
+ * cabal build
+ * (there are no tests cases yet, so we do this) ./dist/build/tests/tests (If you see some output, things might be working)
 ## General Feature list
  * No SQL based implementation
  * Social anywhere
