@@ -1,6 +1,7 @@
 
-module ErpServer(serverMain, testServerMain, serverModuleName, 
-    IncomingRequestType(..))where
+module ErpServer(serverMain, testServerMain, serverModuleName
+    , handleConnection
+    , IncomingRequestType(..))where
 import Control.Exception
 import Control.Monad.State
 import Control.Monad.Reader
@@ -54,14 +55,14 @@ testServerMain m dbLocation =
   (M.initializeDatabase dbLocation)
   M.disconnect
   (\acid -> do
-    putStrLn $ "Listening on " ++  show portNumber
+    infoM serverModuleName $ "Listening on " ++  show portNumber
     -- This is still not a very good signal..because
     -- we could have an exception in the runServer.
     -- But runServer is a development tool...not
     -- suitable for production use
     putMVar m "Started..presumably"
-    WS.runServer "127.0.0.1" portNumber $ handleConnection m acid
-    putStrLn "After the call to the handleConnection"
+    WS.runServer "127.0.0.1" portNumber $ handleConnection acid
+    infoM serverModuleName "After the call to the handleConnection"
   )
 
 serverMain :: FilePath -> IO ()
@@ -71,15 +72,14 @@ serverMain dbLocation =
   M.disconnect
   (\acid -> do
     infoM serverModuleName $ "Listening on " ++ show portNumber
-    m <- newEmptyMVar
-    WS.runServer "127.0.0.1" portNumber $ handleConnection m acid)
+    WS.runServer "127.0.0.1" portNumber $ handleConnection acid)
 
 portNumber = 8082
 
 instance Show WS.Connection where
     show _  = "Connection info...TBD"
-    
-handleConnection m acid pending = do
+
+handleConnection acid pending = do
   conn <- WS.acceptRequest pending
   infoM serverModuleName $ "Accepted connection " ++ show conn
   a1 <-   async (processMessages conn acid)
@@ -87,6 +87,7 @@ handleConnection m acid pending = do
   infoM serverModuleName "Handling connections..."
 
 serverModuleName = "ErpServer"
+
 processMessages conn acid =
      handle catchDisconnect  $ forever $ do
      msg <- WS.receiveData conn
@@ -127,7 +128,8 @@ postProcessRequest connection acid r = do
         M.sendError connection (Just r) $ L.pack $ show moduleError
         return moduleError
 
-
+processRequest :: WS.Connection -> AcidState (EventState M.GetDatabase) 
+                -> M.Request -> IO()
 processRequest connection acid r@(M.Request iRequestID requestType
         iProtocolVersion entity emailId payload)  =
     if iProtocolVersion /= M.protocolVersion then
