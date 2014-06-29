@@ -130,38 +130,44 @@ postProcessRequest connection acid r = do
 
 
 -- // Error RoutingError *Maybe instance?* Either*
-routeRequest QueryNextSequence = return ()
-routeRequest Login             = updateLogin acid r
-routeRequest DeleteLogin       = deleteLoginA acid emailId
-routeRequest UpdateCategory    = updateCategory acid emailId $ L.toStrict payload
-routeRequest QueryDatabase     = do
-  model <- queryDatabase acid emailId $ L.toStrict payload
+payload = M.requestPayload
+routeRequest connection acid QueryNextSequence r = return ()
+routeRequest connection acid Login  r            = updateLogin acid r
+routeRequest connection acid DeleteLogin r       = deleteLoginA acid $ M.emailId r
+routeRequest connection acid UpdateCategory r    = updateCategory acid (M.emailId r) (L.toStrict (payload r))
+routeRequest connection acid QueryDatabase r    = do
+  model <- queryDatabase acid (M.emailId r) $ L.toStrict (payload r)
   infoM serverModuleName (show model)
-routeRequest CloseConnection   = do
+routeRequest connection acid CloseConnection  r = do
+        -- Need to investigate how this following line is working
         response <- return $ M.createCloseConnectionResponse r
         debugM M.modelModuleName $ "ErpModel::Sending " ++ (show response)
         WS.sendTextData connection $ J.encode response
 
-checkProtocol :: String -> a -> Either String a
+checkProtocol :: String -> Either String String
 checkProtocol iProtocolVersion = -- Returns a ErpError if wrong protocol
-    if iProtocolVersion /= M.protocolVersion then a
+    if iProtocolVersion /= M.protocolVersion then Right "It works" -- TODO : ErpError
     else (Left "Protocol Not Supported") -- TODO: ErpError
 
 processRequest :: WS.Connection -> AcidState (EventState M.GetDatabase) -> M.Request -> IO()
 processRequest connection acid r@(M.Request iRequestID requestType iProtocolVersion entity emailId payload) =
-    case (checkProtocol iProtocolVersion processEntity) of
-     :: Either String (IO())
-
-        where processEntity = do
-                entityType <- read <$> entity
-                debugM M.modelModuleName $ "Incoming request " ++ (show r)
-                currentRequest <- checkRequest acid r
-                if currentRequest then
-                    routeRequest currentRequest
-                else
-                    do
-                      let moduleError = ErEr.createErrorS "ErpServer" "ES002" $ "Stale message " ++ show r
-                          M.sendError connection  (Just r)  $ ErEr.getString moduleError
+    --TODO: get the process entity so we are inside our own monad instead of IO
+    case (checkProtocol iProtocolVersion) of
+        Left anError -> M.sendError connection (Just r) "Some error. Need to fix the type"
+        Right anotherString -> 
+                let 
+                entityType = read entity
+                in
+                do
+                  debugM M.modelModuleName $ "Incoming request " ++ (show r)
+                  currentRequest <- checkRequest acid r  --TODO: Need to decode type better than a bool
+                  if currentRequest then
+                      routeRequest connection acid entityType r
+                  else
+                    let 
+                      moduleError = ErEr.createErrorS "ErpServer" "ES002" $ "Stale message " ++ show r
+                    in
+                      M.sendError connection  (Just r)  $ ErEr.getString moduleError
 
 
 deleteLoginA acid anEmailId = A.update acid (M.DeleteLogin anEmailId)

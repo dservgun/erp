@@ -268,6 +268,7 @@ queryCompany aLogin aParty =
                         $ "Party not found " ++ show aParty ++ " for " ++ aLogin
             Just x -> return $ Co.findCompany aParty (companySet x)
 
+
 insertResponse :: Response -> A.Update Database (ErEr.ErpError ErEr.ModuleError Response)
 insertResponse  aResponse = 
     let 
