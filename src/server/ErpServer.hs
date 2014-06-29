@@ -1,7 +1,7 @@
-
 module ErpServer(serverMain, testServerMain, serverModuleName
     , handleConnection
     , IncomingRequestType(..))where
+
 import Control.Exception
 import Control.Monad.State
 import Control.Monad.Reader
@@ -119,7 +119,7 @@ updateDatabase connection acid aMessage =
 updateRequests connection acid r = A.update acid(M.InsertRequest r)
 postProcessRequest connection acid r = do
   nextSequenceResponse <- sendNextSequence acid  r
-  case nextSequenceResponse of 
+  case nextSequenceResponse of
     Just x -> do
               WS.sendTextData connection  $ J.encode x
               A.update acid (M.InsertResponse x)
@@ -128,49 +128,45 @@ postProcessRequest connection acid r = do
         M.sendError connection (Just r) $ L.pack $ show moduleError
         return moduleError
 
-processRequest :: WS.Connection -> AcidState (EventState M.GetDatabase) 
-                -> M.Request -> IO()
-processRequest connection acid r@(M.Request iRequestID requestType
-        iProtocolVersion entity emailId payload)  =
-    if iProtocolVersion /= M.protocolVersion then
-        do
-        debugM M.modelModuleName $  "Invalid protocol message " ++ iProtocolVersion
-        M.sendError connection (Just r) $ 
-          L.pack ("Invalid protocol version : " ++ M.protocolVersion)
-    else 
-        let
-          entityType = read entity
-        in 
-        do
-            debugM M.modelModuleName $ "Incoming request " ++ (show r)
-            currentRequest <- checkRequest acid r
-            if currentRequest then
-                case entityType of
-                    QueryNextSequence-> return ()
-                    Login -> updateLogin acid r
-                    DeleteLogin -> deleteLoginA acid emailId
-                    UpdateCategory -> updateCategory acid emailId $ L.toStrict payload
-                    QueryDatabase  ->do
-                         model <- queryDatabase acid emailId $ L.toStrict payload 
-                         infoM serverModuleName (show model)                       
-                    CloseConnection -> 
-                                let 
-                                    response = M.createCloseConnectionResponse r 
-                                in 
-                                do
-                                debugM M.modelModuleName $ "ErpModel::Sending " ++ (show 
-                                        response)                            
-                                WS.sendTextData connection $ J.encode response
-            else
-                do
-                  let moduleError = ErEr.createErrorS "ErpServer" "ES002" $ "Stale message " ++ show r
-                  M.sendError connection  (Just r)  $ ErEr.getString moduleError
+
+-- // Error RoutingError *Maybe instance?* Either*
+routeRequest QueryNextSequence = return ()
+routeRequest Login             = updateLogin acid r
+routeRequest DeleteLogin       = deleteLoginA acid emailId
+routeRequest UpdateCategory    = updateCategory acid emailId $ L.toStrict payload
+routeRequest QueryDatabase     = do
+  model <- queryDatabase acid emailId $ L.toStrict payload
+  infoM serverModuleName (show model)
+routeRequest CloseConnection   = do
+        response <- return $ M.createCloseConnectionResponse r
+        debugM M.modelModuleName $ "ErpModel::Sending " ++ (show response)
+        WS.sendTextData connection $ J.encode response
+
+checkProtocol :: String -> a -> Either String a
+checkProtocol iProtocolVersion = -- Returns a ErpError if wrong protocol
+    if iProtocolVersion /= M.protocolVersion then a
+    else (Left "Protocol Not Supported") -- TODO: ErpError
+
+processRequest :: WS.Connection -> AcidState (EventState M.GetDatabase) -> M.Request -> IO()
+processRequest connection acid r@(M.Request iRequestID requestType iProtocolVersion entity emailId payload) =
+    case (checkProtocol iProtocolVersion processEntity) of
+     :: Either String (IO())
+
+        where processEntity = do
+                entityType <- read <$> entity
+                debugM M.modelModuleName $ "Incoming request " ++ (show r)
+                currentRequest <- checkRequest acid r
+                if currentRequest then
+                    routeRequest currentRequest
+                else
+                    do
+                      let moduleError = ErEr.createErrorS "ErpServer" "ES002" $ "Stale message " ++ show r
+                          M.sendError connection  (Just r)  $ ErEr.getString moduleError
 
 
 deleteLoginA acid anEmailId = A.update acid (M.DeleteLogin anEmailId)
 
-
-getEmail payload = 
+getEmail payload =
     let
         pObject = pJSON payload
     in
@@ -181,10 +177,10 @@ getEmail payload =
 
 -- The return should be more than a boolean.
 -- When no model is found, we would like the caller
--- to create an empty model. 
+-- to create an empty model.
 -- Returning true doesnt capture  this.
 
-checkRequest acid r@(M.Request iRequestID requestType 
+checkRequest acid r@(M.Request iRequestID requestType
     iProtocolVersion entity emailId payload) =
     do
       infoM serverModuleName ("checkRequest " ++ (show r))
@@ -198,7 +194,7 @@ checkRequest acid r@(M.Request iRequestID requestType
 --Authentication is probably done using an oauth provider
 --such as persona or google. This method simply logs
 --in the user as valid. If the user is already registered,
--- nothing needs to be done. Else, 
+-- nothing needs to be done. Else,
 -- the user is verified and a new erp model is associated
 -- with this email id. tl;dr
 
@@ -211,48 +207,48 @@ updateLogin acid r =
             Just l@(Lo.Login name email) -> do
                     loginLookup <- A.query acid (M.QueryLogin name)
                     case loginLookup of
-                        Nothing -> do 
+                        Nothing -> do
                                         A.update acid (M.InsertLogin name r l)
                         Just l2@(Lo.Login name email) ->
                             return ()
             Nothing -> throw InvalidLogin
 
 
-sendNextSequence acid request = 
+sendNextSequence acid request =
     let
-        emailId = M.getRequestEmail request 
+        emailId = M.getRequestEmail request
     in
         do
         lookup <- A.query acid (M.GetDatabase emailId)
-        case lookup of 
-            Nothing -> 
+        case lookup of
+            Nothing ->
                 do
-                    let 
+                    let
                         res = M.createNextSequenceResponse emailId (Just request)
                                  $ SSeq.errorID
                     debugM M.modelModuleName $ "Could not find database " ++ (show res)
-                    return $ Just res 
-            Just x -> 
+                    return $ Just res
+            Just x ->
                 do
-                    let 
-                        res = M.createNextSequenceResponse emailId ( Just request) 
+                    let
+                        res = M.createNextSequenceResponse emailId ( Just request)
                                 $ (M.nextRequestID  x)
                     return $ Just res
 
 
-queryNextSequence acid request = 
-    let 
+queryNextSequence acid request =
+    let
         emailId = M.getRequestEmail request
-    in 
+    in
         do
             debugM M.modelModuleName $ "Querying for " ++ emailId
             lookup <- A.query acid (M.GetDatabase emailId)
             debugM M.modelModuleName $ "Lookup " ++ (show lookup)
             case lookup of
                 Nothing -> return Nothing
-                Just l -> return $ Just $ M.createNextSequenceResponse 
+                Just l -> return $ Just $ M.createNextSequenceResponse
                                 emailId Nothing
-                                 (M.nextRequestID l) 
+                                 (M.nextRequestID l)
 
 updateCategory acid emailId payload =
     let
@@ -262,7 +258,7 @@ updateCategory acid emailId payload =
             Just c@(Co.Category aCat) -> do
                -- infoM "ErpModel" "Processing update category"
                 lookup <- A.query acid (M.QueryCategory emailId c)
-                if lookup == False then 
+                if lookup == False then
                     A.update acid (M.InsertCategory emailId c)
                 else
                     return ()
@@ -278,11 +274,7 @@ queryDatabase acid emailId payload = do
 queryParty acid emailId name aLocation payload = do
   debugM M.modelModuleName $ "Querying party" ++ emailId
   lookup <- A.query acid(M.QueryParty emailId name aLocation)
-
   return lookup
-
-
-
 
 instance Exception InvalidCategory
 instance Exception InvalidLogin
