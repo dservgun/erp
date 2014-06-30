@@ -8,8 +8,6 @@ then
 	# Changing into erp
 	tmux send-keys -t development 'cd ~/erp' C-m
 
-	#Start up sublime
-	tmux send-keys -t development 'sublime &' C-m
 
 	#Split the window
 	tmux split-window -v -t development

@@ -129,8 +129,8 @@ postProcessRequest connection acid r = do
         return moduleError
 
 
--- // Error RoutingError *Maybe instance?* Either*
 payload = M.requestPayload
+-- // Error RoutingError *Maybe instance?* Either*
 routeRequest connection acid QueryNextSequence r = return ()
 routeRequest connection acid Login  r            = updateLogin acid r
 routeRequest connection acid DeleteLogin r       = deleteLoginA acid $ M.emailId r
@@ -155,10 +155,8 @@ processRequest connection acid r@(M.Request iRequestID requestType iProtocolVers
     case (checkProtocol iProtocolVersion) of
         Left anError -> M.sendError connection (Just r) "Some error. Need to fix the type"
         Right anotherString -> 
-                let 
-                entityType = read entity
-                in
                 do
+                  entityType <- return $ read entity
                   debugM M.modelModuleName $ "Incoming request " ++ (show r)
                   currentRequest <- checkRequest acid r  --TODO: Need to decode type better than a bool
                   if currentRequest then
@@ -172,10 +170,8 @@ processRequest connection acid r@(M.Request iRequestID requestType iProtocolVers
 
 deleteLoginA acid anEmailId = A.update acid (M.DeleteLogin anEmailId)
 
-getEmail payload =
-    let
-        pObject = pJSON payload
-    in
+getEmail payload = do
+        pObject <- return $ pJSON payload
         case pObject of
             Just (Lo.Login email verified) -> email
             Nothing -> throw InvalidLogin
@@ -221,32 +217,26 @@ updateLogin acid r =
 
 
 sendNextSequence acid request =
-    let
-        emailId = M.getRequestEmail request
-    in
-        do
+      do
+        emailId <- return $ M.getRequestEmail request
         lookup <- A.query acid (M.GetDatabase emailId)
         case lookup of
             Nothing ->
-                do
-                    let
-                        res = M.createNextSequenceResponse emailId (Just request)
+                do                    
+                    res <- return $ M.createNextSequenceResponse emailId (Just request)
                                  $ SSeq.errorID
                     debugM M.modelModuleName $ "Could not find database " ++ (show res)
                     return $ Just res
             Just x ->
                 do
-                    let
-                        res = M.createNextSequenceResponse emailId ( Just request)
+                    res <- return $ M.createNextSequenceResponse emailId ( Just request)
                                 $ (M.nextRequestID  x)
                     return $ Just res
 
 
 queryNextSequence acid request =
-    let
-        emailId = M.getRequestEmail request
-    in
         do
+            emailId <- return $ M.getRequestEmail request
             debugM M.modelModuleName $ "Querying for " ++ emailId
             lookup <- A.query acid (M.GetDatabase emailId)
             debugM M.modelModuleName $ "Lookup " ++ (show lookup)
@@ -257,9 +247,8 @@ queryNextSequence acid request =
                                  (M.nextRequestID l)
 
 updateCategory acid emailId payload =
-    let
-        pObject = pJSON payload
-    in
+    do
+        pObject <- return $ pJSON payload
         case pObject of
             Just c@(Co.Category aCat) -> do
                -- infoM "ErpModel" "Processing update category"
