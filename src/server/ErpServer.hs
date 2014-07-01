@@ -1,7 +1,8 @@
-module ErpServer(serverMain, testServerMain, serverModuleName
-    , handleConnection
-    , IncomingRequestType(..))where
-
+--module ErpServer(serverMain, testServerMain, serverModuleName
+--    , handleConnection
+--    , routeRequest
+--    , IncomingRequestType(..))where
+module ErpServer where
 import Control.Exception
 import Control.Monad.State
 import Control.Monad.Reader
@@ -137,24 +138,25 @@ routeRequest connection acid DeleteLogin r       = deleteLoginA acid $ M.emailId
 routeRequest connection acid UpdateCategory r    = updateCategory acid (M.emailId r) (L.toStrict (payload r))
 routeRequest connection acid QueryDatabase r    = do
   model <- queryDatabase acid (M.emailId r) $ L.toStrict (payload r)
-  infoM serverModuleName (show model)
+  --log the model here if needed.
+  return ()
 routeRequest connection acid CloseConnection  r = do
         -- Need to investigate how this following line is working
         response <- return $ M.createCloseConnectionResponse r
         debugM M.modelModuleName $ "ErpModel::Sending " ++ (show response)
         WS.sendTextData connection $ J.encode response
 
-checkProtocol :: String -> Either String String
+checkProtocol :: String -> ErEr.ErpError ErEr.ModuleError String
 checkProtocol iProtocolVersion = -- Returns a ErpError if wrong protocol
-    if iProtocolVersion /= M.protocolVersion then Right "It works" -- TODO : ErpError
-    else (Left "Protocol Not Supported") -- TODO: ErpError
+    if iProtocolVersion /= M.protocolVersion then ErEr.createSuccess "Protocol supported" -- TODO : ErpError
+    else ErEr.createErrorS "ErpServer" "ES003" "Unsupported protocol"
 
-processRequest :: WS.Connection -> AcidState (EventState M.GetDatabase) -> M.Request -> IO()
+processRequest :: WS.Connection -> AcidState (EventState M.GetDatabase) -> M.Request -> IO ()
 processRequest connection acid r@(M.Request iRequestID requestType iProtocolVersion entity emailId payload) =
     --TODO: get the process entity so we are inside our own monad instead of IO
     case (checkProtocol iProtocolVersion) of
-        Left anError -> M.sendError connection (Just r) "Some error. Need to fix the type"
-        Right anotherString -> 
+        ErEr.Error aString -> M.sendError connection (Just r) "Some error. Need to fix the types"
+        ErEr.Success aString -> 
                 do
                   entityType <- return $ read entity
                   debugM M.modelModuleName $ "Incoming request " ++ (show r)
