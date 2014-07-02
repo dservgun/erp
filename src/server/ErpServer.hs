@@ -132,20 +132,52 @@ postProcessRequest connection acid r = do
 
 payload = M.requestPayload
 
-routeRequest :: WS.Connection -> AcidState(EventState M.QueryLogin) -> IncomingRequestType -> M.Request -> IO ()
-routeRequest connection acid QueryNextSequence r = return ()
-routeRequest connection acid Login  r            = updateLogin acid r
-routeRequest connection acid DeleteLogin r       = deleteLoginA acid $ M.emailId r
-routeRequest connection acid UpdateCategory r    = updateCategory acid (M.emailId r) (L.toStrict (payload r))
+routeRequest :: WS.Connection -> AcidState(EventState M.QueryLogin) -> IncomingRequestType -> M.Request -> 
+  IO (ErEr.ErpError ErEr.ModuleError M.Response)
+routeRequest connection acid QueryNextSequence r = return $ ErEr.createErrorS "ErpServer" "ES006" "Command not supported??"
+routeRequest connection acid Login  r            = 
+    do
+      updateLogin acid r
+      response <- sendNextSequence acid r
+      case response of 
+        Just res -> return $ ErEr.createSuccess res
+        Nothing -> return $ ErEr.createErrorS "ErpServer" "ES011" "Invalid response"
+
+routeRequest connection acid DeleteLogin r       = 
+    do
+      deleteLoginA acid $ M.emailId r
+      response <- sendNextSequence acid r
+      case response of
+        Just res -> return $ ErEr.createSuccess res
+        Nothing -> return $ ErEr.createErrorS "ErpServer" "ES010" "Invalid response"
+
+
+routeRequest connection acid UpdateCategory r    = 
+  do
+    updateCategory acid (M.emailId r) (L.toStrict (payload r))
+    response <- sendNextSequence acid r
+    case response of
+      Just res -> return $ ErEr.createSuccess res
+      Nothing -> return $ ErEr.createErrorS "ErpServer" "ES011" "Invalid Response"
+
 routeRequest connection acid QueryDatabase r    = do
   model <- queryDatabase acid (M.emailId r) $ L.toStrict (payload r)
   --log the model here if needed.
-  return ()
+  response <- sendNextSequence acid r
+  case response of
+    Just res -> return $ ErEr.createSuccess res
+    Nothing -> return $ ErEr.createErrorS "ErpServer" "ES012" "Invalid response"
+
 routeRequest connection acid CloseConnection  r = do
         -- Need to investigate how this following line is working
         response <- return $ M.createCloseConnectionResponse r
         debugM M.modelModuleName $ "ErpModel::Sending " ++ (show response)
         WS.sendTextData connection $ J.encode response
+        response <- sendNextSequence acid r
+        case response of
+          Just res -> return $ ErEr.createSuccess res
+          Nothing -> return $ ErEr.createErrorS "ErpServer" "ES013" "Close connection failed"
+        
 
 checkProtocol :: String -> ErEr.ErpError ErEr.ModuleError String
 checkProtocol iProtocolVersion = -- Returns a ErpError if wrong protocol
@@ -164,8 +196,8 @@ processRequest connection acid r@(M.Request iRequestID requestType iProtocolVers
                   currentRequest <- checkRequest acid r  --TODO: Need to decode type better than a bool
                   if currentRequest then
                       do
-                        routeRequest connection acid entityType r
-                        
+                        response <- routeRequest connection acid entityType r
+                        M.sendMessage connection response
                   else
                     let 
                       moduleError = ErEr.createErrorS "ErpServer" "ES002" $ "Stale message " ++ show r
@@ -259,10 +291,12 @@ updateCategory acid emailId payload =
                -- infoM "ErpModel" "Processing update category"
                 lookup <- A.query acid (M.QueryCategory emailId c)
                 if lookup == False then
-                    A.update acid (M.InsertCategory emailId c)
+                    do
+                      A.update acid (M.InsertCategory emailId c)
+                      return $ ErEr.createSuccess $ "Category added: " ++ aCat
                 else
-                    return ()
-            Nothing -> return ()
+                    return $ ErEr.createSuccess $ "Category exists"
+            Nothing -> return $ ErEr.createErrorS "ErpServer" "ES005" "Update category failed"
 
 
 queryDatabase acid emailId payload = do

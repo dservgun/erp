@@ -22,6 +22,7 @@ module ErpModel (
         InsertCategory(..),
         sendTextData,
         sendError, 
+        sendMessage,
         modelModuleName,
         nextRequestID,
         getRequestEmail,
