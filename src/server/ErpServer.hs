@@ -131,7 +131,8 @@ postProcessRequest connection acid r = do
 
 
 payload = M.requestPayload
--- // Error RoutingError *Maybe instance?* Either*
+
+routeRequest :: WS.Connection -> AcidState(EventState M.QueryLogin) -> IncomingRequestType -> M.Request -> IO ()
 routeRequest connection acid QueryNextSequence r = return ()
 routeRequest connection acid Login  r            = updateLogin acid r
 routeRequest connection acid DeleteLogin r       = deleteLoginA acid $ M.emailId r
@@ -162,7 +163,9 @@ processRequest connection acid r@(M.Request iRequestID requestType iProtocolVers
                   debugM M.modelModuleName $ "Incoming request " ++ (show r)
                   currentRequest <- checkRequest acid r  --TODO: Need to decode type better than a bool
                   if currentRequest then
-                      routeRequest connection acid entityType r
+                      do
+                        routeRequest connection acid entityType r
+                        
                   else
                     let 
                       moduleError = ErEr.createErrorS "ErpServer" "ES002" $ "Stale message " ++ show r

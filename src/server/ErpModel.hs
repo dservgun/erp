@@ -78,6 +78,7 @@ import qualified Sale as Sa
 import qualified Forecast as Fo
 import qualified Timesheet as Ts
 import qualified SystemSequence as Seq
+import qualified ErpError as ErEr
 data LoginExists = LoginExists deriving (Show, Generic, Typeable, Eq, Ord)
 data LoginStaleException = LoginStaleException deriving (Show, Generic, Typeable, Eq, Ord)
 data CategoryExists = CategoryExists deriving (Show, Generic, Typeable, Eq, Ord)
@@ -231,7 +232,7 @@ queryParty :: String -> String -> Co.GeoLocation ->
 queryParty aLogin aName aLocation  =
     do
         Database db <- ask
-        let erp = M.lookup aLogin db
+        erp <- return $ M.lookup aLogin db
         case erp of
             Nothing -> throw Co.CompanyNotFound
             Just x -> return $ Co.findParty (aName, aLocation) (partySet x)
@@ -241,7 +242,7 @@ insertParty :: String -> Co.Party -> A.Update Database ()
 insertParty aLogin p =
     do
         Database db <- get
-        let erp = M.lookup aLogin db
+        erp <- return $ M.lookup aLogin db
         case erp of
             Just exists -> put(Database (M.insert aLogin (updateParty exists p) db))
             _ -> return ()
@@ -249,7 +250,7 @@ insertParty aLogin p =
 deleteParty :: String -> Co.Party -> A.Update Database ()
 deleteParty aLogin aParty = do
     Database db <- get
-    let erp = M.lookup aLogin db
+    erp <- return $ M.lookup aLogin db
     case erp of
         Just found -> put (Database (M.insert aLogin (delP2 aParty found) db))
         _ -> return ()
@@ -262,7 +263,7 @@ queryCompany :: String -> Co.Party ->
 queryCompany aLogin aParty =
     do
         Database db <- ask
-        let erp = M.lookup aLogin db
+        erp <- return $ M.lookup aLogin db
         case erp of
             Nothing -> return $ ErEr.createErrorS "ErpModel" "EM001" 
                         $ "Party not found " ++ show aParty ++ " for " ++ aLogin
@@ -276,7 +277,7 @@ insertResponse  aResponse =
     in
     do
         Database db <- get
-        let iRequest = incomingRequest aResponse
+        iRequest <- return $ incomingRequest aResponse
         case iRequest of
             Just iR -> 
                         let erp = M.lookup (emailId iR) db
@@ -291,14 +292,15 @@ insertResponse  aResponse =
                                             return $ ErEr.createErrorS "ErpModel" "EM002"$ show aResponse
             Nothing -> return $ ErEr.createErrorS "ErpModel" "EM002" $ "Could not parse request " ++ (show aResponse)
 
+
 insertRequest ::  Request -> A.Update Database ()
 insertRequest aRequest =  
     let 
-        email = emailId aRequest
         update model = model {requests = aRequest : (requests model) }
     in
     do
         Database db <- get
+        email <- return $ emailId aRequest
         let erp = M.lookup email db
         case erp of
             Just m ->put (Database $ M.insert email (update m) db)
@@ -309,14 +311,14 @@ insertLogin :: String -> Request -> Lo.Login -> A.Update Database ()
 insertLogin aString r aLogin =
     do
         Database db <- get
-        let loginErp = emptyModel {login = aLogin}
+        loginErp <- return $ emptyModel {login = aLogin}
         put (Database (M.insert aString loginErp db))
 
 deleteLogin :: String -> A.Update Database ()
 deleteLogin aString  =
     do
         Database db <- get
-        let loginErp = M.lookup aString db
+        loginErp <- return $ M.lookup aString db
         case loginErp of
             Nothing -> return ()            
             Just x -> put (Database (M.insert aString (delete x) db))
@@ -327,7 +329,7 @@ queryLogin :: String -> A.Query  Database (Maybe Lo.Login)
 queryLogin aLogin =
     do
         Database db <- ask
-        let erp = M.lookup aLogin db
+        erp <- return $ M.lookup aLogin db
         case erp of
             Just erp -> return $ Just $ login erp
             _   -> return Nothing
@@ -338,14 +340,13 @@ queryCategory :: String -> Co.Category -> A.Query  Database(Bool)
 queryCategory aLogin qbe =
     do
        Database db <- ask
-       let erp = M.lookup aLogin db
-       return $ exists qbe erp
+       return $ exists qbe $ M.lookup aLogin db
 
 insertCategory :: String -> Co.Category -> A.Update Database ()
 insertCategory aLogin c@(Co.Category aCatName) =
     do
         Database db <- get
-        let erp = M.lookup aLogin db
+        erp <- return $ M.lookup aLogin db
         case erp of
             Just exists -> put(Database (M.insert aLogin (updateCategory exists c) db))
             _       -> return()
@@ -354,8 +355,7 @@ insertCategory aLogin c@(Co.Category aCatName) =
 getDatabase :: String -> A.Query Database (Maybe ErpModel)
 getDatabase userEmail = do
         Database db <- ask
-        let loginErp = M.lookup userEmail db
-        return loginErp
+        return $ M.lookup userEmail db
 
    
 $(A.makeAcidic ''Database [
@@ -374,7 +374,16 @@ initializeDatabase  dbLocation = A.openLocalStateFrom dbLocation $ Database M.em
 disconnect = A.closeAcidState
 
 
+sendTextData :: WS.Connection -> L.Text -> IO()
 sendTextData connection aText = WS.sendTextData connection aText
+
+sendMessage :: WS.Connection -> ErEr.ErpError ErEr.ModuleError Response-> IO()
+sendMessage connection (ErEr.Success aResponse) =
+    WS.sendTextData connection $ J.encode aResponse
+sendMesssage connection (ErEr.Error aModuleError) =
+    WS.sendTextData connection $ J.encode aModuleError
+
+sendError :: WS.Connection -> Maybe Request -> L.Text -> IO()
 sendError connection request aMessage = 
     let 
         response = Response (SSeq.errorID) (SSeq.errorID) protocolVersion request aMessage
