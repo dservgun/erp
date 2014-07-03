@@ -100,7 +100,6 @@ clientStateMachine conn aResponse =
     in
 
     do
-
         case responseEntity of
             Just re ->
                     case re of

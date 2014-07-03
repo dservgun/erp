@@ -181,7 +181,7 @@ routeRequest connection acid CloseConnection  r = do
 
 checkProtocol :: String -> ErEr.ErpError ErEr.ModuleError String
 checkProtocol iProtocolVersion = -- Returns a ErpError if wrong protocol
-    if iProtocolVersion /= M.protocolVersion then ErEr.createSuccess "Protocol supported" -- TODO : ErpError
+    if iProtocolVersion == M.protocolVersion then ErEr.createSuccess "Protocol supported" -- TODO : ErpError
     else ErEr.createErrorS "ErpServer" "ES003" "Unsupported protocol"
 
 processRequest :: WS.Connection -> AcidState (EventState M.GetDatabase) -> M.Request -> IO ()
@@ -197,6 +197,7 @@ processRequest connection acid r@(M.Request iRequestID requestType iProtocolVers
                   if currentRequest then
                       do
                         response <- routeRequest connection acid entityType r
+                        infoM serverModuleName ("Sending response--erperror" ++ (show response))
                         M.sendMessage connection response
                   else
                     let 
