@@ -26,6 +26,7 @@ module ErpModel (
         modelModuleName,
         nextRequestID,
         getRequestEmail,
+        getRequestEntity,
         initializeDatabase,
         disconnect,
         Request(..),

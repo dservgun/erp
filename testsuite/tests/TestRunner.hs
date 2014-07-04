@@ -87,8 +87,7 @@ endSession aResponse conn =
     do
         WS.sendTextData conn $  createCloseConnection nextSequence
                 testEmail $ 
-                encode $ toJSON testLogin
-        parseLoginTestMessages conn       
+                encode $ toJSON testLogin      
     
 
 
@@ -98,7 +97,6 @@ clientStateMachine conn aResponse =
         responseEntity = M.getResponseEntity aResponse
         nextSequenceNumber = M.getSequenceNumber aResponse
     in
-
     do
         case responseEntity of
             Just re ->
@@ -113,12 +111,14 @@ clientStateMachine conn aResponse =
                                     nextSequenceNumber testEmail $ encode . toJSON $ 
                                     ("Test query database" :: String)
                                 parseLoginTestMessages conn
-                        "QueryDatabase" -> endSession aResponse conn
+                        "QueryDatabase" -> do
+                            endSession aResponse conn
+                            parseLoginTestMessages conn
                         "CloseConnection" -> do
                                     debugM testModuleName $ "Received :: " ++ (show responseEntity)
                                     WS.sendClose conn  ("Bye." ::T.Text)
             Nothing -> do
-                                debugM testModuleName $ "Received " ++ (show aResponse)
+                                infoM testModuleName $ "Nothing : Received " ++ (show aResponse)
                                 WS.sendClose conn ("Unhandled command for this test case " 
                                             :: T.Text)                       
 

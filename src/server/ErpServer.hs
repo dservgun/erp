@@ -92,6 +92,8 @@ serverModuleName = "ErpServer"
 processMessages conn acid =
      handle catchDisconnect  $ forever $ do
      msg <- WS.receiveData conn
+     infoM serverModuleName $ "Process messages " ++ (show msg) 
+
      updateDatabase conn acid msg
      where
        catchDisconnect e =
@@ -118,14 +120,22 @@ updateDatabase connection acid aMessage =
               return $ ErEr.createErrorS "ErpServer" "ES002" $ "Invalid message " ++ (show aMessage)
 
 updateRequests connection acid r = A.update acid(M.InsertRequest r)
+
 postProcessRequest connection acid r = do
-  nextSequenceResponse <- sendNextSequence acid  r
+  nextSequenceResponse <- sendNextSequence acid  r  
   case nextSequenceResponse of
-    Just x -> do
-              WS.sendTextData connection  $ J.encode x
-              A.update acid (M.InsertResponse x)
+    Just x -> 
+              do
+                A.update acid (M.InsertResponse x)
+                entity <- return $ M.getRequestEntity r
+                entityType <- return $ read entity
+                infoM serverModuleName ("Postprocess request " ++ (show entityType))
+                case entityType of
+                  CloseConnection -> return ()
+                  _ -> WS.sendTextData connection  $ J.encode x
+                return $ ErEr.createSuccess "Next sequence response sent or probably not"
     Nothing -> do
-        let moduleError = ErEr.createErrorS "ErpServer" "ES001" $ "Invalid response " ++ show r
+        moduleError <- return $ ErEr.createErrorS "ErpServer" "ES001" $ "Invalid response " ++ show r
         M.sendError connection (Just r) $ L.pack $ show moduleError
         return moduleError
 
@@ -172,7 +182,7 @@ routeRequest connection acid CloseConnection  r = do
         -- Need to investigate how this following line is working
         response <- return $ M.createCloseConnectionResponse r
         debugM M.modelModuleName $ "ErpModel::Sending " ++ (show response)
-        WS.sendTextData connection $ J.encode response
+        --
         response <- sendNextSequence acid r
         case response of
           Just res -> return $ ErEr.createSuccess res
@@ -198,7 +208,10 @@ processRequest connection acid r@(M.Request iRequestID requestType iProtocolVers
                       do
                         response <- routeRequest connection acid entityType r
                         infoM serverModuleName ("Sending response--erperror" ++ (show response))
-                        M.sendMessage connection response
+                        if entityType /= CloseConnection then
+                          M.sendMessage connection response
+                        else
+                          return ()
                   else
                     let 
                       moduleError = ErEr.createErrorS "ErpServer" "ES002" $ "Stale message " ++ show r
