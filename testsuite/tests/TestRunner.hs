@@ -92,48 +92,55 @@ endSession aResponse conn =
 
 
 clientStateMachine :: WS.Connection ->  M.Response -> IO ()
-clientStateMachine conn aResponse =     
-   let 
-        responseEntity = M.getResponseEntity aResponse
-        nextSequenceNumber = M.getSequenceNumber aResponse
-    in
-    do
-        case responseEntity of
-            Just re ->
-                    case re of
-                        "Login" -> do
-                                WS.sendTextData conn $ 
-                                    createCategoryRequest nextSequenceNumber testEmail 
-                                        $ encode $ toJSON $ Co.Category "Test category"
-                                parseLoginTestMessages conn    
-                        "UpdateCategory" -> do 
-                                WS.sendTextData conn $ createQueryDatabaseRequest 
-                                    nextSequenceNumber testEmail $ encode . toJSON $ 
-                                    ("Test query database" :: String)
+clientStateMachine conn aResponse = do
+        responseEntity <- return $ M.getResponseEntity aResponse
+        infoM testModuleName ("client state machine : Incoming response " ++ (show aResponse))
+        nextSequenceNumber <- return $  M.getSequenceNumber aResponse
+        if nextSequenceNumber == -1 then do
+            infoM testModuleName ("Invalid sequence number " ++ (show aResponse))
+            WS.sendClose conn  ("Invalid sequence number. Exiting" :: T.Text)
+        else 
+            case responseEntity of
+                Just re ->
+                    do
+                        infoM testModuleName $ "clientStateMachine : entity type " ++ (show re)
+                        infoM testModuleName $ "incoming response " ++ (show aResponse)
+                        infoM testModuleName ("Using next sequence number " ++ (show nextSequenceNumber) ++ (" ") 
+                            ++ (show responseEntity) )
+
+                        responseEntityType <- return $ read re
+                        case responseEntityType of
+                            Login -> do
+                                    WS.sendTextData conn $ 
+                                        createCategoryRequest nextSequenceNumber testEmail 
+                                            $ encode $ toJSON $ Co.Category "Test category"
+                                    parseLoginTestMessages conn    
+                            UpdateCategory -> do 
+                                    WS.sendTextData conn $ createQueryDatabaseRequest 
+                                        nextSequenceNumber testEmail $ encode . toJSON $ 
+                                        ("Test query database" :: String)
+                                    parseLoginTestMessages conn
+                            QueryDatabase -> do
+                                endSession aResponse conn
                                 parseLoginTestMessages conn
-                        "QueryDatabase" -> do
-                            endSession aResponse conn
-                            parseLoginTestMessages conn
-                        "CloseConnection" -> do
-                                    debugM testModuleName $ "Received :: " ++ (show responseEntity)
-                                    WS.sendClose conn  ("Bye." ::T.Text)
-            Nothing -> do
-                                infoM testModuleName $ "Nothing : Received " ++ (show aResponse)
-                                WS.sendClose conn ("Unhandled command for this test case " 
-                                            :: T.Text)                       
+                            CloseConnection -> do
+                                        debugM testModuleName $ "TestRunner: Received :: " ++ (show responseEntity)
+                                        WS.sendClose conn  ("Bye." ::T.Text)
+                Nothing -> do
+                                    infoM testModuleName $ "Nothing : Received " ++ (show aResponse)
+                                    WS.sendClose conn ("Unhandled command for this test case " 
+                                                :: T.Text)                       
 
 
 parseLoginTestMessages :: WS.Connection -> IO()
 parseLoginTestMessages conn = do
     msg <- WS.receiveData conn
-    let 
-        r = J.decode $ En.encodeUtf8 $ La.fromStrict msg
-    do
-        case r of
-            Just aResponse -> clientStateMachine conn aResponse
-            Nothing -> do
-                            debugM testModuleName $ "Unknown response. Quit here?"
-                            WS.sendClose conn ("Unhandled command " :: T.Text)
+    r <- return $ J.decode $ En.encodeUtf8 $ La.fromStrict msg
+    case r of
+        Just aResponse -> clientStateMachine conn aResponse
+        Nothing -> do
+                        debugM testModuleName $ "Unknown response. Quit here?"
+                        WS.sendClose conn ("Unhandled command " :: T.Text)
 
 
 
@@ -146,7 +153,7 @@ loginTest aVer conn = do
     tR <- async( parseLoginTestMessages conn)
     -- Send a verified user and an unverified user,
     -- Recovery should not be showing the unverified user.
-    debugM testModuleName  "Sending login request"
+    debugM testModuleName "Sending login request"
     WS.sendTextData conn $ createLoginRequest 1 testEmail $ encode $ toJSON testLogin
     wait tR
     debugM testModuleName "loginTest complete."
@@ -177,6 +184,7 @@ serverTest = do
     infoM testModuleName "End tests"
     -- Cancel the server thread when all tests are done
     cancel s
+    return ()
     where
         acidStateTestDir = "./dist/build/tests/state"
 

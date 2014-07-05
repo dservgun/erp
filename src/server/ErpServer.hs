@@ -92,51 +92,45 @@ serverModuleName = "ErpServer"
 processMessages conn acid =
      handle catchDisconnect  $ forever $ do
      msg <- WS.receiveData conn
-     infoM serverModuleName $ "Process messages " ++ (show msg) 
-
+     infoM serverModuleName $ "Process messages " ++ (show msg)
      updateDatabase conn acid msg
      where
        catchDisconnect e =
          case fromException e of
            Just  WS.ConnectionClosed ->
                  do
-                        return ()
+                    infoM serverModuleName "Closing connections."
+                    return ()
            _ -> do
-            errorM serverModuleName $ serverModuleName ++ " catchDisconnect:: Unknown exception " ++ show e
-            return ()
+              errorM serverModuleName $ serverModuleName ++ " catchDisconnect:: Unknown exception " ++ show e
+              return ()
 
-updateDatabase connection acid aMessage =
-    let
-        r = J.decode $ E.encodeUtf8 $ L.fromStrict aMessage
-    in
+updateDatabase connection acid aMessage = 
+    do
+        r <- return $ J.decode $ E.encodeUtf8 $ L.fromStrict aMessage
         case r of
-        Just aRequest -> do
-                res  <- processRequest connection acid aRequest
-                res2 <- updateRequests connection acid aRequest
-                postProcessRequest connection acid aRequest
-        _ -> do
-              errorM serverModuleName (show r)
-              M.sendError connection Nothing "Error"
-              return $ ErEr.createErrorS "ErpServer" "ES002" $ "Invalid message " ++ (show aMessage)
+          Just aRequest -> do
+                  response <- processRequest connection acid aRequest
+                  updateRequests acid aRequest
+                  postProcessRequest connection acid aRequest response
+          _ -> do
+                errorM serverModuleName (show r)
+                M.sendError connection Nothing "Error"
+                return $ ErEr.createErrorS "ErpServer" "ES002" $ "Invalid message " ++ (show aMessage)
 
-updateRequests connection acid r = A.update acid(M.InsertRequest r)
+updateRequests acid r = A.update acid(M.InsertRequest r)
 
-postProcessRequest connection acid r = do
+postProcessRequest connection acid r erpResponse = do
   nextSequenceResponse <- sendNextSequence acid  r  
   case nextSequenceResponse of
     Just x -> 
               do
                 A.update acid (M.InsertResponse x)
-                entity <- return $ M.getRequestEntity r
-                entityType <- return $ read entity
-                infoM serverModuleName ("Postprocess request " ++ (show entityType))
-                case entityType of
-                  CloseConnection -> return ()
-                  _ -> WS.sendTextData connection  $ J.encode x
-                return $ ErEr.createSuccess "Next sequence response sent or probably not"
+                M.sendMessage connection (M.updateResponseID x erpResponse)
+                return erpResponse
     Nothing -> do
         moduleError <- return $ ErEr.createErrorS "ErpServer" "ES001" $ "Invalid response " ++ show r
-        M.sendError connection (Just r) $ L.pack $ show moduleError
+        M.sendMessage connection moduleError
         return moduleError
 
 
@@ -180,9 +174,6 @@ routeRequest connection acid QueryDatabase r    = do
 
 routeRequest connection acid CloseConnection  r = do
         -- Need to investigate how this following line is working
-        response <- return $ M.createCloseConnectionResponse r
-        debugM M.modelModuleName $ "ErpModel::Sending " ++ (show response)
-        --
         response <- sendNextSequence acid r
         case response of
           Just res -> return $ ErEr.createSuccess res
@@ -194,11 +185,11 @@ checkProtocol iProtocolVersion = -- Returns a ErpError if wrong protocol
     if iProtocolVersion == M.protocolVersion then ErEr.createSuccess "Protocol supported" -- TODO : ErpError
     else ErEr.createErrorS "ErpServer" "ES003" "Unsupported protocol"
 
-processRequest :: WS.Connection -> AcidState (EventState M.GetDatabase) -> M.Request -> IO ()
+processRequest :: WS.Connection -> AcidState (EventState M.GetDatabase) -> M.Request -> IO (ErEr.ErpError ErEr.ModuleError M.Response)
 processRequest connection acid r@(M.Request iRequestID requestType iProtocolVersion entity emailId payload) =
     --TODO: get the process entity so we are inside our own monad instead of IO
     case (checkProtocol iProtocolVersion) of
-        ErEr.Error aString -> M.sendError connection (Just r) "Some error. Need to fix the types"
+        ErEr.Error aString -> return $ ErEr.createErrorS "ErpServer" "ES001" "Check protocol failed"
         ErEr.Success aString -> 
                 do
                   entityType <- return $ read entity
@@ -207,16 +198,15 @@ processRequest connection acid r@(M.Request iRequestID requestType iProtocolVers
                   if currentRequest then
                       do
                         response <- routeRequest connection acid entityType r
+                        infoM serverModuleName ("Entity type " ++ (show entityType))
                         infoM serverModuleName ("Sending response--erperror" ++ (show response))
-                        if entityType /= CloseConnection then
-                          M.sendMessage connection response
-                        else
-                          return ()
+                        return response
                   else
-                    let 
-                      moduleError = ErEr.createErrorS "ErpServer" "ES002" $ "Stale message " ++ show r
-                    in
-                      M.sendError connection  (Just r)  $ ErEr.getString moduleError
+                    do
+                      moduleError <- return $ 
+                          ErEr.createErrorS "ErpServer" "ES002" $ "Stale message " ++ show r
+                      infoM serverModuleName  $ L.unpack (ErEr.getString moduleError)
+                      return moduleError
 
 
 deleteLoginA acid anEmailId = A.update acid (M.DeleteLogin anEmailId)
@@ -241,7 +231,10 @@ checkRequest acid r@(M.Request iRequestID requestType
       infoM serverModuleName ("Querying erp returned " ++ (show erp))
       case erp of
         Nothing ->  return True
-        Just x -> return $  ( M.nextRequestID x ) == iRequestID
+        Just x -> 
+          do
+            infoM serverModuleName (show x ++ " Input requestid " ++ (show iRequestID))
+            return $  ( M.nextRequestID x r ) == iRequestID
 
 
 --Authentication is probably done using an oauth provider
@@ -264,7 +257,10 @@ updateLogin acid r =
                                         A.update acid (M.InsertLogin name r l)
                         Just l2@(Lo.Login name email) ->
                             return ()
-            Nothing -> throw InvalidLogin
+            Nothing ->
+              do              
+                infoM serverModuleName ("Nothing pobject " ++ show (payload)) 
+                return()
 
 
 sendNextSequence acid request =
@@ -275,13 +271,16 @@ sendNextSequence acid request =
             Nothing ->
                 do                    
                     res <- return $ M.createNextSequenceResponse emailId (Just request)
-                                 $ SSeq.errorID
-                    debugM M.modelModuleName $ "Could not find database " ++ (show res)
+                                 $ (M.requestID request + 1)
+                    infoM M.modelModuleName $ "Could not find database " ++ (show res)
                     return $ Just res
             Just x ->
                 do
                     res <- return $ M.createNextSequenceResponse emailId ( Just request)
-                                $ (M.nextRequestID  x)
+                                $ (M.nextRequestID  x request)
+                    infoM M.modelModuleName $ "Using request " ++ show request
+                    infoM M.modelModuleName $ "Model state " ++ show x
+                    infoM M.modelModuleName $ ("Send next sequence " ++ (show res))
                     return $ Just res
 
 
@@ -295,7 +294,7 @@ queryNextSequence acid request =
                 Nothing -> return Nothing
                 Just l -> return $ Just $ M.createNextSequenceResponse
                                 emailId Nothing
-                                 (M.nextRequestID l)
+                                 (M.nextRequestID l request)
 
 updateCategory acid emailId payload =
     do

@@ -25,6 +25,7 @@ module ErpModel (
         sendMessage,
         modelModuleName,
         nextRequestID,
+        updateResponseID,
         getRequestEmail,
         getRequestEntity,
         initializeDatabase,
@@ -113,8 +114,9 @@ nextRequest :: [Request] -> Integer
 nextRequest [] = 1
 nextRequest (h:t) = (requestID h) + 1
 -- The next request id for this model.
-nextRequestID :: ErpModel -> SSeq.ID
-nextRequestID aModel = nextRequest (requests aModel)
+
+nextRequestID :: ErpModel -> Request -> SSeq.ID
+nextRequestID aModel aRequest = nextRequest (requests aModel)
 
 delete anErpModel = anErpModel {deleted = True}
 {-- A given email id can be tied to only a single erp model,
@@ -148,6 +150,15 @@ data Response = Response {
 
 createResponse anID nextIDToUse responseVersion request payload =
     Response anID nextIDToUse responseVersion request payload
+
+updateResponseID :: Response -> ErEr.ErpError ErEr.ModuleError Response -> 
+    ErEr.ErpError ErEr.ModuleError Response
+
+updateResponseID newResponse (ErEr.Success oldResponse) = 
+        ErEr.Success oldResponse {responseID = responseID newResponse 
+        , requestIDToUse = requestIDToUse newResponse}
+
+updateResponseID newResponse (ErEr.Error x ) = ErEr.Error x
 
 -- Unwrap the request type from the response
 getResponseEntity :: Response -> Maybe RequestEntity
@@ -373,7 +384,11 @@ $(A.makeAcidic ''Database [
 
 
 initializeDatabase  dbLocation = A.openLocalStateFrom dbLocation $ Database M.empty
-disconnect = A.closeAcidState
+disconnect acid  = do
+        infoM modelModuleName "Closing acid state"
+        A.closeAcidState acid
+        return ()
+
 
 
 sendTextData :: WS.Connection -> L.Text -> IO()
