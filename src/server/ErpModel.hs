@@ -165,6 +165,7 @@ getResponseEntity :: Response -> Maybe RequestEntity
 getResponseEntity aResponse = do
     incomingRequest <- incomingRequest aResponse
     return $ getRequestEntity incomingRequest
+
 unwrapRequest :: Response -> Maybe Request
 unwrapRequest = incomingRequest 
 
@@ -225,7 +226,14 @@ supportedVersions aModel =
         resVersions  = map   (\x -> responseVersion x)  (responses aModel)
     in 
         S.fromList reqVersions
- 
+
+--A given model can handle multiple companies 
+updateCompany :: ErpModel -> Co.Company -> ErpModel
+updateCompany aModel aCompany = aModel {companySet = S.insert aCompany (companySet aModel)}
+
+-- Delete a company from the model
+deleteCompany :: ErpModel -> Co.Company -> ErpModel 
+deleteCompany aModel aCompany = aModel {companySet = S.delete aCompany (companySet aModel)}
 
 updateCategory :: ErpModel -> Co.Category -> ErpModel
 updateCategory aModel aCategory = 

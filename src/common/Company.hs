@@ -243,6 +243,9 @@ data QueryParty = QueryParty {
 {-- |
     Create a party or return an error.
 --}
+
+
+
 createParty :: Name -> Address -> ErpError ModuleError GeoLocation -> Contact -> Category
                     -> VCard -> S.Set Category -> S.Set Contact ->
                     ErpError ModuleError Party

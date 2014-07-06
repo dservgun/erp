@@ -67,6 +67,7 @@ createLoginRequest anID login aPayload  = encode( toJSON (M.Request
                     (show Login) login
                     $ En.decodeUtf8 aPayload))
 
+
 createCategoryRequest anID login aPayload = 
         encode $ toJSON $ M.Request 
         anID
@@ -103,11 +104,6 @@ clientStateMachine conn aResponse = do
             case responseEntity of
                 Just re ->
                     do
-                        infoM testModuleName $ "clientStateMachine : entity type " ++ (show re)
-                        infoM testModuleName $ "incoming response " ++ (show aResponse)
-                        infoM testModuleName ("Using next sequence number " ++ (show nextSequenceNumber) ++ (" ") 
-                            ++ (show responseEntity) )
-
                         responseEntityType <- return $ read re
                         case responseEntityType of
                             Login -> do
