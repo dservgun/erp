@@ -42,7 +42,15 @@ up with another set of readable names for each case.
   * The initial version was not using lenses, but it seems to be the right way to go,
     specially when we need to traverse/update tree-like structure: Account, Tax Code, Categories,
     UOM etc.
-  *
+  * Error handling is using the ErpError across all constructors and this seems to be ok, because not doing this
+  	seems to complicate the rest of the interface.
+
+## Notes on testing the application
+  * Current testing is quite brittle: the state machine is artificial: the issue is that we need a place
+  	to terminate the tests so the thread can be canceled. Currently this is being done using some convention,
+  	that needs to change everytime we add new messages. One way to test would be to send <i>n</i> messages,
+  	expect n messages back and then complete state machine.
+
 ## References
  * [Tryton](http://doc.tryton.org/3.0/index.html)
  * [Accounting methods](http://en.wikipedia.org/wiki/FIFO_and_LIFO_accounting)

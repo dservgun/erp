@@ -135,8 +135,8 @@ parseLoginTestMessages conn = do
     case r of
         Just aResponse -> clientStateMachine conn aResponse
         Nothing -> do
-                        debugM testModuleName $ "Unknown response. Quit here?"
-                        WS.sendClose conn ("Unhandled command " :: T.Text)
+                debugM testModuleName $ "Unknown response. Quit here?"
+                WS.sendClose conn ("Unhandled command " :: T.Text)
 
 
 
