@@ -113,50 +113,6 @@ conversation conn (h:t) aResponse = do
                     Just x -> conversation conn t x
                     Nothing -> endSession aResponse conn
 
--- For a client, the handshake is roughly as follows:
--- client starts a session, in response the server
--- sends the next sequence number to be used
--- the client uses that to send subsequent request
--- startSession -> getSessionSequenceNumber -> create request 
--- -> until end of session
-
-
-
-clientStateMachine :: WS.Connection ->  M.Response -> IO ()
-clientStateMachine conn aResponse = do
-        responseEntity <- return $ M.getResponseEntity aResponse
-        infoM testModuleName ("client state machine : Incoming response " ++ (show aResponse))
-        nextSequenceNumber <- return $  M.getSequenceNumber aResponse
-        if nextSequenceNumber == -1 then do
-            infoM testModuleName ("Invalid sequence number " ++ (show aResponse))
-            WS.sendClose conn  ("Invalid sequence number. Exiting" :: T.Text)
-        else 
-            case responseEntity of
-                Just re ->
-                    do
-                        responseEntityType <- return $ read re
-                        case responseEntityType of
-                            Login -> do
-                                    WS.sendTextData conn $ 
-                                        createCategoryRequest nextSequenceNumber testEmail 
-                                            $ encode $ toJSON $ Co.Category "Test category"
-                                    parseLoginTestMessages conn    
-                            UpdateCategory -> do 
-                                    WS.sendTextData conn $ createQueryDatabaseRequest 
-                                        nextSequenceNumber testEmail $ encode . toJSON $ 
-                                        ("Test query database" :: String)
-                                    parseLoginTestMessages conn
-                            QueryDatabase -> do
-                                endSession aResponse conn
-                                parseLoginTestMessages conn
-                            CloseConnection -> do
-                                        debugM testModuleName $ "TestRunner: Received :: " ++ (show responseEntity)
-                                        WS.sendClose conn  ("Bye." ::T.Text)
-                Nothing -> do
-                                    infoM testModuleName $ "Nothing : Received " ++ (show aResponse)
-                                    WS.sendClose conn ("Unhandled command for this test case " 
-                                                :: T.Text)                       
-
 
 conversationTest :: WS.Connection -> IO()
 conversationTest conn = do
@@ -169,17 +125,6 @@ conversationTest conn = do
             infoM testModuleName "Conversation test"
             conversation conn sCat res
         Nothing -> return ()
-
-parseLoginTestMessages conn = do 
-    msg <- WS.receiveData conn
-    r <- return $ J.decode $ En.encodeUtf8 $ La.fromStrict msg
-    sampleCategoryMess <- sampleCategoryMessages    
-    case r of
-        Just aResponse -> clientStateMachine conn aResponse
-        Nothing -> do
-                debugM testModuleName $ "Unknown response. Quit here?"
-                WS.sendClose conn ("Unhandled command " :: T.Text)
-
 
 
 testLogin = L.Login "test@test.org" True
