@@ -139,6 +139,7 @@ payload = M.requestPayload
 routeRequest :: WS.Connection -> AcidState(EventState M.QueryLogin) -> IncomingRequestType -> M.Request -> 
   IO (ErEr.ErpError ErEr.ModuleError M.Response)
 routeRequest connection acid QueryNextSequence r = return $ ErEr.createErrorS "ErpServer" "ES006" "Command not supported??"
+
 routeRequest connection acid Login  r            = 
     do
       updateLogin acid r

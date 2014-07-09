@@ -68,6 +68,7 @@ createLoginRequest anID login aPayload  = encode( toJSON (M.Request
                     (show Login) login
                     $ En.decodeUtf8 aPayload))
 
+
 createCategoryRequest1 :: SSeq.ID -> String -> Co.Category -> M.Request
 createCategoryRequest1 anID login aCategory =
     M.Request
@@ -90,6 +91,8 @@ createCloseConnection anID login aPayload =
             M.protocolVersion
             (show CloseConnection) login $ En.decodeUtf8 aPayload
 
+-- Send a close request so the server can close the session. 
+-- Wait for the response and then disconnect.
 endSession :: M.Response -> WS.Connection -> IO()
 endSession aResponse conn = 
     do
@@ -176,60 +179,3 @@ serverTest = do
         acidStateTestDir = "./dist/build/tests/state"
 
 main = serverTest
-tests = [
-         ("properties_tests" :: String, quickCheck prop1)
-         , ("currency_valid" :: String, quickCheck prop_currency)
-         , ("company_work_time" :: String, quickCheck prop_company_time)
-         , ("party_categories" :: String, quickCheck prop_party_categories)
-         , ("party_contacts" :: String, quickCheck prop_party_contacts)
-         , ("account_valid" :: String, quickCheck prop_valid_account)
-         , ("journal_valid" :: String, quickCheck prop_valid_journal)
-         , ("dimensions_valid" :: String, quickCheck prop_valid_dimensions)
-         ]
-
-prop_currency :: ErpError ModuleError Co.Company -> Bool
-prop_currency (ErpError.Success aCompany) = Co.validCurrencies aCompany
--- I need a better way to express this.
-prop_currency (ErpError.Error _) = True
-
-prop_company_time :: ErpError ModuleError Co.CompanyWorkTime -> Bool
-prop_company_time a =
-    case a of
-    ErpError.Success aCom -> Co.validHours aCom 2000
-    ErpError.Error _ -> True
-
-prop_party_categories :: ErpError ModuleError Co.Party -> Bool
-prop_party_categories a =
-    case a of
-    ErpError.Success cat -> Co.validCategories cat
-    ErpError.Error _ -> True
-
-prop_party_contacts :: ErpError ModuleError Co.Party -> Bool
-prop_party_contacts a =
-    case a of
-    ErpError.Success con -> Co.validContacts con
-    ErpError.Error  _ -> True
-
-
-prop_valid_account a =
-    case a of
-        ErpError.Error _ -> True
-        _          -> Ac.validAccount a
-
-prop_valid_journal :: ErpError ModuleError Ac.Journal -> Bool
-prop_valid_journal (ErpError.Success aJournal )= Ac.validJournal aJournal
-prop_valid_journal (ErpError.Error _ ) = True
-
-
-
-prop1 :: ErpError ModuleError Pr.UOM -> Bool
-prop1 aValue =
-    case aValue of
-    ErpError.Error _ -> True
-    ErpError.Success aUOM -> Pr.validUOM aUOM
-
-prop_valid_dimensions :: ErpError.ErpError ModuleError Dimensions -> Bool
-prop_valid_dimensions aValue =
-    case aValue of
-    ErpError.Error _ -> True
-    ErpError.Success aDim -> Pr.validDimensions aDim
