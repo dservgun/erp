@@ -107,7 +107,7 @@ processMessages conn acid =
 
 updateDatabase connection acid aMessage = 
     do
-        r <- return $ J.decode $ E.encodeUtf8 $ L.fromStrict aMessage
+        r <- return $ pJSON aMessage
         case r of
           Just aRequest -> do
                   response <- processRequest connection acid aRequest

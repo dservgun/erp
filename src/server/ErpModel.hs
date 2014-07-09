@@ -26,6 +26,7 @@ module ErpModel (
         modelModuleName,
         nextRequestID,
         updateResponseID,
+        updateSequenceNumber,
         getRequestEmail,
         getRequestEntity,
         initializeDatabase,
@@ -150,6 +151,10 @@ data Response = Response {
 
 createResponse anID nextIDToUse responseVersion request payload =
     Response anID nextIDToUse responseVersion request payload
+
+
+updateSequenceNumber :: Response -> Request -> Request
+updateSequenceNumber aResponse aRequest = aRequest {requestID = getSequenceNumber aResponse}
 
 updateResponseID :: Response -> ErEr.ErpError ErEr.ModuleError Response -> 
     ErEr.ErpError ErEr.ModuleError Response

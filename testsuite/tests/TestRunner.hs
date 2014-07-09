@@ -30,6 +30,7 @@ import qualified Data.Text.Lazy.Encoding as En
 import qualified ErpModel as M
 import qualified Login as L
 import qualified Network.WebSockets as WS
+import qualified SystemSequence as SSeq
 import qualified System.Directory as SD
 import System.Log.Formatter
 import System.Log.Formatter
@@ -45,7 +46,7 @@ import Test.Hspec
 import Test.QuickCheck
 import TestHarness
 import Text.Printf
-
+import ErpServer
 
 testEmail = "test@test.org"
 createQueryDatabaseRequest anID login aPayload =
@@ -67,6 +68,14 @@ createLoginRequest anID login aPayload  = encode( toJSON (M.Request
                     (show Login) login
                     $ En.decodeUtf8 aPayload))
 
+createCategoryRequest1 :: SSeq.ID -> String -> Co.Category -> M.Request
+createCategoryRequest1 anID login aCategory =
+    M.Request
+        anID
+        M.Create
+        M.protocolVersion
+        (show UpdateCategory)
+        login $ En.decodeUtf8 $ encode $ toJSON $ aCategory
 
 createCategoryRequest anID login aPayload = 
         encode $ toJSON $ M.Request 
@@ -83,13 +92,31 @@ createCloseConnection anID login aPayload =
 
 endSession :: M.Response -> WS.Connection -> IO()
 endSession aResponse conn = 
-    let 
-        nextSequence = M.getSequenceNumber aResponse in 
     do
+        nextSequence <- return $ M.getSequenceNumber aResponse
         WS.sendTextData conn $  createCloseConnection nextSequence
                 testEmail $ 
-                encode $ toJSON testLogin      
-    
+                encode $ toJSON testLogin
+
+
+
+conversation :: WS.Connection -> [M.Request] -> M.Response -> IO ()
+conversation conn [] aResponse = endSession aResponse conn
+conversation conn (h:t) aResponse = do
+                WS.sendTextData conn $ encode $ toJSON (M.updateSequenceNumber aResponse h)
+                msg <- WS.receiveData conn
+                r <- return $ J.decode $ En.encodeUtf8 $ La.fromStrict msg
+                case r of 
+                    Just x -> conversation conn t x
+                    Nothing -> endSession aResponse conn
+
+-- For a client, the handshake is roughly as follows:
+-- client starts a session, in response the server
+-- sends the next sequence number to be used
+-- the client uses that to send subsequent request
+-- startSession -> getSessionSequenceNumber -> create request 
+-- -> until end of session
+
 
 
 clientStateMachine :: WS.Connection ->  M.Response -> IO ()
@@ -128,10 +155,22 @@ clientStateMachine conn aResponse = do
                                                 :: T.Text)                       
 
 
-parseLoginTestMessages :: WS.Connection -> IO()
-parseLoginTestMessages conn = do
+conversationTest :: WS.Connection -> IO()
+conversationTest conn = do
     msg <- WS.receiveData conn
     r <- return $ J.decode $ En.encodeUtf8 $ La.fromStrict msg
+    case r of
+        Just res -> do
+            nextSequenceNumber <- return $ M.getSequenceNumber res
+            sCat <- sampleCategoryMessages
+            infoM testModuleName "Conversation test"
+            conversation conn sCat res
+        Nothing -> return ()
+
+parseLoginTestMessages conn = do 
+    msg <- WS.receiveData conn
+    r <- return $ J.decode $ En.encodeUtf8 $ La.fromStrict msg
+    sampleCategoryMess <- sampleCategoryMessages    
     case r of
         Just aResponse -> clientStateMachine conn aResponse
         Nothing -> do
@@ -146,7 +185,8 @@ testModuleName = "TestRunner"
 loginTest :: Int -> WS.ClientApp ()
 loginTest aVer conn = do
     debugM testModuleName "Client Connected successfully"
-    tR <- async( parseLoginTestMessages conn)
+    -- tR <- async( parseLoginTestMessages conn)
+    tR <- async(conversationTest conn)
     -- Send a verified user and an unverified user,
     -- Recovery should not be showing the unverified user.
     debugM testModuleName "Sending login request"
@@ -155,8 +195,11 @@ loginTest aVer conn = do
     debugM testModuleName "loginTest complete."
 
 
-sampleCategoryMessages :: IO[Co.Category]
-sampleCategoryMessages = sample' arbitrary
+sampleCategoryMessages :: IO[M.Request]
+sampleCategoryMessages = do
+        s <- sample' arbitrary
+        mapM (\x -> return $ createCategoryRequest1 1 testEmail x) s
+
 
 
 serverTest = do 
