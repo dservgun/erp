@@ -279,7 +279,6 @@ sendNextSequence acid request =
                     res <- return $ M.createNextSequenceResponse emailId ( Just request)
                                 $ (M.nextRequestID  x request)
                     infoM M.modelModuleName $ "Using request " ++ show request
-                    infoM M.modelModuleName $ "Model state " ++ show x
                     infoM M.modelModuleName $ ("Send next sequence " ++ (show res))
                     return $ Just res
 

@@ -94,9 +94,12 @@ endSession :: M.Response -> WS.Connection -> IO()
 endSession aResponse conn = 
     do
         nextSequence <- return $ M.getSequenceNumber aResponse
+        infoM testModuleName "Ending session"
         WS.sendTextData conn $  createCloseConnection nextSequence
                 testEmail $ 
                 encode $ toJSON testLogin
+        msg <- (WS.receiveData conn :: IO T.Text)
+        WS.sendClose conn ("Ending session" :: T.Text)
 
 
 
