@@ -47,6 +47,9 @@ data InvalidRequest = InvalidRequest deriving (Show, Generic, Typeable, Eq, Ord)
 data InvalidLogin = InvalidLogin deriving (Show, Generic, Typeable, Eq, Ord)
 data InvalidCategory = InvalidCategory deriving (Show, Generic, Typeable, Eq, Ord)
 data IncomingRequestType = QueryNextSequence | Login | DeleteLogin | UpdateCategory | QueryDatabase | CloseConnection
+        | InsertParty
+        | QueryParty
+
     deriving (Show, Read, Generic, Typeable, Eq, Ord)
 
 
@@ -164,6 +167,13 @@ routeRequest connection acid UpdateCategory r    =
     case response of
       Just res -> return $ ErEr.createSuccess res
       Nothing -> return $ ErEr.createErrorS "ErpServer" "ES011" "Invalid Response"
+
+routeRequest connection acid InsertParty r = do
+    insertParty acid (M.emailId r) (L.toStrict $ payload r)
+    response <- sendNextSequence acid r
+    case response of
+      Just res -> return $ ErEr.createSuccess res
+      Nothing -> return $ ErEr.createErrorS "ERPServer" "ES012" ("Invalid response " ++ (show InsertParty))
 
 routeRequest connection acid QueryDatabase r    = do
   model <- queryDatabase acid (M.emailId r) $ L.toStrict (payload r)
@@ -318,10 +328,22 @@ queryDatabase acid emailId payload = do
     debugM M.modelModuleName $ "Query returned " ++ (show lookup)
     return lookup
 
+queryParty :: A.AcidState (A.EventState M.QueryParty) 
+  -> [Char] -> String -> Co.GeoLocation -> t 
+  -> IO (IO (A.EventResult M.QueryParty))
 queryParty acid emailId name aLocation payload = do
   debugM M.modelModuleName $ "Querying party" ++ emailId
-  lookup <- A.query acid(M.QueryParty emailId name aLocation)
-  return lookup
+  return $ A.query acid(M.QueryParty emailId name aLocation)
+
+insertParty acid emailId payload =
+  do
+    pObject <- return $ pJSON payload
+    case pObject of
+        Just p -> do
+          A.update acid (M.InsertParty emailId p)
+          return $ ErEr.createSuccess $ "Party added " ++ (show p)
+        Nothing -> return $ ErEr.createErrorS "ErpServer" "ES006" "Insert party failed"
+
 
 instance Exception InvalidCategory
 instance Exception InvalidLogin

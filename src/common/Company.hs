@@ -264,7 +264,7 @@ createParty name add loc contact cat vc categories contacts =
                 result2 = S.fold addAlternateCategories result categories
             in
                 ErpError.createSuccess $ S.fold addAlternatePocs result2 contacts
-        Error _ -> ErpError.createErrorS "Company" "InvParty" "Invalid Party"
+        Error _ -> ErpError.createErrorS "Company" "InvParty" "Invalid Location."
 
 findParty :: (Name, GeoLocation) -> S.Set Party -> ErpError ModuleError Party
 findParty a@(aName,aLocation) aSet =
