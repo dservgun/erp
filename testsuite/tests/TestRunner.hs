@@ -69,12 +69,33 @@ createLoginRequest anID login aPayload  = encode( toJSON (M.Request
                     $ En.decodeUtf8 aPayload))
 
 
+createInsertParty :: SSeq.ID -> String -> ErpError ModuleError Co.Party -> M.Request
+createInsertParty anID login aParty = 
+    case aParty of
+        ErpError.Success a -> 
+            M.Request 
+                anID
+                M.Create
+                M.protocolVersion
+                (show InsertParty)
+                login $ En.decodeUtf8 $ encode $ toJSON $ a
+        -- Error cases should generate some no-op requests.
+        ErpError.Error b -> 
+                M.Request 
+                    anID
+                    M.Create
+                    M.protocolVersion
+                    (show QueryDatabase) 
+                    login $ En.decodeUtf8 $ encode $ toJSON ("Invalid party" :: T.Text)
+
+
+
 createCategoryRequest1 :: SSeq.ID -> String -> Co.Category -> M.Request
 createCategoryRequest1 anID login aCategory =
     M.Request
         anID
         M.Create
-        M.protocolVersion
+        M.protocolVersion 
         (show UpdateCategory)
         login $ En.decodeUtf8 $ encode $ toJSON $ aCategory
 
@@ -117,16 +138,16 @@ conversation conn (h:t) aResponse = do
                     Nothing -> endSession aResponse conn
 
 
-conversationTest :: WS.Connection -> IO()
-conversationTest conn = do
+conversationTest :: WS.Connection -> IO [M.Request]-> IO()
+conversationTest conn messages = do
     msg <- WS.receiveData conn
     r <- return $ J.decode $ En.encodeUtf8 $ La.fromStrict msg
     case r of
         Just res -> do
             nextSequenceNumber <- return $ M.getSequenceNumber res
-            sCat <- sampleCategoryMessages
             infoM testModuleName "Conversation test"
-            conversation conn sCat res
+            input <- messages
+            conversation conn input res
         Nothing -> return ()
 
 
@@ -137,19 +158,24 @@ loginTest :: Int -> WS.ClientApp ()
 loginTest aVer conn = do
     debugM testModuleName "Client Connected successfully"
     -- tR <- async( parseLoginTestMessages conn)
-    tR <- async(conversationTest conn)
+    tR <- async(conversationTest conn sampleInsertPartyMessages)
     -- Send a verified user and an unverified user,
     -- Recovery should not be showing the unverified user.
-    debugM testModuleName "Sending login request"
+    debugM testModuleName "Starting session login request"
     WS.sendTextData conn $ createLoginRequest 1 testEmail $ encode $ toJSON testLogin
     wait tR
-    debugM testModuleName "loginTest complete."
+    debugM testModuleName "Test complete."
 
 
 sampleCategoryMessages :: IO[M.Request]
 sampleCategoryMessages = do
         s <- sample' arbitrary
         mapM (\x -> return $ createCategoryRequest1 1 testEmail x) s
+
+sampleInsertPartyMessages ::  IO[M.Request]
+sampleInsertPartyMessages = do
+    s <- sample' $ arbitrary :: IO [ErpError ModuleError Co.Party]
+    mapM (\x -> return $ createInsertParty 1 testEmail x) s
 
 
 
