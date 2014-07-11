@@ -179,7 +179,11 @@ sampleCategoryMessages = do
 
 sampleInsertPartyMessages ::  IO[M.Request]
 sampleInsertPartyMessages = do
-    s <- (sample' $ (suchThat arbitrary (\a -> a == a))):: IO [ErpError ModuleError Co.Party]
+    s <- (sample' $ (suchThat arbitrary (\a -> 
+            case a of 
+                ErpError.Success b -> True
+                ErpError.Error c -> False
+        ))):: IO [ErpError ModuleError Co.Party]
     mapM (\x -> return $ createInsertParty 1 testEmail x) s
 
 
