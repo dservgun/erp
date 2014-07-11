@@ -6,7 +6,8 @@
 import Control.Concurrent
 import Control.Concurrent.Async(async, wait, cancel)
 import Control.Exception
-import Control.Monad(forever, unless)
+import Control.Monad(forever, unless, liftM)
+
 import Control.Monad.Trans (liftIO)
 import Data.Aeson
 import Data.DateTime
@@ -56,37 +57,38 @@ createQueryDatabaseRequest anID login aPayload =
             login $ En.decodeUtf8 aPayload
 
 createQueryNextSequenceRequest anID login payload = 
-        encode $ toJSON $ M.Request anID M.Query
+        M.Request anID M.Query
             M.protocolVersion
             (show QueryNextSequence )
             login $ En.decodeUtf8 payload
 
-createLoginRequest anID login aPayload  = encode( toJSON (M.Request 
+createLoginRequestObj anID login aPayload  = M.Request 
                     anID
                     M.Create
                     M.protocolVersion
                     (show Login) login
-                    $ En.decodeUtf8 aPayload))
+                    $ En.decodeUtf8 aPayload
+
+createLoginRequest anID login aPayload  = encode $ toJSON $ createLoginRequestObj anID login aPayload
 
 
 createInsertParty :: SSeq.ID -> String -> ErpError ModuleError Co.Party -> M.Request
-createInsertParty anID login aParty = 
-    case aParty of
-        ErpError.Success a -> 
+createInsertParty anID login (ErpError.Success a) = 
             M.Request 
                 anID
                 M.Create
                 M.protocolVersion
                 (show InsertParty)
                 login $ En.decodeUtf8 $ encode $ toJSON $ a
+
+createInsertParty anID login (ErpError.Error b) = 
         -- Error cases should generate some no-op requests.
-        ErpError.Error b -> 
                 M.Request 
                     anID
                     M.Create
                     M.protocolVersion
                     (show QueryDatabase) 
-                    login $ En.decodeUtf8 $ encode $ toJSON ("Invalid party" :: T.Text)
+                    login $ En.decodeUtf8 $ encode $ toJSON $ (show b)
 
 
 
@@ -138,8 +140,13 @@ conversation conn (h:t) aResponse = do
                     Nothing -> endSession aResponse conn
 
 
-conversationTest :: WS.Connection -> IO [M.Request]-> IO()
-conversationTest conn messages = do
+startSession :: WS.Connection -> M.Request -> IO()
+startSession conn aMessage = WS.sendTextData conn $ createLoginRequest 1 testEmail 
+            $ encode $ toJSON testLogin
+
+conversationTest :: WS.Connection -> M.Request -> IO [M.Request]-> IO()
+conversationTest conn header messages = do
+    WS.sendTextData conn $ encode $ toJSON header
     msg <- WS.receiveData conn
     r <- return $ J.decode $ En.encodeUtf8 $ La.fromStrict msg
     case r of
@@ -154,15 +161,12 @@ conversationTest conn messages = do
 testLogin = L.Login "test@test.org" True
 testModuleName = "TestRunner" 
 
-loginTest :: Int -> WS.ClientApp ()
-loginTest aVer conn = do
+loginTest :: Int -> M.Request -> IO [M.Request] -> WS.ClientApp ()
+loginTest aVer header messages conn  = do
     debugM testModuleName "Client Connected successfully"
-    -- tR <- async( parseLoginTestMessages conn)
-    tR <- async(conversationTest conn sampleInsertPartyMessages)
+    tR <- async(conversationTest conn header messages)
     -- Send a verified user and an unverified user,
     -- Recovery should not be showing the unverified user.
-    debugM testModuleName "Starting session login request"
-    WS.sendTextData conn $ createLoginRequest 1 testEmail $ encode $ toJSON testLogin
     wait tR
     debugM testModuleName "Test complete."
 
@@ -172,9 +176,10 @@ sampleCategoryMessages = do
         s <- sample' arbitrary
         mapM (\x -> return $ createCategoryRequest1 1 testEmail x) s
 
+
 sampleInsertPartyMessages ::  IO[M.Request]
 sampleInsertPartyMessages = do
-    s <- sample' $ arbitrary :: IO [ErpError ModuleError Co.Party]
+    s <- (sample' $ (suchThat arbitrary (\a -> a == a))):: IO [ErpError ModuleError Co.Party]
     mapM (\x -> return $ createInsertParty 1 testEmail x) s
 
 
@@ -195,7 +200,10 @@ serverTest = do
     infoM testModuleName "SERVER started"
     mvarValue <- takeMVar m
     infoM testModuleName "SERVER ready"
-    c <- async (WS.runClient "localhost" 8082 "/" $ loginTest 2)
+
+    c <- async (WS.runClient "localhost" 8082 "/" $ loginTest 2 login sampleCategoryMessages)
+    rc <- wait c
+    c <- async (WS.runClient "localhost" 8082 "/" $ loginTest 2 login sampleInsertPartyMessages)
     rc <- wait c
     infoM testModuleName "End tests"
     -- Cancel the server thread when all tests are done
@@ -203,5 +211,7 @@ serverTest = do
     return ()
     where
         acidStateTestDir = "./dist/build/tests/state"
+        header = createQueryNextSequenceRequest (-1) testEmail $ encode $ toJSON testLogin
+        login = createLoginRequestObj 1 testEmail $ encode $ toJSON testLogin
 
 main = serverTest

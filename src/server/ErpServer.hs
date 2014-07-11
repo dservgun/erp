@@ -86,6 +86,7 @@ instance Show WS.Connection where
 handleConnection acid pending = do
   conn <- WS.acceptRequest pending
   infoM serverModuleName $ "Accepted connection " ++ show conn
+
   a1 <-   async (processMessages conn acid)
   r <- wait a1
   infoM serverModuleName "Handling connections..."
@@ -94,6 +95,7 @@ serverModuleName = "ErpServer"
 
 processMessages conn acid =
      handle catchDisconnect  $ forever $ do
+
      msg <- WS.receiveData conn
      infoM serverModuleName $ "Process messages " ++ (show msg)
      updateDatabase conn acid msg
@@ -141,7 +143,12 @@ payload = M.requestPayload
 
 routeRequest :: WS.Connection -> AcidState(EventState M.QueryLogin) -> IncomingRequestType -> M.Request -> 
   IO (ErEr.ErpError ErEr.ModuleError M.Response)
-routeRequest connection acid QueryNextSequence r = return $ ErEr.createErrorS "ErpServer" "ES006" "Command not supported??"
+routeRequest connection acid QueryNextSequence r = 
+  do
+    response <- sendNextSequence acid r
+    case response of
+      Just res -> return $ ErEr.createSuccess res
+      Nothing -> return $ ErEr.createErrorS "ErpServer" "ES013" ("Command failed " ++ show QueryNextSequence)
 
 routeRequest connection acid Login  r            = 
     do
@@ -196,7 +203,9 @@ checkProtocol iProtocolVersion = -- Returns a ErpError if wrong protocol
     if iProtocolVersion == M.protocolVersion then ErEr.createSuccess "Protocol supported" -- TODO : ErpError
     else ErEr.createErrorS "ErpServer" "ES003" "Unsupported protocol"
 
-processRequest :: WS.Connection -> AcidState (EventState M.GetDatabase) -> M.Request -> IO (ErEr.ErpError ErEr.ModuleError M.Response)
+
+processRequest :: WS.Connection -> AcidState (EventState M.GetDatabase) -> M.Request -> 
+  IO (ErEr.ErpError ErEr.ModuleError M.Response)
 processRequest connection acid r@(M.Request iRequestID requestType iProtocolVersion entity emailId payload) =
     --TODO: get the process entity so we are inside our own monad instead of IO
     case (checkProtocol iProtocolVersion) of
@@ -239,13 +248,17 @@ checkRequest acid r@(M.Request iRequestID requestType
     do
       infoM serverModuleName ("checkRequest " ++ (show r))
       erp <- A.query acid (M.GetDatabase emailId)
+      incomingRequestType <- return $ read entity
       infoM serverModuleName ("Querying erp returned " ++ (show erp))
       case erp of
         Nothing ->  return True
         Just x -> 
           do
             infoM serverModuleName (show x ++ " Input requestid " ++ (show iRequestID))
-            return $  ( M.nextRequestID x r ) == iRequestID
+            if incomingRequestType /= Login then
+                return $  ( M.nextRequestID x r ) == iRequestID
+            else
+                return True -- Login requests dont know the id??
 
 
 --Authentication is probably done using an oauth provider

@@ -61,3 +61,5 @@ getString e@(Error modError) = L.pack $ (unpack mName) ++ (unpack errorCode) ++ 
 
 $(deriveSafeCopy 0 'base ''ErpError)
 $(deriveSafeCopy 0 'base ''ModuleError)
+
+

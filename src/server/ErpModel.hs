@@ -327,9 +327,15 @@ insertRequest aRequest =
     do
         Database db <- get
         email <- return $ emailId aRequest
+        incomingRequestType <- return $ (requestEntity aRequest)
         let erp = M.lookup email db
         case erp of
-            Just m ->put (Database $ M.insert email (update m) db)
+            Just m -> 
+                    if incomingRequestType /= "Login" then
+                        put (Database $ M.insert email (update m) db)
+                    else
+                        put (Database $ M.insert email m db)
+
             Nothing -> put (Database $ M.insert email (update emptyModel) db)
 
 
