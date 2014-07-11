@@ -34,14 +34,9 @@ import qualified Network.WebSockets as WS
 import qualified SystemSequence as SSeq
 import qualified System.Directory as SD
 import System.Log.Formatter
-import System.Log.Formatter
 import System.Log.Handler (setFormatter)
-import System.Log.Handler (setFormatter) 
-import System.Log.Handler.Simple
 import System.Log.Handler.Simple
 import System.Log.Handler.Syslog
-import System.Log.Handler.Syslog
-import System.Log.Logger
 import System.Log.Logger
 import Test.Hspec
 import Test.QuickCheck
@@ -189,9 +184,12 @@ sampleInsertPartyMessages = do
 
 
 serverTest = do 
-    updateGlobalLogger M.modelModuleName $ setLevel DEBUG  
-    updateGlobalLogger testModuleName $ setLevel DEBUG 
-    updateGlobalLogger ErpServer.serverModuleName $ setLevel DEBUG
+    h <- fileHandler "debug.log" DEBUG 
+    lh <- return $ setFormatter h (simpleLogFormatter "[$time : $loggername : $prio] $msg")
+    updateGlobalLogger M.modelModuleName $ setLevel DEBUG . setHandlers[lh]
+    updateGlobalLogger testModuleName $ setLevel DEBUG . setHandlers[h]
+    updateGlobalLogger ErpServer.serverModuleName $ setLevel DEBUG . setHandlers[h]
+
     infoM testModuleName "Cleaning up past state."
     dirExists <- SD.doesDirectoryExist acidStateTestDir
     case dirExists of

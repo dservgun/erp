@@ -249,12 +249,11 @@ checkRequest acid r@(M.Request iRequestID requestType
       infoM serverModuleName ("checkRequest " ++ (show r))
       erp <- A.query acid (M.GetDatabase emailId)
       incomingRequestType <- return $ read entity
-      infoM serverModuleName ("Querying erp returned " ++ (show erp))
       case erp of
         Nothing ->  return True
         Just x -> 
           do
-            infoM serverModuleName (show x ++ " Input requestid " ++ (show iRequestID))
+            infoM serverModuleName (" Input requestid " ++ (show iRequestID))
             if incomingRequestType /= Login then
                 return $  ( M.nextRequestID x r ) == iRequestID
             else
