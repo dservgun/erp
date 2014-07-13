@@ -14,7 +14,7 @@ import Data.DateTime
 import Data.Text (Text)
 import Data.Time.Clock
 import ErpError
-import ErpServer (testServerMain, serverModuleName, IncomingRequestType(..))
+import ErpServer (testServerMain, serverModuleName)
 import GHC.Generics
 import Product as Pr
 import ProductSpec
@@ -43,6 +43,7 @@ import Test.QuickCheck
 import TestHarness
 import Text.Printf
 import ErpServer
+import IncomingRequestType
 
 testEmail = "test@test.org"
 createQueryDatabaseRequest anID login aPayload =
@@ -64,7 +65,28 @@ createLoginRequestObj anID login aPayload  = M.Request
                     (show Login) login
                     $ En.decodeUtf8 aPayload
 
-createLoginRequest anID login aPayload  = encode $ toJSON $ createLoginRequestObj anID login aPayload
+createLoginRequest anID login aPayload  = 
+    encode $ toJSON $ createLoginRequestObj anID login aPayload
+
+
+-- instance Arbitrary (ErpError.ErpError ErpError.ModuleError Pr.UOM) where
+
+createInsertUOM :: SSeq.ID -> String -> ErpError ModuleError Pr.UOM -> M.Request
+createInsertUOM anID login (ErpError.Success a) = 
+    M.Request 
+        anID
+        M.Create
+        M.protocolVersion
+        (show InsertUOM)
+        login $ En.decodeUtf8 $ encode $ toJSON a 
+
+createInsertUOM anID login (ErpError.Error b) =
+    M.Request
+        anID
+        M.Create
+        M.protocolVersion
+        (show QueryDatabase)
+        login $ En.decodeUtf8 $ encode $ toJSON $ show b
 
 
 createInsertParty :: SSeq.ID -> String -> ErpError ModuleError Co.Party -> M.Request
@@ -180,6 +202,7 @@ sampleInsertPartyMessages = do
                 ErpError.Error c -> False
         ))):: IO [ErpError ModuleError Co.Party]
     mapM (\x -> return $ createInsertParty 1 testEmail x) s
+
 
 
 

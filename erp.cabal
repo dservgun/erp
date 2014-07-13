@@ -30,6 +30,7 @@ library
                      Stock
                      StaleObject
                      Timesheet
+                     IncomingRequestType
 
     exposed: True
     buildable: True

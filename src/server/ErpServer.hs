@@ -38,6 +38,8 @@ import qualified ErpModel as M
 import qualified ErpError as ErEr
 import qualified Login as Lo
 import qualified Company as Co
+import qualified IncomingRequestType as IR 
+
 
 displayText = T.pack . show
 pJSON = J.decode . E.encodeUtf8 . L.fromStrict
@@ -46,11 +48,7 @@ pJSON = J.decode . E.encodeUtf8 . L.fromStrict
 data InvalidRequest = InvalidRequest deriving (Show, Generic, Typeable, Eq, Ord)
 data InvalidLogin = InvalidLogin deriving (Show, Generic, Typeable, Eq, Ord)
 data InvalidCategory = InvalidCategory deriving (Show, Generic, Typeable, Eq, Ord)
-data IncomingRequestType = QueryNextSequence | Login | DeleteLogin | UpdateCategory | QueryDatabase | CloseConnection
-        | InsertParty
-        | QueryParty
 
-    deriving (Show, Read, Generic, Typeable, Eq, Ord)
 
 
 testServerMain :: MVar String -> FilePath -> IO()
@@ -141,16 +139,17 @@ postProcessRequest connection acid r erpResponse = do
 
 payload = M.requestPayload
 
-routeRequest :: WS.Connection -> AcidState(EventState M.QueryLogin) -> IncomingRequestType -> M.Request -> 
+routeRequest :: WS.Connection -> AcidState(EventState M.QueryLogin) -> IR.IncomingRequestType -> M.Request -> 
   IO (ErEr.ErpError ErEr.ModuleError M.Response)
-routeRequest connection acid QueryNextSequence r = 
+routeRequest connection acid IR.QueryNextSequence r = 
   do
     response <- sendNextSequence acid r
     case response of
       Just res -> return $ ErEr.createSuccess res
-      Nothing -> return $ ErEr.createErrorS "ErpServer" "ES013" ("Command failed " ++ show QueryNextSequence)
+      Nothing -> return $ ErEr.createErrorS "ErpServer" "ES013" ("Command failed " 
+        ++ show IR.QueryNextSequence)
 
-routeRequest connection acid Login  r            = 
+routeRequest connection acid IR.Login  r            = 
     do
       updateLogin acid r
       response <- sendNextSequence acid r
@@ -158,7 +157,7 @@ routeRequest connection acid Login  r            =
         Just res -> return $ ErEr.createSuccess res
         Nothing -> return $ ErEr.createErrorS "ErpServer" "ES011" "Invalid response"
 
-routeRequest connection acid DeleteLogin r       = 
+routeRequest connection acid IR.DeleteLogin r       = 
     do
       deleteLoginA acid $ M.emailId r
       response <- sendNextSequence acid r
@@ -167,7 +166,7 @@ routeRequest connection acid DeleteLogin r       =
         Nothing -> return $ ErEr.createErrorS "ErpServer" "ES010" "Invalid response"
 
 
-routeRequest connection acid UpdateCategory r    = 
+routeRequest connection acid IR.UpdateCategory r    = 
   do
     updateCategory acid (M.emailId r) (L.toStrict (payload r))
     response <- sendNextSequence acid r
@@ -175,14 +174,14 @@ routeRequest connection acid UpdateCategory r    =
       Just res -> return $ ErEr.createSuccess res
       Nothing -> return $ ErEr.createErrorS "ErpServer" "ES011" "Invalid Response"
 
-routeRequest connection acid InsertParty r = do
+routeRequest connection acid IR.InsertParty r = do
     insertParty acid (M.emailId r) (L.toStrict $ payload r)
     response <- sendNextSequence acid r
     case response of
       Just res -> return $ ErEr.createSuccess res
-      Nothing -> return $ ErEr.createErrorS "ERPServer" "ES012" ("Invalid response " ++ (show InsertParty))
+      Nothing -> return $ ErEr.createErrorS "ERPServer" "ES012" ("Invalid response " ++ (show IR.InsertParty))
 
-routeRequest connection acid QueryDatabase r    = do
+routeRequest connection acid IR.QueryDatabase r    = do
   model <- queryDatabase acid (M.emailId r) $ L.toStrict (payload r)
   --log the model here if needed.
   response <- sendNextSequence acid r
@@ -190,7 +189,7 @@ routeRequest connection acid QueryDatabase r    = do
     Just res -> return $ ErEr.createSuccess res
     Nothing -> return $ ErEr.createErrorS "ErpServer" "ES012" "Invalid response"
 
-routeRequest connection acid CloseConnection  r = do
+routeRequest connection acid IR.CloseConnection  r = do
         -- Need to investigate how this following line is working
         response <- sendNextSequence acid r
         case response of
@@ -254,7 +253,7 @@ checkRequest acid r@(M.Request iRequestID requestType
         Just x -> 
           do
             infoM serverModuleName (" Input requestid " ++ (show iRequestID))
-            if incomingRequestType /= Login then
+            if incomingRequestType /= IR.Login then
                 return $  ( M.nextRequestID x r ) == iRequestID
             else
                 return True -- Login requests dont know the id??
@@ -362,5 +361,3 @@ instance Exception InvalidLogin
 instance Exception InvalidRequest
 instance J.ToJSON InvalidLogin
 instance J.FromJSON InvalidLogin
-instance J.ToJSON IncomingRequestType
-instance J.FromJSON IncomingRequestType
