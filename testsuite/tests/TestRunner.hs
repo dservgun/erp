@@ -203,7 +203,13 @@ sampleInsertPartyMessages = do
         ))):: IO [ErpError ModuleError Co.Party]
     mapM (\x -> return $ createInsertParty 1 testEmail x) s
 
-
+sampleInsertUOMMessages :: IO[M.Request]
+sampleInsertUOMMessages = do
+    s <- (sample' $ (suchThat arbitrary ( \a ->
+                case a of 
+                    ErpError.Success b -> True
+                    ErpError.Error _ -> False))) :: IO[ErpError ModuleError Pr.UOM]
+    mapM (\x -> return $ createInsertUOM 1 testEmail x) s 
 
 
 serverTest = do 
@@ -225,11 +231,10 @@ serverTest = do
     infoM testModuleName "SERVER started"
     mvarValue <- takeMVar m
     infoM testModuleName "SERVER ready"
-
-    c <- async (WS.runClient "localhost" 8082 "/" $ loginTest 2 login sampleCategoryMessages)
-    rc <- wait c
-    c <- async (WS.runClient "localhost" 8082 "/" $ loginTest 2 login sampleInsertPartyMessages)
-    rc <- wait c
+    mapM (\x -> do 
+                c <- async (WS.runClient "localhost" 8082 "/" $ loginTest 2 login x)
+                rc <- wait c
+                return ()) conversations
     infoM testModuleName "End tests"
     -- Cancel the server thread when all tests are done
     cancel s
@@ -238,5 +243,6 @@ serverTest = do
         acidStateTestDir = "./dist/build/tests/state"
         header = createQueryNextSequenceRequest (-1) testEmail $ encode $ toJSON testLogin
         login = createLoginRequestObj 1 testEmail $ encode $ toJSON testLogin
+        conversations = [sampleCategoryMessages, sampleInsertPartyMessages]
 
 main = serverTest
