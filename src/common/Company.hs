@@ -78,6 +78,7 @@ data Header = Header String
 data Footer = Footer String
     deriving(Show, Typeable, Data, Generic)
 
+
 data Company = Company {party :: Party,
                         currency :: Cu.Currency,
                         alternateCurrencies :: S.Set Cu.Currency,
@@ -105,9 +106,6 @@ createCompany aParty aCurrency alternateCurrencies products =
         Error a -> ErpError.createErrorS "Company" "InvCompany" "Invalid Company"
 
 
-resetCounter aCompany aProduct  =
-    aCompany {productBatchId = M.insert (show aProduct) 0 (productBatchId aCompany)}
-incrementCounter aCompany aProduct = M.adjust ( + 1) (show aProduct) (productBatchId aCompany)
 
 setPrimaryCurrency aCurrency aCompany =
         if currencyExists aCurrency aCompany then
@@ -121,6 +119,10 @@ addAlternateCurrencies aCurrency aCompany =
         aCompany
     else
         aCompany {alternateCurrencies = S.insert aCurrency (alternateCurrencies aCompany)}
+
+removeAlternateCurrency aCurrency aCompany = 
+        aCompany {alternateCurrencies = S.filter ( /= aCurrency) (alternateCurrencies aCompany) }
+
 currencyExists :: Cu.Currency -> Company -> Bool
 currencyExists aCurrency aCompany = (aCurrency == currency aCompany)
                         || (S.member aCurrency $ alternateCurrencies aCompany)
@@ -130,7 +132,11 @@ validCurrencies aCom = S.notMember (currency aCom)
 
 addProduct :: Company -> Pr.Product -> Company
 addProduct aCompany aProduct = aCompany {productSet = S.insert aProduct (productSet aCompany)}
-removeAlternateCurrency aCurrency aCompany = aCompany {alternateCurrencies = S.filter ( /= aCurrency) (alternateCurrencies aCompany) }
+
+resetCounter aCompany aProduct  =
+    aCompany {productBatchId = M.insert (show aProduct) 0 (productBatchId aCompany)}
+incrementCounter aCompany aProduct = M.adjust ( + 1) (show aProduct) (productBatchId aCompany)
+
 
 data CompanyReport = CompanyReport {fiscalYear :: Fy.FiscalYear,
                                     company :: Company,

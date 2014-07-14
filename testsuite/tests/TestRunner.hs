@@ -108,6 +108,26 @@ createInsertParty anID login (ErpError.Error b) =
                     login $ En.decodeUtf8 $ encode $ toJSON $ (show b)
 
 
+createInsertCompany :: SSeq.ID -> String -> ErpError ModuleError Co.Company -> M.Request
+createInsertCompany anID login (ErpError.Success a) = 
+            M.Request 
+                anID
+                M.Create
+                M.protocolVersion
+                (show InsertCompany)
+                login $ En.decodeUtf8 $ encode $ toJSON $ a
+
+createInsertCompany anID login (ErpError.Error b) = 
+        -- Error cases should generate some no-op requests.
+                M.Request 
+                    anID
+                    M.Create
+                    M.protocolVersion
+                    (show QueryDatabase) 
+                    login $ En.decodeUtf8 $ encode $ toJSON $ (show b)
+
+
+
 
 createCategoryRequest1 :: SSeq.ID -> String -> Co.Category -> M.Request
 createCategoryRequest1 anID login aCategory =
@@ -211,6 +231,16 @@ sampleInsertUOMMessages = do
                     ErpError.Error _ -> False))) :: IO[ErpError ModuleError Pr.UOM]
     mapM (\x -> return $ createInsertUOM 1 testEmail x) s 
 
+sampleInsertCompanyMessages  :: IO[M.Request]
+sampleInsertCompanyMessages = do
+    s <- (sample' $ (suchThat arbitrary ( \a ->
+                case a of 
+                    ErpError.Success b -> True
+                    ErpError.Error _ -> False))) :: IO[ErpError ModuleError Co.Company]
+    mapM (\x -> return $ createInsertCompany 1 testEmail x) s 
+
+
+
 
 serverTest = do 
     h <- fileHandler "debug.log" DEBUG 
@@ -243,6 +273,9 @@ serverTest = do
         acidStateTestDir = "./dist/build/tests/state"
         header = createQueryNextSequenceRequest (-1) testEmail $ encode $ toJSON testLogin
         login = createLoginRequestObj 1 testEmail $ encode $ toJSON testLogin
-        conversations = [sampleCategoryMessages, sampleInsertPartyMessages]
+        conversations = [sampleCategoryMessages
+                            , sampleInsertPartyMessages
+                            ,sampleInsertUOMMessages
+                        ]
 
 main = serverTest
