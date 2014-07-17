@@ -70,17 +70,18 @@ createLoginRequest anID login aPayload  =
 
 
 -- instance Arbitrary (ErpError.ErpError ErpError.ModuleError Pr.UOM) where
-
-createInsertUOM :: SSeq.ID -> String -> ErpError ModuleError Pr.UOM -> M.Request
-createInsertUOM anID login (ErpError.Success a) = 
+-- We just exploded the cases.
+createInsertUOM :: SSeq.ID -> String -> ErpError ModuleError Pr.UOM -> 
+    ErpError ModuleError Co.Company -> M.Request
+createInsertUOM anID login (ErpError.Success a) (ErpError.Success b) = 
     M.Request 
         anID
         M.Create
         M.protocolVersion
         (show InsertUOM)
-        login $ En.decodeUtf8 $ encode $ toJSON a 
+        login $ En.decodeUtf8 $ encode $ toJSON (a, b)
 
-createInsertUOM anID login (ErpError.Error b) =
+createInsertUOM anID login (ErpError.Error b) (ErpError.Error c) =
     M.Request
         anID
         M.Create
@@ -223,13 +224,13 @@ sampleInsertPartyMessages = do
         ))):: IO [ErpError ModuleError Co.Party]
     mapM (\x -> return $ createInsertParty 1 testEmail x) s
 
-sampleInsertUOMMessages :: IO[M.Request]
-sampleInsertUOMMessages = do
+sampleInsertUOMMessages :: ErpError ModuleError Co.Company -> IO[M.Request]
+sampleInsertUOMMessages company = do
     s <- (sample' $ (suchThat arbitrary ( \a ->
                 case a of 
                     ErpError.Success b -> True
                     ErpError.Error _ -> False))) :: IO[ErpError ModuleError Pr.UOM]
-    mapM (\x -> return $ createInsertUOM 1 testEmail x) s 
+    mapM (\x -> return $ createInsertUOM 1 testEmail x company) s 
 
 sampleInsertCompanyMessages  :: IO[M.Request]
 sampleInsertCompanyMessages = do
@@ -238,6 +239,7 @@ sampleInsertCompanyMessages = do
                     ErpError.Success b -> True
                     ErpError.Error _ -> False))) :: IO[ErpError ModuleError Co.Company]
     mapM (\x -> return $ createInsertCompany 1 testEmail x) s 
+
 
 
 
@@ -274,8 +276,8 @@ serverTest = do
         header = createQueryNextSequenceRequest (-1) testEmail $ encode $ toJSON testLogin
         login = createLoginRequestObj 1 testEmail $ encode $ toJSON testLogin
         conversations = [sampleCategoryMessages
-                            , sampleInsertPartyMessages
-                            ,sampleInsertUOMMessages
+--                            , sampleInsertPartyMessages
+                            , sampleInsertCompanyMessages
                         ]
 
 main = serverTest

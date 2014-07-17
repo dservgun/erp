@@ -29,6 +29,7 @@ import Test.QuickCheck
 import Product as Pr
 import Text.Printf
 
+
 instance Arbitrary Co.Category where
     arbitrary = do
         name <- arbitrary
@@ -39,6 +40,17 @@ instance Arbitrary Pr.UOMCategory where
             name <- arbitrary
             return (Pr.createUOMCategory name)
 
+instance Arbitrary Pr.Attribute where
+    arbitrary = do
+        name <- arbitrary
+        desc <- arbitrary
+        return $ Pr.createAttribute name desc 
+
+
+instance Arbitrary Pr.CostPriceMethod where
+    arbitrary = elements [Pr.Fixed, 
+                        Pr.Average Pr.LIFO,
+                        Pr.Average Pr.FIFO]
 instance Arbitrary Co.ContactType where
     arbitrary = elements [Co.Phone
                     , Co.Mobile
@@ -69,17 +81,6 @@ instance Arbitrary (ErpError ModuleError Co.Party) where
 
 -- How do we enforce the rate and factor relationship?
 
-instance Arbitrary (ErpError.ErpError ErpError.ModuleError Pr.UOM) where
-    arbitrary = do
-        name <- arbitrary
-        symbol <- arbitrary
-        category <- arbitrary
-        num <- suchThat arbitrary (/= 0)
-        denom <- suchThat arbitrary (/= 0)
-        rounding <- arbitrary
-        displayDigits <- arbitrary
-        uActive <- arbitrary
-        return (Pr.createUOM name symbol category num denom displayDigits rounding uActive)
 
 
 instance Arbitrary Cu.Currency where
@@ -130,16 +131,70 @@ instance Arbitrary (ErpError ModuleError Co.GeoLocation) where
         uri <- arbitrary
         position <- arbitrary
         return $ Co.createGeoLocation uri position
-instance Arbitrary Pr.Product where
 
+-- How do we enforce the rate and factor relationship?
+
+
+instance Arbitrary ProductType where
+    arbitrary = do
+        productTypes <- elements [Pr.Goods, Pr.Assets, Pr.Services]
+        return $ productTypes
+
+instance Arbitrary (ErpError ModuleError Pr.UOM) where
+    arbitrary = do
+        name <- arbitrary
+        symbol <- arbitrary
+        category <- arbitrary
+        num <- suchThat arbitrary (/= 0)
+        denom <- suchThat arbitrary (/= 0)
+        rounding <- arbitrary
+        displayDigits <- arbitrary
+        uActive <- arbitrary
+        return (Pr.createUOM name symbol category num denom displayDigits rounding uActive)
+
+instance Arbitrary (ErpError ModuleError Pr.Product) where
+    arbitrary = 
+        do
+            productUpcCode <- arbitrary
+            productDescription <- arbitrary
+            productName <- arbitrary
+            productType <- arbitrary
+            productCategory <- arbitrary
+            listPrice <- arbitrary
+            costPrice <- arbitrary
+            uom <- arbitrary
+            costPriceMethod <- arbitrary
+            attributes <- arbitrary
+            dimensions <- arbitrary
+            dimensionValues <- orderedList
+            dimensionKeys <- orderedList
+            active <- arbitrary
+            return $ Pr.createProduct productUpcCode
+                    productDescription
+                    productName
+                    productType
+                    productCategory
+                    listPrice costPrice costPriceMethod
+                    uom
+                    (S.fromList attributes)
+                    active
+                    dimensions 
+                    (Map.fromList $ zip dimensionKeys dimensionValues)
+                    
+
+
+
+--Note: well it is more convenient to add methods to 
+--maniuplate a company to adding products rather
+--than having us to handle more error cases.
+--TODO: Fix this
 instance Arbitrary (ErpError ModuleError Co.Company) where
      arbitrary = do
         party <- arbitrary
         currency <- arbitrary
         alternateCurrencies <- orderedList
-        productSet <- orderedList
         return (Co.createCompany party currency
-            (S.fromList alternateCurrencies) (S.fromList productSet))
+            (S.fromList alternateCurrencies) (S.empty))
 
 instance Arbitrary (ErpError ModuleError Co.CompanyWorkTime) where
     arbitrary = do

@@ -123,6 +123,7 @@ updateDatabase connection acid aMessage =
 
 updateRequests acid r = A.update acid(M.InsertRequest r)
 
+
 postProcessRequest connection acid r erpResponse = do
   nextSequenceResponse <- sendNextSequence acid  r  
   case nextSequenceResponse of
@@ -180,6 +181,14 @@ routeRequest connection acid IR.InsertParty r = do
     case response of
       Just res -> return $ ErEr.createSuccess res
       Nothing -> return $ ErEr.createErrorS "ERPServer" "ES012" ("Invalid response " ++ (show IR.InsertParty))
+routeRequest connection acid IR.InsertCompany r = do
+    debugM serverModuleName $ "Insert  company" ++ (show r)
+    insertCompany acid (M.emailId r) (L.toStrict $ payload r)
+    response <- sendNextSequence acid r
+    case response of
+      Just res -> return $ ErEr.createSuccess res
+      Nothing -> return $ ErEr.createErrorS "ERPServer" "ES012" ("Invalid response " ++ (show IR.InsertCompany))
+
 
 routeRequest connection acid IR.QueryDatabase r    = do
   model <- queryDatabase acid (M.emailId r) $ L.toStrict (payload r)
@@ -355,6 +364,15 @@ insertParty acid emailId payload =
           return $ ErEr.createSuccess $ "Party added " ++ (show p)
         Nothing -> return $ ErEr.createErrorS "ErpServer" "ES006" "Insert party failed"
 
+insertCompany acid emailId payload =
+    do
+      debugM serverModuleName $ "Processing " ++ (show payload)
+      pObject <- return $ pJSON payload
+      case pObject of 
+        Just p -> do
+          A.update acid (M.InsertCompany emailId p)
+          return $ ErEr.createSuccess $ "Company added" ++ (show p)
+        Nothing -> return $ ErEr.createErrorS "ErpServer" "ES007" "Insert company failed" 
 
 instance Exception InvalidCategory
 instance Exception InvalidLogin

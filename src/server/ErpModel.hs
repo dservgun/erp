@@ -13,6 +13,7 @@ module ErpModel (
         InsertParty(..),
         DeleteParty(..),
         QueryCompany(..),
+        InsertCompany(..),
         InsertResponse(..),
         InsertRequest(..),
         InsertLogin(..),
@@ -284,6 +285,14 @@ deleteParty aLogin aParty = do
         delP2 aParty model = model {partySet = S.delete aParty (partySet model)}
 
 
+insertCompany :: String -> Co.Company -> A.Update Database() 
+insertCompany aLogin aCompany = do
+    Database db <- get
+    erp <- return $ M.lookup aLogin db
+    case erp of 
+        Just exists -> put $ Database $ M.insert aLogin (updateCompany exists aCompany) db
+        Nothing -> return ()
+
 queryCompany :: String -> Co.Party -> 
     A.Query Database (ErEr.ErpError ErEr.ModuleError Co.Company)
 queryCompany aLogin aParty =
@@ -399,7 +408,8 @@ $(A.makeAcidic ''Database [
             , 'queryParty
             , 'insertParty
             , 'deleteParty
-            , 'queryCompany ])
+            , 'queryCompany
+            , 'insertCompany ])
 
 
 initializeDatabase  dbLocation = A.openLocalStateFrom dbLocation $ Database M.empty

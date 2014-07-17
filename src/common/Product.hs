@@ -2,17 +2,23 @@ module Product (
       UOM
     , createUOM
     , validUOM
+    , Attribute 
+    , createAttribute
     , UOMCategory
     , createUOMCategory
     , Price
     , createPrice
     , PriceUOM
     , Product
+    , createProduct
     , productWeight
     , Dimensions
     , Weight
     , createDimensions
     , validDimensions
+    , CostPriceMethod(..)
+    , CPMType(..)
+    , ProductType(..)
     )
 where
 import Control.Monad.State
@@ -108,6 +114,7 @@ createUOM name symbol category num den rounding displayDigits active =
             displayDigits active
 
 
+
 validUOM :: UOM -> Bool
 validUOM aUOM = ((rate aUOM) * (factor aUOM)) == 1
 
@@ -138,6 +145,8 @@ data Dimensions =
     Dimensions {lengthD :: Length, width :: Width, height :: Height, weight :: Weight}
     deriving (Show, Generic, Data, Typeable, Eq, Ord, Read)
 
+
+createAttribute = Attribute
 {--
 create dimensions for the product. Sizes will differ for different type
 of product sizes.
@@ -149,7 +158,7 @@ createDimensions a b c w =
         ErpError.createSuccess $ Dimensions a b c w
     else
         ErpError.createErrorS
-            "ProducT"
+            "Product"
             "InvDimensions"  ("Invalid dimensions "  ++ (show a) ++ "," ++
             (show b) ++ "," ++
             (show c) ++ ", " ++ (show w))
@@ -194,9 +203,63 @@ data Product = Product {
         -- Show interface should have sufficed:
         -- Need to find out
         dimensionsMap :: M.Map String (Dimensions, Image),
-        parentProduct :: Product,
         productHistory:: [ProductAudit]}
         deriving (Data,Show, Generic, Typeable, Eq, Ord)
+
+
+filterErrorDimensions :: M.Map String (ErpError ModuleError Dimensions, Image) 
+    -> M.Map String (Dimensions, Image)
+filterErrorDimensions input = 
+    M.map (\(x, y) -> 
+        case x of ErpError.Success w -> (w, y)) goodDimensions
+    where
+        goodDimensions = M.filter( \(x, w) -> case x of ErpError.Success y -> True ) input
+
+
+createProduct :: UPCCode -> String -> String -> ProductType 
+        -> UOMCategory -> (Price, ErpError ModuleError UOM) -> (Price, ErpError ModuleError UOM)
+        -> CostPriceMethod -> ErpError ModuleError UOM 
+        -> S.Set Attribute -> Bool
+        -> ErpError ModuleError Dimensions 
+        -> M.Map String (ErpError ModuleError Dimensions, Image)
+        -> ErpError ModuleError Product 
+
+
+createProduct upcCode desc name productType
+    productCategory
+    (lPrice, ErpError.Success lUom) (cPrice, ErpError.Success cUom) costPriceMethod
+    (ErpError.Success uom) attributes active (ErpError.Success dimensions) 
+    dimensionsMap  = 
+        ErpError.createSuccess 
+            $ Product upcCode desc name
+                productType
+                productCategory
+                (lPrice, lUom) (cPrice, cUom) costPriceMethod
+                uom attributes active dimensions 
+                (filterErrorDimensions dimensionsMap) []
+
+createProduct upcCode desc name productType
+    productCategory
+    listPrice costPrice costPriceMethod
+    (ErpError.Error uom) attributes active (ErpError.Error dimensions) 
+    dimensionsMap  = 
+        ErpError.createErrorS "Product" "PR001" ("Invalid product " ++ (show upcCode))
+
+createProduct upcCode desc name productType
+    productCategory
+    listPrice costPrice costPriceMethod
+    (ErpError.Success uom) attributes active (ErpError.Error dimensions) 
+    dimensionsMap  = 
+        ErpError.createErrorS "Product" "PR001" ("Invalid product " ++ (show upcCode))
+
+createProduct upcCode desc name productType
+    productCategory
+    listPrice costPrice costPriceMethod
+    (ErpError.Error uom) attributes active (ErpError.Success dimensions) 
+    dimensionsMap  = 
+        ErpError.createErrorS "Product" "PR001" ("Invalid product " ++ (show upcCode))
+
+
 
 productWeight :: Product -> String -> Weight
 productWeight a dimKey =
