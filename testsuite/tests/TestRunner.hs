@@ -232,12 +232,15 @@ sampleInsertUOMMessages company = do
                     ErpError.Error _ -> False))) :: IO[ErpError ModuleError Pr.UOM]
     mapM (\x -> return $ createInsertUOM 1 testEmail x company) s 
 
-sampleInsertCompanyMessages  :: IO[M.Request]
-sampleInsertCompanyMessages = do
-    s <- (sample' $ (suchThat arbitrary ( \a ->
+
+genSampleCompanyInstances = (sample' $ (suchThat arbitrary ( \a ->
                 case a of 
                     ErpError.Success b -> True
                     ErpError.Error _ -> False))) :: IO[ErpError ModuleError Co.Company]
+
+sampleInsertCompanyMessages  :: IO[M.Request]
+sampleInsertCompanyMessages = do
+    s <- genSampleCompanyInstances
     mapM (\x -> return $ createInsertCompany 1 testEmail x) s 
 
 
