@@ -24,7 +24,7 @@ where
 import Control.Monad.State
 import Control.Monad.Reader
 import Control.Exception
-import qualified Control.Applicative as C
+import Control.Applicative
 import qualified Data.Acid as A
 import Data.Acid.Remote
 import Data.SafeCopy
@@ -215,6 +215,38 @@ filterErrorDimensions input =
     where
         goodDimensions = M.filter( \(x, w) -> case x of ErpError.Success y -> True ) input
 
+createProductNew :: UPCCode -> String -> String -> ProductType 
+        -> UOMCategory
+        -> ErpM (Price,UOM)
+        -> ErpM (Price,UOM)
+        -> CostPriceMethod
+        -> ErpM UOM 
+        -> S.Set Attribute
+        -> Bool
+        -> ErpM Dimensions 
+        -> ErpM (M.Map String ( Dimensions, Image))
+        -> ErpM Product  
+createProductNew upcCode desc name productType
+    productCategory
+    calcLPriceProc calcCPriceProc costPriceMethod
+    uom attributes active  dimensions
+    dimensionsMapFiltered=
+               Product <$> pure upcCode
+                       <*> pure desc
+                       <*> pure name
+                       <*> pure productType
+                       <*> pure productCategory
+                       <*> calcLPriceProc
+                       <*> calcCPriceProc
+                       <*> pure costPriceMethod
+                       <*> uom
+                       <*> pure attributes
+                       <*> pure active
+                       <*> dimensions
+                       <*> dimensionsMapFiltered
+                       <*> pure []
+              
+ 
 
 createProduct :: UPCCode -> String -> String -> ProductType 
         -> UOMCategory -> (Price, ErpError ModuleError UOM) -> (Price, ErpError ModuleError UOM)

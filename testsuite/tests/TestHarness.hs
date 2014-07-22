@@ -97,7 +97,7 @@ instance Arbitrary Pr.Price where
         curr <- arbitrary
         return (Pr.createPrice price curr)
 
-instance Arbitrary (ErpError ModuleError Co.Latitude) where
+instance Arbitrary  (ErpM Co.Latitude) where
      arbitrary = do
         degrees <- arbitrary
         minutes <- arbitrary
@@ -121,7 +121,7 @@ instance Arbitrary (ErpError ModuleError Co.Longitude) where
         seconds <- arbitrary
         loDirec <- elements[Co.East, Co.West]
         return $ Co.createLongitude degrees minutes seconds loDirec
-instance Arbitrary (ErpError ModuleError Co.Coordinate) where
+instance Arbitrary (ErpM Co.Coordinate) where
     arbitrary = do
         lat <- arbitrary
         long <- arbitrary

@@ -30,7 +30,7 @@ module Company (createCompany, validCurrencies,
 import Control.Monad.State
 import Control.Monad.Reader
 import Control.Exception
-import qualified Control.Applicative as C
+import Control.Applicative    
 import qualified Data.Acid as A
 import Data.Acid.Remote
 import Data.SafeCopy
@@ -183,9 +183,15 @@ data Latitude = Latitude { lat :: CoordinateUnit,
 invalid :: Degrees -> Bool
 invalid a = a < 0 || a > 60
 
-createLatitude :: Degrees -> Minutes -> Seconds -> LatDirection ->
+
+createLatitude :: Degrees -> Minutes -> Seconds -> LatDirection -> ErpM Latitude
+createLatitude d m s dir = 
+    Latitude <$> pure (CoordinateUnit d m s )
+            <*>  pure dir
+
+createLatitudeOld :: Degrees -> Minutes -> Seconds -> LatDirection ->
     ErpError ModuleError Latitude
-createLatitude d m s dir=
+createLatitudeOld d m s dir=
     if (invalid d || invalid m || invalid s) then
         ErpError.createErrorS "Company" "CO001" "Invalid coordinates"
     else
@@ -196,23 +202,16 @@ data Longitude = Longitude { longitude :: CoordinateUnit,
     deriving (Show, Data, Typeable, Generic, Eq, Ord)
 
 createLongitude :: Degrees -> Minutes -> Seconds -> LongDirection ->
-       ErpError ModuleError Longitude
-createLongitude d m s dir =
-    if invalid d || invalid m || invalid s then
-        ErpError.createErrorS "Company" "CO_Inv_Long" "Invalid longitude"
-    else
-        ErpError.createSuccess $ Longitude (CoordinateUnit d m s) dir
+       ErpM Longitude
+createLongitude d m s dir = Longitude <$> pure (CoordinateUnit d m s )
+                        <*> pure dir
 
 data Coordinate = Coordinate { x :: Latitude, y :: Longitude}
     deriving (Show, Typeable, Data, Generic, Eq, Ord)
-createCoordinate :: ErpError ModuleError Latitude ->
-                    ErpError ModuleError Longitude ->
-                    ErpError ModuleError Coordinate
-createCoordinate la lo =
-        case (la, lo) of
-            (Success lat, Success long) -> ErpError.createSuccess $ Coordinate lat long
-            _               -> ErpError.createErrorS "Company"
-                                "CO_Inv_Coord" "Invalid coordinates"
+createCoordinate :: ErpM Latitude ->
+                    ErpM Longitude ->
+                    ErpM Coordinate
+createCoordinate la lo = Coordinate <$> la <*> lo
 
 data GeoLocation = GeoLocation{ uri :: URI,
                                 position :: Coordinate}
