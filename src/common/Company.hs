@@ -90,22 +90,15 @@ data Company = Company {party :: Party,
 instance Eq Company where
     a == b = party a == party b
 
-createCompany :: ErpError ModuleError Party -> Cu.Currency ->
+createCompany :: ErpM Party -> Cu.Currency ->
     S.Set Cu.Currency -> S.Set Pr.Product
-    -> ErpError ModuleError Company
+    -> ErpM Company
 createCompany aParty aCurrency alternateCurrencies products =
-    case aParty of
-        Success aP ->
-                let
-                    initProductBatch = map (\x -> (show x, 1) ) (S.elems products)
-                    result = Company aP aCurrency (S.fromList [])
-                            products (M.fromList initProductBatch)
-                in
-                    ErpError.createSuccess $ S.fold addAlternateCurrencies result
-                            alternateCurrencies
-        Error a -> ErpError.createErrorS "Company" "InvCompany" "Invalid Company"
-
-
+    Company <$> aParty 
+            <*> pure aCurrency
+            <*> pure alternateCurrencies
+            <*> pure products
+            <*> pure (M.empty)
 
 setPrimaryCurrency aCurrency aCompany =
         if currencyExists aCurrency aCompany then
@@ -189,13 +182,6 @@ createLatitude d m s dir =
     Latitude <$> pure (CoordinateUnit d m s )
             <*>  pure dir
 
-createLatitudeOld :: Degrees -> Minutes -> Seconds -> LatDirection ->
-    ErpError ModuleError Latitude
-createLatitudeOld d m s dir=
-    if (invalid d || invalid m || invalid s) then
-        ErpError.createErrorS "Company" "CO001" "Invalid coordinates"
-    else
-        ErpError.createSuccess $ Latitude (CoordinateUnit d m s) dir
 
 data Longitude = Longitude { longitude :: CoordinateUnit,
                             longDirection :: LongDirection}
@@ -216,12 +202,9 @@ createCoordinate la lo = Coordinate <$> la <*> lo
 data GeoLocation = GeoLocation{ uri :: URI,
                                 position :: Coordinate}
                         deriving (Show, Data, Typeable, Generic, Eq, Ord)
-createGeoLocation :: URI -> (ErpError ModuleError Coordinate) -> ErpError ModuleError GeoLocation
-createGeoLocation a b =
-    case b of
-        Success b -> ErpError.createSuccess $ GeoLocation a b
-        _         -> ErpError.createErrorS "Company" "Inv_Geo_Loc"
-                                        "Invalid geo location"
+createGeoLocation :: URI -> (ErpM Coordinate) -> ErpM GeoLocation
+createGeoLocation a b = GeoLocation <$> pure a <*> b
+
 type VCard = String
 type Address = String
 
@@ -251,25 +234,19 @@ data QueryParty = QueryParty {
 
 
 
-createParty :: Name -> Address -> ErpError ModuleError GeoLocation -> Contact -> Category
+createParty :: Name -> Address -> ErpM GeoLocation -> Contact -> Category
                     -> VCard -> S.Set Category -> S.Set Contact ->
-                    ErpError ModuleError Party
-createParty name add loc contact cat vc categories contacts =
-    case loc of
-        Success aLoc ->
-            let result = Party { name = name,
-                        address = add,
-                        maplocation = aLoc,
-                        poc = contact,
-                        primaryCategory = cat,
+                    ErpM Party
+createParty name address loc contact cat vc categories contacts =
+    Party <$> pure name 
+            <*> pure address
+            <*> loc
+            <*> pure contact
+            <*> pure cat
+            <*> pure vc
+            <*> pure categories
+            <*> pure contacts
 
-                        vcard = vc,
-                        alternateCategories = S.fromList [],
-                        alternatePocs = S.fromList[]}
-                result2 = S.fold addAlternateCategories result categories
-            in
-                ErpError.createSuccess $ S.fold addAlternatePocs result2 contacts
-        Error _ -> ErpError.createErrorS "Company" "InvParty" "Invalid Location."
 
 findParty :: (Name, GeoLocation) -> S.Set Party -> ErpError ModuleError Party
 findParty a@(aName,aLocation) aSet =

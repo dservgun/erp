@@ -12,6 +12,7 @@ import Control.Monad(forever, unless, liftM)
 import Control.Monad.Trans (liftIO)
 import Control.Exception
 import Control.Concurrent
+import Control.Applicative
 import Control.Concurrent.Async(async, wait, cancel)
 import Data.Text (Text)
 import qualified Data.Set as S
@@ -66,7 +67,7 @@ instance Arbitrary Co.Contact where
         value <- arbitrary
         return $ Co.Contact contactType value
 
-instance Arbitrary (ErpError ModuleError Co.Party) where
+instance Arbitrary (ErpM Co.Party) where
     arbitrary = do
         name <- arbitrary
         addresses <- orderedList
@@ -114,7 +115,7 @@ instance Arbitrary (ErpError ErpError.ModuleError Pr.Dimensions) where
         return $ Pr.createDimensions length width height weight
 
 
-instance Arbitrary (ErpError ModuleError Co.Longitude) where
+instance Arbitrary (ErpM Co.Longitude) where
     arbitrary = do
         degrees <- arbitrary
         minutes <- arbitrary
@@ -126,7 +127,7 @@ instance Arbitrary (ErpM Co.Coordinate) where
         lat <- arbitrary
         long <- arbitrary
         return $ Co.createCoordinate lat long
-instance Arbitrary (ErpError ModuleError Co.GeoLocation) where
+instance Arbitrary (ErpM Co.GeoLocation) where
      arbitrary = do
         uri <- arbitrary
         position <- arbitrary
@@ -188,7 +189,7 @@ instance Arbitrary (ErpError ModuleError Pr.Product) where
 --maniuplate a company to adding products rather
 --than having us to handle more error cases.
 --TODO: Fix this
-instance Arbitrary (ErpError ModuleError Co.Company) where
+instance Arbitrary (ErpM Co.Company) where
      arbitrary = do
         party <- arbitrary
         currency <- arbitrary
