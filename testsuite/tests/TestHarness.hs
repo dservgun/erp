@@ -141,7 +141,7 @@ instance Arbitrary ProductType where
         productTypes <- elements [Pr.Goods, Pr.Assets, Pr.Services]
         return $ productTypes
 
-instance Arbitrary (ErpError ModuleError Pr.UOM) where
+instance Arbitrary (ErpM Pr.UOM) where
     arbitrary = do
         name <- arbitrary
         symbol <- arbitrary
@@ -153,7 +153,7 @@ instance Arbitrary (ErpError ModuleError Pr.UOM) where
         uActive <- arbitrary
         return (Pr.createUOM name symbol category num denom displayDigits rounding uActive)
 
-instance Arbitrary (ErpError ModuleError Pr.Product) where
+instance Arbitrary (ErpM Pr.Product) where
     arbitrary = 
         do
             productUpcCode <- arbitrary
@@ -197,7 +197,7 @@ instance Arbitrary (ErpM Co.Company) where
         return (Co.createCompany party currency
             (S.fromList alternateCurrencies) (S.empty))
 
-instance Arbitrary (ErpError ModuleError Co.CompanyWorkTime) where
+instance Arbitrary (ErpM Co.CompanyWorkTime) where
     arbitrary = do
         company <- arbitrary
         hoursPerDay <- arbitrary
@@ -210,13 +210,15 @@ instance Arbitrary (ErpError ModuleError Co.CompanyWorkTime) where
             weeksPerMonth (0, 5)
             monthsPerYear (0, 12) )
 
+-- Why is this computation not under the
+-- ErpError monad?
 instance Arbitrary Ac.Batch where
     arbitrary = do
         time <- arbitrary
         id <- arbitrary
         return $ Ac.createBatch time id
 
-instance Arbitrary (ErpError ModuleError Ac.Account) where
+instance Arbitrary (ErpM Ac.Account) where
     arbitrary = do
         name <- arbitrary
         code <- arbitrary
@@ -231,7 +233,7 @@ instance Arbitrary (ErpError ModuleError Ac.Account) where
         return $ Ac.createAccount name code company currency
                     kind acType deferral altCurrency reconcile note
 
-instance Arbitrary (ErpError ModuleError Ac.Journal) where
+instance Arbitrary (ErpM Ac.Journal) where
     arbitrary = do
         name <- arbitrary
         code <- arbitrary
@@ -243,7 +245,7 @@ instance Arbitrary (ErpError ModuleError Ac.Journal) where
         defaultCreditAccount <- arbitrary
         return $ Ac.createJournal name code active view updatePosted Nothing journalType defaultDebitAccount defaultCreditAccount
 
-instance Arbitrary (ErpError ModuleError Ac.TaxCode) where
+instance Arbitrary (ErpM Ac.TaxCode) where
     arbitrary = do
         tcName <- arbitrary
         tcCode <- arbitrary
@@ -252,11 +254,11 @@ instance Arbitrary (ErpError ModuleError Ac.TaxCode) where
         sum <- arbitrary
         return $ Ac.createTaxCode tcName tcCode tcActive tcCompany sum
 
-instance Arbitrary (ErpError ModuleError Ac.Sign) where
+instance Arbitrary (ErpM Ac.Sign) where
     arbitrary = oneof [return $ ErpError.Success $ Ac.Positive,
             return $ ErpError.Success $ Ac.Negative]
 
-instance Arbitrary (ErpError ModuleError Ac.Tax) where
+instance Arbitrary (ErpM Ac.Tax) where
     arbitrary = do
         tName <- arbitrary
         tCode <- arbitrary
@@ -287,9 +289,9 @@ instance Arbitrary (ErpError ModuleError Ac.Tax) where
                 (convert (creditNoteBase, creditNoteSign))
                 (convert (creditNoteTaxCode, creditNoteTaxSign))
         where
-            convert :: (ErpError ModuleError Ac.Account,
-                        ErpError ModuleError Ac.Sign) ->
-                            ErpError ModuleError (Ac.Account, Ac.Sign)
+            convert :: (ErpM Ac.Account,
+                        ErpM Ac.Sign) ->
+                            ErpM (Ac.Account, Ac.Sign)
             convert (acc, sign) =
                 case (acc, sign) of
                     (ErpError.Success a, ErpError.Success s) -> ErpError.Success (a, s)
@@ -298,12 +300,4 @@ instance Arbitrary (ErpError ModuleError Ac.Tax) where
                             "Invalid Account"
 
 
-
-
-inject :: (ErpError ModuleError a, ErpError ModuleError b) -> ErpError ModuleError (a, b)
-inject (a1, a2) =
-    case (a1, a2) of
-        (ErpError.Success a, ErpError.Success s) -> ErpError.Success (a, s)
-        _ -> ErpError.createErrorS
-                "TestHarness" "InvTestCase" "Invalid account or sign"
 

@@ -15,8 +15,7 @@
 
 
 module ErpError (ErpM,
-    Erp(..)
-    , ErpError(Error,Success),
+    ErpError(Error,Success),
     createError,
     createSuccess,
     createErrorS,

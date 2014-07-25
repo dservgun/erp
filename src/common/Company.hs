@@ -141,7 +141,7 @@ data CompanyReport = CompanyReport {fiscalYear :: Fy.FiscalYear,
 type URI = String
 
 
-findCompany :: Party -> S.Set Company -> ErpError ModuleError Company
+findCompany :: Party -> S.Set Company -> ErpM Company
 findCompany aParty aCompanySet =
     let
         result = S.filter (\x -> party x == aParty) aCompanySet
@@ -248,7 +248,7 @@ createParty name address loc contact cat vc categories contacts =
             <*> pure contacts
 
 
-findParty :: (Name, GeoLocation) -> S.Set Party -> ErpError ModuleError Party
+findParty :: (Name, GeoLocation) -> S.Set Party -> ErpM Party
 findParty a@(aName,aLocation) aSet =
      let
         result = S.filter (\x -> name x == aName && maplocation x == aLocation) aSet
@@ -357,27 +357,21 @@ data InvalidWorkTime = InvalidWorkTime {h :: HoursPerDay, d :: DaysPerWeek, w ::
         deriving (Show, Typeable, Generic, Eq, Ord)
 instance Exception InvalidWorkTime
 
-createCompanyWorkTime :: ErpError ModuleError Company
+createCompanyWorkTime :: ErpM Company
     -> HoursPerDay -> (HoursPerDay, HoursPerDay)
     ->DaysPerWeek -> (DaysPerWeek, DaysPerWeek)
     -> WeeksPerMonth -> (WeeksPerMonth, WeeksPerMonth)
     -> MonthsPerYear -> (MonthsPerYear, MonthsPerYear)
-    -> ErpError ModuleError CompanyWorkTime
-createCompanyWorkTime aCompany hoursPerDay (minH, maxH)
-        daysPerWeek (minD, maxD)
-        weeksPerMonth (minW, maxW)
-        monthsPerYear (minM, maxM) =
-    if invalidHoursPerDay hoursPerDay (minH, maxH)||
-        invalidDaysPerWeek daysPerWeek (minD, maxD)||
-        invalidWeeksPerMonth weeksPerMonth (minW, maxW) ||
-        invalidMonthsPerYear monthsPerYear (minM, maxM) then
-        ErpError.createErrorS "Company" "InvWorkTime" "Invalid Work time"
-    else
-        case aCompany of
-            ErpError.Success aCom ->
-                    ErpError.createSuccess $ CompanyWorkTime aCom hoursPerDay daysPerWeek
-                        weeksPerMonth monthsPerYear
-            ErpError.Error _ -> ErpError.createErrorS "Company" "InvCompany" "Invalid Company"
+    -> ErpM CompanyWorkTime
+createCompanyWorkTime aCompany hpd (minHpd, maxHpd) 
+    dpw (minDpw, maxDpw) wpm (minWpm, maxWpm) 
+    mpy (minMpy, maxMpy) = 
+    CompanyWorkTime <$> aCompany
+        <*> pure hpd 
+        <*> pure dpw 
+        <*> pure wpm 
+        <*> pure mpy 
+
 
 
 invalidHoursPerDay :: Int -> (Int, Int) -> Bool
@@ -401,7 +395,8 @@ validHours :: CompanyWorkTime -> Hours -> Bool
 validHours aCompanyWorkTime maxHours =  (totalDays aCompanyWorkTime) < maxHours
 
 
-getContactTypes = map(\x -> (L.pack (show x),x)) ([minBound..maxBound]::[ContactType])
+getContactTypes = map(\x -> (L.pack $ show x,x)) 
+    ([minBound..maxBound]::[ContactType])
 
 
 

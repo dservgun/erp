@@ -71,8 +71,8 @@ createLoginRequest anID login aPayload  =
 
 -- instance Arbitrary (ErpError.ErpError ErpError.ModuleError Pr.UOM) where
 -- We just exploded the cases.
-createInsertUOM :: SSeq.ID -> String -> ErpError ModuleError Pr.UOM -> 
-    ErpError ModuleError Co.Company -> M.Request
+createInsertUOM :: SSeq.ID -> String -> ErpM Pr.UOM -> 
+    ErpM Co.Company -> M.Request
 createInsertUOM anID login (ErpError.Success a) (ErpError.Success b) = 
     M.Request 
         anID
@@ -90,7 +90,7 @@ createInsertUOM anID login (ErpError.Error b) (ErpError.Error c) =
         login $ En.decodeUtf8 $ encode $ toJSON $ show b
 
 
-createInsertParty :: SSeq.ID -> String -> ErpError ModuleError Co.Party -> M.Request
+createInsertParty :: SSeq.ID -> String -> ErpM Co.Party -> M.Request
 createInsertParty anID login (ErpError.Success a) = 
             M.Request 
                 anID
@@ -109,7 +109,7 @@ createInsertParty anID login (ErpError.Error b) =
                     login $ En.decodeUtf8 $ encode $ toJSON $ (show b)
 
 
-createInsertCompany :: SSeq.ID -> String -> ErpError ModuleError Co.Company -> M.Request
+createInsertCompany :: SSeq.ID -> String -> ErpM Co.Company -> M.Request
 createInsertCompany anID login (ErpError.Success a) = 
             M.Request 
                 anID
@@ -221,22 +221,22 @@ sampleInsertPartyMessages = do
             case a of 
                 ErpError.Success b -> True
                 ErpError.Error c -> False
-        ))):: IO [ErpError ModuleError Co.Party]
+        ))):: IO [ErpM Co.Party]
     mapM (\x -> return $ createInsertParty 1 testEmail x) s
 
-sampleInsertUOMMessages :: ErpError ModuleError Co.Company -> IO[M.Request]
+sampleInsertUOMMessages :: ErpM Co.Company -> IO[M.Request]
 sampleInsertUOMMessages company = do
     s <- (sample' $ (suchThat arbitrary ( \a ->
                 case a of 
                     ErpError.Success b -> True
-                    ErpError.Error _ -> False))) :: IO[ErpError ModuleError Pr.UOM]
+                    ErpError.Error _ -> False))) :: IO[ErpM Pr.UOM]
     mapM (\x -> return $ createInsertUOM 1 testEmail x company) s 
 
 
 genSampleCompanyInstances = (sample' $ (suchThat arbitrary ( \a ->
                 case a of 
                     ErpError.Success b -> True
-                    ErpError.Error _ -> False))) :: IO[ErpError ModuleError Co.Company]
+                    ErpError.Error _ -> False))) :: IO[ErpM Co.Company]
 
 sampleInsertCompanyMessages  :: IO[M.Request]
 sampleInsertCompanyMessages = do

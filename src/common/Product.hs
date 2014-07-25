@@ -104,14 +104,16 @@ instance Ord UOM where
 type Numerator = Integer
 type Denominator = Integer
 createUOM :: String -> String -> UOMCategory -> Numerator -> Denominator -> Int -> Int ->
-    Bool -> ErpError ModuleError UOM
+    Bool -> ErpM UOM
 createUOM name symbol category num den rounding displayDigits active =
-        if den == 0 then
-            ErpError.createErrorS  "Product" "InvalidUOM" "Invalid UOM"
-        else
-            ErpError.createSuccess $ UOM name symbol (createRootCategory category)
-            (num % den) (den % num) rounding
-            displayDigits active
+        UOM <$> pure name
+            <*> pure symbol
+            <*> pure (createRootCategory category)
+            <*> pure (num  % den)
+            <*> pure (den  % num)
+            <*> pure rounding
+            <*> pure displayDigits
+            <*> pure active
 
 
 
@@ -150,19 +152,24 @@ createAttribute = Attribute
 {--
 create dimensions for the product. Sizes will differ for different type
 of product sizes.
+    endif        
+    -- How do deal with this in applicative model?
+    --else
+    --    return $ createErrorS 
+    --        "Product"
+    --        "InvDimensions"  ("Invalid dimensions "  ++ (show a) ++ "," ++
+    --        (show b) ++ "," ++
+    --        (show c) ++ ", " ++ (show w))
+
 --}
 createDimensions :: Length -> Width -> Height -> Weight ->
-    ErpError ModuleError Dimensions
+    ErpM Dimensions
 createDimensions a b c w =
-    if a > 0 && b > 0  && c > 0 && w > 0 then
-        ErpError.createSuccess $ Dimensions a b c w
-    else
-        ErpError.createErrorS
-            "Product"
-            "InvDimensions"  ("Invalid dimensions "  ++ (show a) ++ "," ++
-            (show b) ++ "," ++
-            (show c) ++ ", " ++ (show w))
-
+    --if a > 0 && b > 0  && c > 0 && w > 0 then
+        Dimensions <$> pure a 
+            <*> pure b 
+            <*> pure c 
+            <*> pure w
 
 validDimensions :: Dimensions -> Bool
 validDimensions d  = a > 0 && b > 0 && c > 0 && w > 0
@@ -207,15 +214,8 @@ data Product = Product {
         deriving (Data,Show, Generic, Typeable, Eq, Ord)
 
 
-filterErrorDimensions :: M.Map String (ErpError ModuleError Dimensions, Image) 
-    -> M.Map String (Dimensions, Image)
-filterErrorDimensions input = 
-    M.map (\(x, y) -> 
-        case x of ErpError.Success w -> (w, y)) goodDimensions
-    where
-        goodDimensions = M.filter( \(x, w) -> case x of ErpError.Success y -> True ) input
 
-createProductNew :: UPCCode -> String -> String -> ProductType 
+createProduct :: UPCCode -> String -> String -> ProductType 
         -> UOMCategory
         -> ErpM (Price,UOM)
         -> ErpM (Price,UOM)
@@ -226,11 +226,11 @@ createProductNew :: UPCCode -> String -> String -> ProductType
         -> ErpM Dimensions 
         -> ErpM (M.Map String ( Dimensions, Image))
         -> ErpM Product  
-createProductNew upcCode desc name productType
+createProduct upcCode desc name productType
     productCategory
     calcLPriceProc calcCPriceProc costPriceMethod
     uom attributes active  dimensions
-    dimensionsMapFiltered=
+    dimensionsMapFiltered =
                Product <$> pure upcCode
                        <*> pure desc
                        <*> pure name
@@ -247,49 +247,6 @@ createProductNew upcCode desc name productType
                        <*> pure []
               
  
-
-createProduct :: UPCCode -> String -> String -> ProductType 
-        -> UOMCategory -> (Price, ErpError ModuleError UOM) -> (Price, ErpError ModuleError UOM)
-        -> CostPriceMethod -> ErpError ModuleError UOM 
-        -> S.Set Attribute -> Bool
-        -> ErpError ModuleError Dimensions 
-        -> M.Map String (ErpError ModuleError Dimensions, Image)
-        -> ErpError ModuleError Product 
-
-
-createProduct upcCode desc name productType
-    productCategory
-    (lPrice, ErpError.Success lUom) (cPrice, ErpError.Success cUom) costPriceMethod
-    (ErpError.Success uom) attributes active (ErpError.Success dimensions) 
-    dimensionsMap  = 
-        ErpError.createSuccess 
-            $ Product upcCode desc name
-                productType
-                productCategory
-                (lPrice, lUom) (cPrice, cUom) costPriceMethod
-                uom attributes active dimensions 
-                (filterErrorDimensions dimensionsMap) []
-
-createProduct upcCode desc name productType
-    productCategory
-    listPrice costPrice costPriceMethod
-    (ErpError.Error uom) attributes active (ErpError.Error dimensions) 
-    dimensionsMap  = 
-        ErpError.createErrorS "Product" "PR001" ("Invalid product " ++ (show upcCode))
-
-createProduct upcCode desc name productType
-    productCategory
-    listPrice costPrice costPriceMethod
-    (ErpError.Success uom) attributes active (ErpError.Error dimensions) 
-    dimensionsMap  = 
-        ErpError.createErrorS "Product" "PR001" ("Invalid product " ++ (show upcCode))
-
-createProduct upcCode desc name productType
-    productCategory
-    listPrice costPrice costPriceMethod
-    (ErpError.Error uom) attributes active (ErpError.Success dimensions) 
-    dimensionsMap  = 
-        ErpError.createErrorS "Product" "PR001" ("Invalid product " ++ (show upcCode))
 
 
 
