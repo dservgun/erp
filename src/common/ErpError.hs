@@ -15,11 +15,13 @@
 
 
 module ErpError (ErpM,
-    ErpError(Error,Success),
-    createError,
+    ErpError(..),
     createSuccess,
-    createErrorS,
     getString,
+    erpError,
+    erpErrorNM,
+    Erp,
+    runErp,
     ModuleError
 ) where
 import Data.Acid.Remote()
@@ -111,13 +113,7 @@ data ModuleError = ModuleError {
       errorMessage :: ErrorMessage
     } deriving (Show, Eq, Ord, Typeable, Generic, Data)
 
-createError :: ModuleName -> ErrorCode -> ErrorMessage -> ModuleError
-createError = ModuleError
-
-createErrorS :: String -> String -> String -> ErpError ModuleError a
-createErrorS a b c = Error $ createError (L.pack a) (L.pack b) (L.pack c)
-
-createSuccess :: a -> ErpError ModuleError a
+createSuccess :: a -> ErpError [ModuleError] a
 createSuccess a = Success a
 
 -- hack to work around the typesystem.
@@ -126,8 +122,11 @@ getString :: ErpError ModuleError a0 -> L.Text
 getString e@(Error modError) = L.pack $ (unpack mName) ++ (unpack errorCode) ++ (unpack errorMessage)
     where unpack x = L.unpack $ x modError
 
+
+erpError aModule code message= Erp . return $ Error [ModuleError aModule code message]
+
+erpErrorNM aModule code message = Error [ModuleError aModule code message]
+
 $(deriveSafeCopy 0 'base ''ErpError)
 $(deriveSafeCopy 0 'base ''ModuleError)
-
-
 

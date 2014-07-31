@@ -157,14 +157,15 @@ createResponse anID nextIDToUse responseVersion request payload =
 updateSequenceNumber :: Response -> Request -> Request
 updateSequenceNumber aResponse aRequest = aRequest {requestID = getSequenceNumber aResponse}
 
-updateResponseID :: Response -> ErEr.ErpError ErEr.ModuleError Response -> 
-    ErEr.ErpError ErEr.ModuleError Response
+updateResponseID :: Response -> ErEr.ErpError [ErEr.ModuleError] Response -> 
+    ErEr.ErpError [ErEr.ModuleError] Response
 
 updateResponseID newResponse (ErEr.Success oldResponse) = 
-        ErEr.Success oldResponse {responseID = responseID newResponse 
+        ErEr.createSuccess oldResponse {responseID = responseID newResponse 
         , requestIDToUse = requestIDToUse newResponse}
 
-updateResponseID newResponse (ErEr.Error x ) = ErEr.Error x
+updateResponseID newResponse (ErEr.Error x ) = ErEr.erpErrorNM "ErpModel" "EM001000" $
+    L.pack $ show x
 
 -- Unwrap the request type from the response
 getResponseEntity :: Response -> Maybe RequestEntity
@@ -255,15 +256,14 @@ updateParty aModel aParty =
 -- The assumption being that a given party and 
 -- location will be unique.
 queryParty :: String -> String -> Co.GeoLocation -> 
-    A.Query Database (ErEr.ErpError ErEr.ModuleError Co.Party)
+    A.Query Database (ErEr.ErpError [ErEr.ModuleError] Co.Party)
 queryParty aLogin aName aLocation  =
-    do
+    do -- Database monad
         Database db <- ask
-        erp <- return $ M.lookup aLogin db
+        erp <- return $ M.lookup aLogin db       
         case erp of
-            Nothing -> throw Co.CompanyNotFound
-            Just x -> return $ Co.findParty (aName, aLocation) (partySet x)
-
+            Nothing -> return $ ErEr.erpErrorNM "ErpModel" "EM001" "No model found"
+            Just x -> return $ (Co.findParty (aName, aLocation) (partySet x))
 
 insertParty :: String -> Co.Party -> A.Update Database ()
 insertParty aLogin p =
@@ -294,18 +294,18 @@ insertCompany aLogin aCompany = do
         Nothing -> return ()
 
 queryCompany :: String -> Co.Party -> 
-    A.Query Database (ErEr.ErpError ErEr.ModuleError Co.Company)
+    A.Query Database (ErEr.ErpError [ErEr.ModuleError] Co.Company)
 queryCompany aLogin aParty =
     do
         Database db <- ask
         erp <- return $ M.lookup aLogin db
         case erp of
-            Nothing -> return $ ErEr.createErrorS "ErpModel" "EM001" 
-                        $ "Party not found " ++ show aParty ++ " for " ++ aLogin
+            Nothing -> return $ ErEr.erpErrorNM "ErpModel" "EM001" 
+                        $ L.pack ("Party not found " ++ show aParty ++ " for " ++ aLogin)
             Just x -> return $ Co.findCompany aParty (companySet x)
 
 
-insertResponse :: Response -> A.Update Database (ErEr.ErpError ErEr.ModuleError Response)
+insertResponse :: Response -> A.Update Database (ErEr.ErpError [ErEr.ModuleError] Response)
 insertResponse  aResponse = 
     let 
         update aModel = aModel {responses = aResponse : (responses aModel)}
@@ -324,8 +324,10 @@ insertResponse  aResponse =
                                             return $ ErEr.createSuccess aResponse
                                     Nothing -> do
                                             put (Database $ M.insert (emailId iR) (update emptyModel) db)
-                                            return $ ErEr.createErrorS "ErpModel" "EM002"$ show aResponse
-            Nothing -> return $ ErEr.createErrorS "ErpModel" "EM002" $ "Could not parse request " ++ (show aResponse)
+                                            return $ ErEr.erpErrorNM "ErpModel" "EM002"$ 
+                                                L.pack $ show aResponse
+            Nothing -> return $ ErEr.erpErrorNM "ErpModel" "EM002" $ 
+                L.pack $ "Could not parse request " ++ (show aResponse)
 
 
 insertRequest ::  Request -> A.Update Database ()
@@ -423,7 +425,7 @@ disconnect acid  = do
 sendTextData :: WS.Connection -> L.Text -> IO()
 sendTextData connection aText = WS.sendTextData connection aText
 
-sendMessage :: WS.Connection -> ErEr.ErpError ErEr.ModuleError Response-> IO()
+sendMessage :: WS.Connection -> ErEr.ErpError [ErEr.ModuleError] Response-> IO()
 sendMessage connection (ErEr.Success aResponse) =
     WS.sendTextData connection $ J.encode aResponse
 sendMesssage connection (ErEr.Error aModuleError) =

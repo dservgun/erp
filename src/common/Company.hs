@@ -141,20 +141,20 @@ data CompanyReport = CompanyReport {fiscalYear :: Fy.FiscalYear,
 type URI = String
 
 
-findCompany :: Party -> S.Set Company -> ErpM Company
+findCompany :: Party -> S.Set Company -> ErpError [ModuleError] Company
 findCompany aParty aCompanySet =
     let
         result = S.filter (\x -> party x == aParty) aCompanySet
     in
         if S.null result then
-            ErpError.createErrorS "Company" "C0002" "Company Not found"
+            erpErrorNM "Company" "C0002" "Company Not found"
         else
             case elems result of
-                [h] -> ErpError.createSuccess h
+                [h] -> createSuccess h
                 -- This should never happen? 
                 -- What does it mean, when this happens?
-                h:t -> ErpError.createErrorS "Company" "C0003" 
-                    $ "Duplicate companies " ++ show h ++ " and " ++ show t
+                h:t -> erpErrorNM "Company" "C0003" 
+                    (L.pack("Duplicate companies " ++ (show h) ++ " and " ++ (show t)))
              where
                 elems aSet = S.elems aSet
 
@@ -248,17 +248,17 @@ createParty name address loc contact cat vc categories contacts =
             <*> pure contacts
 
 
-findParty :: (Name, GeoLocation) -> S.Set Party -> ErpM Party
+findParty :: (Name, GeoLocation) -> S.Set Party -> ErpError [ModuleError] Party
 findParty a@(aName,aLocation) aSet =
      let
         result = S.filter (\x -> name x == aName && maplocation x == aLocation) aSet
      in
         if S.null result then
-            ErpError.createErrorS "Company" "C002" $ "Party not found " ++ (show a)
+            erpErrorNM "Company" "C002" $ L.pack $ "Party not found " ++ show a
         else
             case elems result of
-                h:[] -> ErpError.createSuccess h
-                h:t -> ErpError.createErrorS "Company" "C0003" $ "Duplicate parties found " ++ (show h) ++ (show t)
+                h:[] -> createSuccess h
+                h:t -> erpErrorNM "Company" "C0003" $ L.pack $ "Duplicate parties found " ++ show h ++ "->" ++ show t
             where
                 elems aSet = S.elems aSet
 
@@ -367,10 +367,17 @@ createCompanyWorkTime aCompany hpd (minHpd, maxHpd)
     dpw (minDpw, maxDpw) wpm (minWpm, maxWpm) 
     mpy (minMpy, maxMpy) = 
     CompanyWorkTime <$> aCompany
-        <*> pure hpd 
+        <*> chkHpd  
         <*> pure dpw 
         <*> pure wpm 
         <*> pure mpy 
+    where
+        chkHpd = if hpd >= minHpd && hpd < maxHpd 
+                    then pure hpd 
+                    else 
+                        erpError "Company" "COWT001" "Cant work too less or too much!" 
+
+
 
 
 
@@ -465,3 +472,4 @@ $(deriveSafeCopy 0 'base ''Coordinate)
 $(deriveSafeCopy 0 'base ''PaymentTerm)
 $(deriveSafeCopy 0 'base ''Day)
 $(deriveSafeCopy 0 'base ''QueryParty)
+

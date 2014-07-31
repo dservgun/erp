@@ -25,10 +25,10 @@ module Account (
     AccountType(..),
     Batch, createBatch
 )where
+import Control.Applicative
 import Control.Monad.State
 import Control.Monad.Reader
 import Control.Exception
-import qualified Control.Applicative as C
 import qualified Data.Acid as A
 import Data.Acid.Remote
 import Data.SafeCopy
@@ -92,10 +92,34 @@ data Account = Account {
         -- Dunning aka payment reminders
         dunningSet :: S.Set Dunning}
         deriving(Show,Typeable, Data, Generic, Eq, Ord)
-type DebitAccount = ErpError ModuleError Account
-type CreditAccount = ErpError ModuleError Account
+
+type DebitAccount = ErpM Account
+type CreditAccount = ErpM Account
 type DisplayView = String
-{--  Is this a debit account? --}
+
+{-createAccount :: Name -> Code ->
+                ErpM Co.Company -> Cu.Currency -> AccountKind
+            -> AccountType -> Boolean -> Cu.Currency
+            -> Boolean -> String -> ErpM Account
+-}
+createAccount aName aCode aCurrency aKind
+    aType deferral altCurrency
+    reconcile note = 
+        Account 
+        <$> pure aName
+        <*> pure aCode
+        <*> aCompany
+        <*> pure aCurrency
+        <*> pure aKind
+        <*> pure aType
+        <*> pure deferral
+        <*> pure altCurrency
+        <*> pure reconcile
+        <*> pure note
+        <*> pure (S.empty)
+
+
+
 isDebit :: Account -> Bool
 isDebit anAccount =
     let accType = acKind anAccount in
@@ -119,27 +143,15 @@ isCredit anAccount =
             AkRevenue -> True
             _         -> False
 
-createAccount :: Name -> Code ->
-                ErpError ModuleError Co.Company -> Cu.Currency -> AccountKind
-            -> AccountType -> Boolean -> Cu.Currency
-            -> Boolean -> String -> ErpError ModuleError Account
-createAccount aName aCode aCompany aCurrency aKind
-    aType deferral altCurrency
-    reconcile note =
-    case aCompany of
-    Success aCom ->
-            if altCurrency /= aCurrency then
-                ErpError.createSuccess $
-                    Account aName aCode aCom aCurrency aKind aType deferral
-                    altCurrency reconcile note S.empty
-            else
-                ErpError.createErrorS "Account" "InvAccount" "Invalid Account"
-    Error _ -> ErpError.createErrorS "Account" "InvCompany" "Invalid Company"
-validAccount :: ErpError ModuleError Account -> Bool
-validAccount anAccount =
-    case anAccount of
-        Success x -> currency x /= altCurrency x
-        _ -> False
+
+validAccount :: ErpM Account -> IO Bool
+validAccount anAccount = do
+    x <- runErp anAccount
+    case x of 
+        Success y -> return $ currency y /= altCurrency y
+        _   -> return False
+
+
 data JournalType = General | Revenue | Situation | Expense
         | Cash
         deriving (Show, Typeable, Generic, Eq, Ord, Data)
@@ -169,28 +181,19 @@ instance Ord Journal where
 
 createJournal :: Name -> Code -> Bool -> DisplayView -> Bool ->
     Maybe (Tr.Tree Tax) -> JournalType -> DebitAccount -> CreditAccount ->
-        ErpError ModuleError Journal
+        ErpM Journal
 createJournal aName aCode active view updatePosted taxes jType 
         defaultDebitAccount defaultCreditAccount =
-    case jType of
-        Expense -> jObject
-        Revenue -> jObject
-        _ ->
-            case (defaultDebitAccount, defaultCreditAccount) of
-                (Success x, Success y) ->
-                    ErpError.createSuccess $ Journal aName aCode active view
-                              updatePosted Nothing jType
-                              x y S.empty
-                _  -> ErpError.createErrorS "Account" "InvJournal" "Invalid Journal"
-        where
-            jObject =
-                case (defaultDebitAccount, defaultCreditAccount) of
-                    (Success x, Success y) ->
-                        Success $ Journal
-                        aName aCode active view updatePosted taxes jType
-                        x
-                        y S.empty
-                    _ -> ErpError.createErrorS "Account" "InvJournal" "Invalid Journal"
+            Journal <$> pure aName
+                <*> pure aCode
+                <*> pure active
+                <*> pure view
+                <*> pure updatePosted
+                <*> pure taxes
+                <*> pure jType
+                <*> defaultDebitAccount
+                <*> defaultCreditAccount
+                <*> pure S.empty
 
 validJournal :: Journal -> Bool
 validJournal aJournal =
@@ -279,12 +282,14 @@ data TaxCode = TaxCode {
     sum :: Amount} deriving (Show, Typeable, Generic, Eq, Ord, Data)
 
 createTaxCode :: Name -> Code -> Boolean ->
-    ErpError ModuleError Co.Company -> Amount ->
-    ErpError ModuleError TaxCode
-createTaxCode n c a com s =
-    case com of
-    Success aC -> Success $ TaxCode n c a aC s
-    Error _ -> ErpError.createErrorS "Acount" "INVTC" "Invalid tax code"
+    ErpM Co.Company -> Amount ->
+    ErpM TaxCode
+createTaxCode n c a com s = 
+    TaxCode <$> pure n
+            <*> pure c 
+            <*> pure a
+            <*> com
+            <*> pure s
 
 
 {-- | Add the child to a parent. If the child exists in the tree,
@@ -303,7 +308,7 @@ Refactoring note: credit note account
 and invoice account repeat fields.
 --}
 type AccountCode = (Account, Sign)
-type ErrorAccountCode = ErpError ModuleError (Account, Sign)
+type ErrorAccountCode = ErpM (Account, Sign)
 data Tax = Tax {
  tName :: Name,
  tCode :: Code,
@@ -321,24 +326,27 @@ data Tax = Tax {
  } deriving(Show, Typeable, Generic, Eq, Ord, Data)
 
 createTax :: Name -> Code -> String -> Boolean -> Sequence -> TaxType ->
-               ErpError ModuleError Co.Company
-            -> ErpError ModuleError Account
-            -> ErpError ModuleError Account
+               ErpM Co.Company
+            -> ErpM Account
+            -> ErpM Account
             -> ErrorAccountCode
             -> ErrorAccountCode
             -> ErrorAccountCode
-            -> ErrorAccountCode -> ErpError ModuleError Tax
+            -> ErrorAccountCode -> ErpM Tax
 createTax n c s b se tt co acc1 acc2 a1 a2 a3 a4 =
-    case (acc1, acc2) of
-    (Success a11, Success a21) ->
-        case (a1, a2, a3, a4) of
-            (Success a211, Success a222, Success a333, Success a444) ->
-                case co of
-                    Success aCo ->
-                        Success $ Tax n c s b se tt aCo a11 a21 a211 a222 a333 a444
-                    Error _ -> ErpError.createErrorS "Account" "InvTax" "Invalid Tax"
-            _ -> ErpError.createErrorS "Account" "InvAccount" "Invalid Acccounts"
-    _               -> ErpError.createErrorS "Account" "InvAccount" "Invalid Accounts"
+    Tax <$>  pure n 
+        <*>  pure c
+        <*>  pure s
+        <*>  pure b
+        <*>  pure se
+        <*>  pure tt
+        <*>  co
+        <*>  acc1
+        <*>  acc2
+        <*>  a1
+        <*>  a2
+        <*>  a3
+        <*>  a4 
 
 
 validTax :: Tax -> Bool

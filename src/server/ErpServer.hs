@@ -119,7 +119,8 @@ updateDatabase connection acid aMessage =
           _ -> do
                 errorM serverModuleName (show r)
                 M.sendError connection Nothing "Error"
-                return $ ErEr.createErrorS "ErpServer" "ES002" $ "Invalid message " ++ (show aMessage)
+                return $ ErEr.erpErrorNM "ErpServer" "ES002" $ 
+                  L.pack $ "Invalid message " ++ (show aMessage)
 
 updateRequests acid r = A.update acid(M.InsertRequest r)
 
@@ -133,22 +134,22 @@ postProcessRequest connection acid r erpResponse = do
                 M.sendMessage connection (M.updateResponseID x erpResponse)
                 return erpResponse
     Nothing -> do
-        moduleError <- return $ ErEr.createErrorS "ErpServer" "ES001" $ "Invalid response " ++ show r
+        moduleError <- return $ ErEr.erpErrorNM "ErpServer" "ES001" "Invalid response"
         M.sendMessage connection moduleError
-        return moduleError
+        return erpResponse
 
 
 payload = M.requestPayload
 
 routeRequest :: WS.Connection -> AcidState(EventState M.QueryLogin) -> IR.IncomingRequestType -> M.Request -> 
-  IO (ErEr.ErpError ErEr.ModuleError M.Response)
+  IO (ErEr.ErpError [ErEr.ModuleError] M.Response)
 routeRequest connection acid IR.QueryNextSequence r = 
   do
     response <- sendNextSequence acid r
     case response of
       Just res -> return $ ErEr.createSuccess res
-      Nothing -> return $ ErEr.createErrorS "ErpServer" "ES013" ("Command failed " 
-        ++ show IR.QueryNextSequence)
+      Nothing -> return $ ErEr.erpErrorNM "ErpServer" "ES013" 
+        $ L.pack $ "Command failed " ++ show IR.QueryNextSequence
 
 routeRequest connection acid IR.Login  r            = 
     do
@@ -156,7 +157,7 @@ routeRequest connection acid IR.Login  r            =
       response <- sendNextSequence acid r
       case response of 
         Just res -> return $ ErEr.createSuccess res
-        Nothing -> return $ ErEr.createErrorS "ErpServer" "ES011" "Invalid response"
+        Nothing -> return $ ErEr.erpErrorNM "ErpServer" "ES011" "Invalid response"
 
 routeRequest connection acid IR.DeleteLogin r       = 
     do
@@ -164,7 +165,7 @@ routeRequest connection acid IR.DeleteLogin r       =
       response <- sendNextSequence acid r
       case response of
         Just res -> return $ ErEr.createSuccess res
-        Nothing -> return $ ErEr.createErrorS "ErpServer" "ES010" "Invalid response"
+        Nothing -> return $ ErEr.erpErrorNM "ErpServer" "ES010" "Invalid response"
 
 
 routeRequest connection acid IR.UpdateCategory r    = 
@@ -173,21 +174,23 @@ routeRequest connection acid IR.UpdateCategory r    =
     response <- sendNextSequence acid r
     case response of
       Just res -> return $ ErEr.createSuccess res
-      Nothing -> return $ ErEr.createErrorS "ErpServer" "ES011" "Invalid Response"
+      Nothing -> return $ ErEr.erpErrorNM "ErpServer" "ES011" "Invalid Response"
 
 routeRequest connection acid IR.InsertParty r = do
     insertParty acid (M.emailId r) (L.toStrict $ payload r)
     response <- sendNextSequence acid r
     case response of
       Just res -> return $ ErEr.createSuccess res
-      Nothing -> return $ ErEr.createErrorS "ERPServer" "ES012" ("Invalid response " ++ (show IR.InsertParty))
+      Nothing -> return $ ErEr.erpErrorNM "ERPServer" "ES012" 
+        $ L.pack $ "Invalid response " ++ (show IR.InsertParty)
 routeRequest connection acid IR.InsertCompany r = do
     debugM serverModuleName $ "Insert  company" ++ (show r)
     insertCompany acid (M.emailId r) (L.toStrict $ payload r)
     response <- sendNextSequence acid r
     case response of
       Just res -> return $ ErEr.createSuccess res
-      Nothing -> return $ ErEr.createErrorS "ERPServer" "ES012" ("Invalid response " ++ (show IR.InsertCompany))
+      Nothing -> return $ ErEr.erpErrorNM "ERPServer" "ES012" 
+        $ L.pack $ ("Invalid response " ++ (show IR.InsertCompany))
 
 
 routeRequest connection acid IR.QueryDatabase r    = do
@@ -196,28 +199,29 @@ routeRequest connection acid IR.QueryDatabase r    = do
   response <- sendNextSequence acid r
   case response of
     Just res -> return $ ErEr.createSuccess res
-    Nothing -> return $ ErEr.createErrorS "ErpServer" "ES012" "Invalid response"
+    Nothing -> return $ ErEr.erpErrorNM "ErpServer" "ES012" "Invalid response"
 
 routeRequest connection acid IR.CloseConnection  r = do
         -- Need to investigate how this following line is working
         response <- sendNextSequence acid r
         case response of
           Just res -> return $ ErEr.createSuccess res
-          Nothing -> return $ ErEr.createErrorS "ErpServer" "ES013" "Close connection failed"
+          Nothing -> return $ ErEr.erpErrorNM "ErpServer" "ES013" "Close connection failed"
         
 
-checkProtocol :: String -> ErEr.ErpError ErEr.ModuleError String
+checkProtocol :: String -> ErEr.ErpError [ErEr.ModuleError] String
 checkProtocol iProtocolVersion = -- Returns a ErpError if wrong protocol
     if iProtocolVersion == M.protocolVersion then ErEr.createSuccess "Protocol supported" -- TODO : ErpError
-    else ErEr.createErrorS "ErpServer" "ES003" "Unsupported protocol"
+    else ErEr.erpErrorNM "ErpServer" "ES003" "Unsupported protocol"
 
 
 processRequest :: WS.Connection -> AcidState (EventState M.GetDatabase) -> M.Request -> 
-  IO (ErEr.ErpError ErEr.ModuleError M.Response)
-processRequest connection acid r@(M.Request iRequestID requestType iProtocolVersion entity emailId payload) =
+  IO (ErEr.ErpError [ErEr.ModuleError] M.Response)
+processRequest connection acid r@(M.Request iRequestID requestType iProtocolVersion entity 
+  emailId payload) =
     --TODO: get the process entity so we are inside our own monad instead of IO
     case (checkProtocol iProtocolVersion) of
-        ErEr.Error aString -> return $ ErEr.createErrorS "ErpServer" "ES001" "Check protocol failed"
+        ErEr.Error aString -> return $ ErEr.erpErrorNM "ErpServer" "ES001" "Check protocol failed"
         ErEr.Success aString -> 
                 do
                   entityType <- return $ read entity
@@ -231,9 +235,9 @@ processRequest connection acid r@(M.Request iRequestID requestType iProtocolVers
                         return response
                   else
                     do
-                      moduleError <- return $ 
-                          ErEr.createErrorS "ErpServer" "ES002" $ "Stale message " ++ show r
-                      infoM serverModuleName  $ L.unpack (ErEr.getString moduleError)
+                      moduleError@(ErEr.Error errors) <- return $ 
+                          ErEr.erpErrorNM "ErpServer" "ES002" $ 
+                          L.pack $ "Stale message " ++ show r
                       return moduleError
 
 
@@ -339,7 +343,7 @@ updateCategory acid emailId payload =
                       return $ ErEr.createSuccess $ "Category added: " ++ aCat
                 else
                     return $ ErEr.createSuccess $ "Category exists"
-            Nothing -> return $ ErEr.createErrorS "ErpServer" "ES005" "Update category failed"
+            Nothing -> return $ ErEr.erpErrorNM "ErpServer" "ES005" "Update category failed"
 
 
 queryDatabase acid emailId payload = do
@@ -362,7 +366,7 @@ insertParty acid emailId payload =
         Just p -> do
           A.update acid (M.InsertParty emailId p)
           return $ ErEr.createSuccess $ "Party added " ++ (show p)
-        Nothing -> return $ ErEr.createErrorS "ErpServer" "ES006" "Insert party failed"
+        Nothing -> return $ ErEr.erpErrorNM "ErpServer" "ES006" "Insert party failed"
 
 insertCompany acid emailId payload =
     do
@@ -372,7 +376,7 @@ insertCompany acid emailId payload =
         Just p -> do
           A.update acid (M.InsertCompany emailId p)
           return $ ErEr.createSuccess $ "Company added" ++ (show p)
-        Nothing -> return $ ErEr.createErrorS "ErpServer" "ES007" "Insert company failed" 
+        Nothing -> return $ ErEr.erpErrorNM "ErpServer" "ES007" "Insert company failed" 
 
 instance Exception InvalidCategory
 instance Exception InvalidLogin

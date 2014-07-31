@@ -294,8 +294,9 @@ instance Arbitrary (ErpM Ac.Tax) where
                             ErpM (Ac.Account, Ac.Sign)
             convert (acc, sign) =
                 case (acc, sign) of
-                    (ErpError.Success a, ErpError.Success s) -> ErpError.Success (a, s)
-                    _ -> ErpError.createErrorS
+                    (ErpError.Success a, ErpError.Success s) -> 
+                        ErpError.createSuccess (a, s)
+                    _ -> ErpError.erpError
                          "TestHarness" "InvTestCase"
                             "Invalid Account"
 

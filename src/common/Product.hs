@@ -51,14 +51,14 @@ data UOMCategory = UOMCategory {catName :: String}
     deriving(Show, Generic, Data, Typeable, Eq, Ord)
 
 findCategory :: UOMCategory -> Tr.Tree UOMCategory -> ErpError
-                            ModuleError UOMCategory
+                            [ModuleError] UOMCategory
 findCategory aCat aTree =
     case r of
-    [] -> ErpError.createErrorS "Product" "CatNotFound"
+    [] -> ErpError.erpErrorNM "Product" "CatNotFound"
                                 "Category not found"
 
     [h] -> ErpError.createSuccess h
-    _ -> ErpError.createErrorS "Product" "DupCat"
+    _ -> ErpError.erpErrorNM "Product" "DupCat"
                     "Duplicate categories"
     where
         r = Prelude.filter (\x -> x == aCat) (Tr.flatten aTree)
