@@ -85,28 +85,29 @@ data Account = Account {
         deferral :: Boolean,
         altCurrency :: Cu.Currency,
         reconcile :: Boolean,
-        note :: String,
+        note :: String
         -- The dunning sets for the account.
         -- presumably we can have multiple
         -- dunning procedures per account?
         -- Dunning aka payment reminders
-        dunningSet :: S.Set Dunning}
+        -- ,dunningSet :: S.Set Dunning
+        }
         deriving(Show,Typeable, Data, Generic, Eq, Ord)
 
 type DebitAccount = ErpM Account
 type CreditAccount = ErpM Account
 type DisplayView = String
 
-{-createAccount :: Name -> Code ->
-                ErpM Co.Company -> Cu.Currency -> AccountKind
+
+createAccount :: Name -> Code 
+            -> ErpM Co.Company -> Cu.Currency -> AccountKind
             -> AccountType -> Boolean -> Cu.Currency
             -> Boolean -> String -> ErpM Account
--}
-createAccount aName aCode aCurrency aKind
+
+createAccount aName aCode aCompany aCurrency aKind
     aType deferral altCurrency
     reconcile note = 
-        Account 
-        <$> pure aName
+        Account <$> (pure aName)
         <*> pure aCode
         <*> aCompany
         <*> pure aCurrency
@@ -116,7 +117,7 @@ createAccount aName aCode aCurrency aKind
         <*> pure altCurrency
         <*> pure reconcile
         <*> pure note
-        <*> pure (S.empty)
+        --  <*> pure (S.empty)
 
 
 
@@ -346,7 +347,7 @@ createTax n c s b se tt co acc1 acc2 a1 a2 a3 a4 =
         <*>  a1
         <*>  a2
         <*>  a3
-        <*>  a4 
+        <*>  a4
 
 
 validTax :: Tax -> Bool

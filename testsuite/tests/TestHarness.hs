@@ -1,5 +1,5 @@
 module TestHarness where
-import ErpError
+import qualified ErpError as ErEr
 import qualified Data.Map as Map
 import qualified ErpModel as M
 import qualified Login as L
@@ -67,7 +67,7 @@ instance Arbitrary Co.Contact where
         value <- arbitrary
         return $ Co.Contact contactType value
 
-instance Arbitrary (ErpM Co.Party) where
+instance Arbitrary (ErEr.ErpM Co.Party) where
     arbitrary = do
         name <- arbitrary
         addresses <- orderedList
@@ -98,7 +98,7 @@ instance Arbitrary Pr.Price where
         curr <- arbitrary
         return (Pr.createPrice price curr)
 
-instance Arbitrary  (ErpM Co.Latitude) where
+instance Arbitrary  (ErEr.ErpM Co.Latitude) where
      arbitrary = do
         degrees <- arbitrary
         minutes <- arbitrary
@@ -106,7 +106,7 @@ instance Arbitrary  (ErpM Co.Latitude) where
         lDirec <- elements[Co.North, Co.South]
         return $ Co.createLatitude degrees minutes seconds lDirec
 
-instance Arbitrary (ErpError ErpError.ModuleError Pr.Dimensions) where
+instance Arbitrary (ErEr.ErpM Pr.Dimensions) where
     arbitrary = do
         length <- arbitrary
         height <- arbitrary
@@ -115,19 +115,19 @@ instance Arbitrary (ErpError ErpError.ModuleError Pr.Dimensions) where
         return $ Pr.createDimensions length width height weight
 
 
-instance Arbitrary (ErpM Co.Longitude) where
+instance Arbitrary (ErEr.ErpM Co.Longitude) where
     arbitrary = do
         degrees <- arbitrary
         minutes <- arbitrary
         seconds <- arbitrary
         loDirec <- elements[Co.East, Co.West]
         return $ Co.createLongitude degrees minutes seconds loDirec
-instance Arbitrary (ErpM Co.Coordinate) where
+instance Arbitrary (ErEr.ErpM Co.Coordinate) where
     arbitrary = do
         lat <- arbitrary
         long <- arbitrary
         return $ Co.createCoordinate lat long
-instance Arbitrary (ErpM Co.GeoLocation) where
+instance Arbitrary (ErEr.ErpM Co.GeoLocation) where
      arbitrary = do
         uri <- arbitrary
         position <- arbitrary
@@ -141,7 +141,7 @@ instance Arbitrary ProductType where
         productTypes <- elements [Pr.Goods, Pr.Assets, Pr.Services]
         return $ productTypes
 
-instance Arbitrary (ErpM Pr.UOM) where
+instance Arbitrary (ErEr.ErpM Pr.UOM) where
     arbitrary = do
         name <- arbitrary
         symbol <- arbitrary
@@ -153,7 +153,7 @@ instance Arbitrary (ErpM Pr.UOM) where
         uActive <- arbitrary
         return (Pr.createUOM name symbol category num denom displayDigits rounding uActive)
 
-instance Arbitrary (ErpM Pr.Product) where
+instance Arbitrary (ErEr.ErpM Pr.Product) where
     arbitrary = 
         do
             productUpcCode <- arbitrary
@@ -180,7 +180,7 @@ instance Arbitrary (ErpM Pr.Product) where
                     (S.fromList attributes)
                     active
                     dimensions 
-                    (Map.fromList $ zip dimensionKeys dimensionValues)
+                    (return $ Map.fromList $ zip dimensionKeys dimensionValues)
                     
 
 
@@ -189,7 +189,7 @@ instance Arbitrary (ErpM Pr.Product) where
 --maniuplate a company to adding products rather
 --than having us to handle more error cases.
 --TODO: Fix this
-instance Arbitrary (ErpM Co.Company) where
+instance Arbitrary (ErEr.ErpM Co.Company) where
      arbitrary = do
         party <- arbitrary
         currency <- arbitrary
@@ -197,7 +197,7 @@ instance Arbitrary (ErpM Co.Company) where
         return (Co.createCompany party currency
             (S.fromList alternateCurrencies) (S.empty))
 
-instance Arbitrary (ErpM Co.CompanyWorkTime) where
+instance Arbitrary (ErEr.ErpM Co.CompanyWorkTime) where
     arbitrary = do
         company <- arbitrary
         hoursPerDay <- arbitrary
@@ -218,22 +218,25 @@ instance Arbitrary Ac.Batch where
         id <- arbitrary
         return $ Ac.createBatch time id
 
-instance Arbitrary (ErpM Ac.Account) where
+instance Arbitrary (ErEr.ErpM Ac.Account) where
     arbitrary = do
         name <- arbitrary
         code <- arbitrary
         company <- arbitrary
         currency <- arbitrary
         altCurrency <- suchThat arbitrary (/= currency)
-        kind <- elements [Ac.Payable, Ac.Receivable, Ac.AkExpense, Ac.AkRevenue, Ac.View, Ac.Other]
+        acKind <- elements [Ac.Payable, Ac.Receivable, Ac.AkExpense, Ac.AkRevenue, Ac.View, Ac.Other]
         acType <- elements[Ac.IncomeStatement, Ac.BalanceSheet, Ac.DisplayBalance]
         deferral <- arbitrary
         reconcile <- arbitrary
         note <- arbitrary
-        return $ Ac.createAccount name code company currency
-                    kind acType deferral altCurrency reconcile note
+        return (Ac.createAccount name code 
+                    company currency
+                    acKind acType
+                    deferral altCurrency 
+                    reconcile note)
 
-instance Arbitrary (ErpM Ac.Journal) where
+instance Arbitrary (ErEr.ErpM Ac.Journal) where
     arbitrary = do
         name <- arbitrary
         code <- arbitrary
@@ -245,7 +248,7 @@ instance Arbitrary (ErpM Ac.Journal) where
         defaultCreditAccount <- arbitrary
         return $ Ac.createJournal name code active view updatePosted Nothing journalType defaultDebitAccount defaultCreditAccount
 
-instance Arbitrary (ErpM Ac.TaxCode) where
+instance Arbitrary (ErEr.ErpM Ac.TaxCode) where
     arbitrary = do
         tcName <- arbitrary
         tcCode <- arbitrary
@@ -254,11 +257,11 @@ instance Arbitrary (ErpM Ac.TaxCode) where
         sum <- arbitrary
         return $ Ac.createTaxCode tcName tcCode tcActive tcCompany sum
 
-instance Arbitrary (ErpM Ac.Sign) where
-    arbitrary = oneof [return $ ErpError.Success $ Ac.Positive,
-            return $ ErpError.Success $ Ac.Negative]
+instance Arbitrary (Ac.Sign) where
+    arbitrary = oneof [return Ac.Positive,
+                    return Ac.Negative]
 
-instance Arbitrary (ErpM Ac.Tax) where
+instance Arbitrary (ErEr.ErpM Ac.Tax) where
     arbitrary = do
         tName <- arbitrary
         tCode <- arbitrary
@@ -289,16 +292,26 @@ instance Arbitrary (ErpM Ac.Tax) where
                 (convert (creditNoteBase, creditNoteSign))
                 (convert (creditNoteTaxCode, creditNoteTaxSign))
         where
-            convert :: (ErpM Ac.Account,
-                        ErpM Ac.Sign) ->
-                            ErpM (Ac.Account, Ac.Sign)
-            convert (acc, sign) =
-                case (acc, sign) of
+            convert :: (ErEr.ErpM Ac.Account,
+                        ErEr.ErpM Ac.Sign) ->
+                            ErEr.ErpM (Ac.Account, Ac.Sign)
+            convert (acc, sign) = do
+                f <- acc
+                x <- sign
+                case (f, x) of
+                 (ErEr.Success f, ErEr.Success x) -> return $ ErEr.createSuccess $ (f, x)
+                 (ErEr.Error s, ErEr.Error s')    -> return $ ErEr.erpError $ La.pack $ show s
+                 (ErEr.Success _, ErEr.Error s)   -> return $ ErEr.erpError $ La.pack $ show s 
+                 (ErEr.Error s, ErEr.Success _)   -> return $ ErEr.erpError $ La.pack $ show s
+                
+
+
+{-                case (acc, sign) of
                     (ErpError.Success a, ErpError.Success s) -> 
                         ErpError.createSuccess (a, s)
-                    _ -> ErpError.erpError
+                    _ -> return $ ErpError.erpError
                          "TestHarness" "InvTestCase"
                             "Invalid Account"
-
+-}
 
 
