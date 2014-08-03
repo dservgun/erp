@@ -1,5 +1,5 @@
 module Currency (
-    Currency,
+    Currency(..),
     createCurrency,
     usd,
     eur,
@@ -23,7 +23,8 @@ import GHC.Generics
 import Network.URL
 import qualified Data.Ratio as R
 import qualified Country as Cou
-
+import ErpError
+import Control.Applicative
 data Currency = Currency String
     deriving (Show, Typeable, Data, Generic, Eq, Ord)
 
@@ -41,7 +42,9 @@ data Exchange = Exchange {baseC :: Currency
 
 type Amount = R.Ratio Integer
 
-createCurrency = Currency
+
+createCurrency :: String -> ErpM Currency
+createCurrency aString = Currency <$> pure aString
 usd = Currency "USD"
 eur = Currency "EUR"
 cad = Currency "CAD"

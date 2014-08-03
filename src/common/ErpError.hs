@@ -20,8 +20,7 @@ module ErpError (ErpM,
     getString,
     erpError,
     erpErrorNM,
-    Erp,
-    runErp,
+    Erp(..),
     ModuleError
 ) where
 import Data.Acid.Remote()

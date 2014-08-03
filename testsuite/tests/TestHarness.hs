@@ -84,15 +84,15 @@ instance Arbitrary (ErEr.ErpM Co.Party) where
 
 
 
-instance Arbitrary Cu.Currency where
+instance Arbitrary (Cu.Currency) where
       arbitrary = elements [
-            Cu.createCurrency "AUD",
-            Cu.createCurrency "USD",
-            Cu.createCurrency "GBP",
-            Cu.createCurrency "ROU",
-            Cu.createCurrency "TST"]
+            Cu.Currency "AUD",
+            Cu.Currency "USD",
+            Cu.Currency "GBP",
+            Cu.Currency "ROU",
+            Cu.Currency "TST"]
 
-instance Arbitrary Pr.Price where
+instance Arbitrary (ErEr.ErpM Pr.Price) where
      arbitrary = do
         price <- arbitrary
         curr <- arbitrary
@@ -162,6 +162,7 @@ instance Arbitrary (ErEr.ErpM Pr.Product) where
             productType <- arbitrary
             productCategory <- arbitrary
             listPrice <- arbitrary
+            listPriceUOM <- arbitrary
             costPrice <- arbitrary
             uom <- arbitrary
             costPriceMethod <- arbitrary
@@ -175,7 +176,7 @@ instance Arbitrary (ErEr.ErpM Pr.Product) where
                     productName
                     productType
                     productCategory
-                    listPrice costPrice costPriceMethod
+                    (ErEr.runErp (listPrice, listPriceUOM)) costPrice costPriceMethod
                     uom
                     (S.fromList attributes)
                     active
@@ -260,58 +261,5 @@ instance Arbitrary (ErEr.ErpM Ac.TaxCode) where
 instance Arbitrary (Ac.Sign) where
     arbitrary = oneof [return Ac.Positive,
                     return Ac.Negative]
-
-instance Arbitrary (ErEr.ErpM Ac.Tax) where
-    arbitrary = do
-        tName <- arbitrary
-        tCode <- arbitrary
-        description <- arbitrary
-        active <- arbitrary
-        sequence <- arbitrary
-        taxType <- elements[Ac.FixedTaxType 1.0, Ac.PercentTaxType 20]
-        taxAmount <- elements[Ac.Fixed 1.0, Ac.Percentage 20, Ac.BasisPoints 10]
-        taxCompany <- arbitrary
-        invoiceAccount <- arbitrary
-        creditNoteAccount <- arbitrary
-        invoiceBaseTaxCode <- arbitrary
-        invoiceBaseSign <- arbitrary
-        invoiceTaxCode <- arbitrary
-        invoiceTaxSign <- arbitrary
-        creditNoteBase <- arbitrary
-        creditNoteSign <- arbitrary
-        creditNoteTaxCode <- arbitrary
-        creditNoteTaxSign <- arbitrary
-        return $ Ac.createTax tName tCode description active
-                sequence
-                taxType
-                taxCompany
-                invoiceAccount
-                creditNoteAccount
-                (convert (invoiceBaseTaxCode, invoiceBaseSign))
-                (convert (invoiceTaxCode, invoiceTaxSign))
-                (convert (creditNoteBase, creditNoteSign))
-                (convert (creditNoteTaxCode, creditNoteTaxSign))
-        where
-            convert :: (ErEr.ErpM Ac.Account,
-                        ErEr.ErpM Ac.Sign) ->
-                            ErEr.ErpM (Ac.Account, Ac.Sign)
-            convert (acc, sign) = do
-                f <- acc
-                x <- sign
-                case (f, x) of
-                 (ErEr.Success f, ErEr.Success x) -> return $ ErEr.createSuccess $ (f, x)
-                 (ErEr.Error s, ErEr.Error s')    -> return $ ErEr.erpError $ La.pack $ show s
-                 (ErEr.Success _, ErEr.Error s)   -> return $ ErEr.erpError $ La.pack $ show s 
-                 (ErEr.Error s, ErEr.Success _)   -> return $ ErEr.erpError $ La.pack $ show s
-                
-
-
-{-                case (acc, sign) of
-                    (ErpError.Success a, ErpError.Success s) -> 
-                        ErpError.createSuccess (a, s)
-                    _ -> return $ ErpError.erpError
-                         "TestHarness" "InvTestCase"
-                            "Invalid Account"
--}
 
 

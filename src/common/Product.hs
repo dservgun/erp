@@ -123,8 +123,8 @@ validUOM aUOM = ((rate aUOM) * (factor aUOM)) == 1
 data Price = Price {p :: Float,
                     cu :: Cu.Currency}
             deriving (Show, Data, Generic, Typeable, Eq, Ord)
-createPrice :: Float -> Cu.Currency -> Price
-createPrice = Price
+createPrice :: Float -> ErpM Cu.Currency -> ErpM Price
+createPrice f cu = Price <$> pure f <*> cu
 type PriceUOM = (Price, UOM)
 data CPMType = LIFO | FIFO
     deriving (Show, Generic, Data, Typeable, Eq, Ord)
