@@ -1,6 +1,7 @@
 module Product (
       UOM
     , createUOM
+    , createUOMNM
     , validUOM
     , Attribute 
     , createAttribute
@@ -8,13 +9,16 @@ module Product (
     , createUOMCategory
     , Price
     , createPrice
+    , createPriceNM
     , PriceUOM
     , Product
     , createProduct
+    , createProductNM
     , productWeight
     , Dimensions
     , Weight
     , createDimensions
+    , createDimensionsNM
     , validDimensions
     , CostPriceMethod(..)
     , CPMType(..)
@@ -105,16 +109,12 @@ type Numerator = Integer
 type Denominator = Integer
 createUOM :: String -> String -> UOMCategory -> Numerator -> Denominator -> Int -> Int ->
     Bool -> ErpM UOM
-createUOM name symbol category num den rounding displayDigits active =
-        UOM <$> pure name
-            <*> pure symbol
-            <*> pure (createRootCategory category)
-            <*> pure (num  % den)
-            <*> pure (den  % num)
-            <*> pure rounding
-            <*> pure displayDigits
-            <*> pure active
-
+createUOM name symbol category num den rounding displayDigits active = pure $ 
+    createUOMNM name symbol category num den rounding displayDigits active
+createUOMNM :: String -> String -> UOMCategory -> Numerator -> Denominator -> Int -> Int
+                -> Bool -> UOM
+createUOMNM  name symbol category num den rounding displayDigits active =
+        UOM name symbol (Node category [])  (num % den) (den % num) rounding displayDigits active
 
 
 validUOM :: UOM -> Bool
@@ -125,6 +125,9 @@ data Price = Price {p :: Float,
             deriving (Show, Data, Generic, Typeable, Eq, Ord)
 createPrice :: Float -> ErpM Cu.Currency -> ErpM Price
 createPrice f cu = Price <$> pure f <*> cu
+createPriceNM :: Float -> Cu.Currency -> Price
+createPriceNM f cu = Price f cu
+
 type PriceUOM = (Price, UOM)
 data CPMType = LIFO | FIFO
     deriving (Show, Generic, Data, Typeable, Eq, Ord)
@@ -166,11 +169,8 @@ createDimensions :: Length -> Width -> Height -> Weight ->
     ErpM Dimensions
 createDimensions a b c w =
     --if a > 0 && b > 0  && c > 0 && w > 0 then
-        Dimensions <$> pure a 
-            <*> pure b 
-            <*> pure c 
-            <*> pure w
-
+        pure $ createDimensionsNM a b c w
+createDimensionsNM a b c w = Dimensions a b c w
 validDimensions :: Dimensions -> Bool
 validDimensions d  = a > 0 && b > 0 && c > 0 && w > 0
                     where
@@ -214,6 +214,7 @@ data Product = Product {
         deriving (Data,Show, Generic, Typeable, Eq, Ord)
 
 
+createProductNM = Product
 
 createProduct :: UPCCode -> String -> String -> ProductType 
         -> UOMCategory

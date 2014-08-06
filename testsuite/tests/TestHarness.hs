@@ -52,6 +52,7 @@ instance Arbitrary Pr.CostPriceMethod where
     arbitrary = elements [Pr.Fixed, 
                         Pr.Average Pr.LIFO,
                         Pr.Average Pr.FIFO]
+
 instance Arbitrary Co.ContactType where
     arbitrary = elements [Co.Phone
                     , Co.Mobile
@@ -67,7 +68,7 @@ instance Arbitrary Co.Contact where
         value <- arbitrary
         return $ Co.Contact contactType value
 
-instance Arbitrary (ErEr.ErpM Co.Party) where
+instance Arbitrary (Co.Party) where
     arbitrary = do
         name <- arbitrary
         addresses <- orderedList
@@ -77,7 +78,7 @@ instance Arbitrary (ErEr.ErpM Co.Party) where
         vcard <- arbitrary
         alternateCategories <- orderedList
         alternatePocs <- orderedList
-        return $ Co.createParty name addresses mapLocation poc primaryCategory vcard
+        return $ Co.createPartyNM name addresses mapLocation poc primaryCategory vcard
             (S.fromList alternateCategories) (S.fromList alternatePocs)
 
 -- How do we enforce the rate and factor relationship?
@@ -86,52 +87,53 @@ instance Arbitrary (ErEr.ErpM Co.Party) where
 
 instance Arbitrary (Cu.Currency) where
       arbitrary = elements [
-            Cu.Currency "AUD",
-            Cu.Currency "USD",
-            Cu.Currency "GBP",
-            Cu.Currency "ROU",
-            Cu.Currency "TST"]
+            Cu.createCurrencyNM "AUD",
+            Cu.createCurrencyNM "USD",
+            Cu.createCurrencyNM "GBP",
+            Cu.createCurrencyNM "ROU",
+            Cu.createCurrencyNM "TST"]
 
-instance Arbitrary (ErEr.ErpM Pr.Price) where
+instance Arbitrary (Pr.Price) where
      arbitrary = do
         price <- arbitrary
         curr <- arbitrary
-        return (Pr.createPrice price curr)
+        return (Pr.createPriceNM price curr)
 
-instance Arbitrary  (ErEr.ErpM Co.Latitude) where
+instance Arbitrary  (Co.Latitude) where
      arbitrary = do
         degrees <- arbitrary
         minutes <- arbitrary
         seconds <- arbitrary
         lDirec <- elements[Co.North, Co.South]
-        return $ Co.createLatitude degrees minutes seconds lDirec
+        return $ Co.createLatitudeNM degrees minutes seconds lDirec
 
-instance Arbitrary (ErEr.ErpM Pr.Dimensions) where
+instance Arbitrary (Pr.Dimensions) where
     arbitrary = do
         length <- arbitrary
         height <- arbitrary
         width  <- arbitrary
         weight <- arbitrary
-        return $ Pr.createDimensions length width height weight
+        return $ Pr.createDimensionsNM length width height weight
 
 
-instance Arbitrary (ErEr.ErpM Co.Longitude) where
+instance Arbitrary (Co.Longitude) where
     arbitrary = do
         degrees <- arbitrary
         minutes <- arbitrary
         seconds <- arbitrary
         loDirec <- elements[Co.East, Co.West]
-        return $ Co.createLongitude degrees minutes seconds loDirec
-instance Arbitrary (ErEr.ErpM Co.Coordinate) where
+        return $ Co.createLongitudeNM degrees minutes seconds loDirec
+instance Arbitrary (Co.Coordinate) where
     arbitrary = do
         lat <- arbitrary
         long <- arbitrary
-        return $ Co.createCoordinate lat long
-instance Arbitrary (ErEr.ErpM Co.GeoLocation) where
+        return $ Co.createCoordinateNM lat long
+
+instance Arbitrary (Co.GeoLocation) where
      arbitrary = do
         uri <- arbitrary
         position <- arbitrary
-        return $ Co.createGeoLocation uri position
+        return $ Co.createGeoLocationNM uri position
 
 -- How do we enforce the rate and factor relationship?
 
@@ -141,7 +143,7 @@ instance Arbitrary ProductType where
         productTypes <- elements [Pr.Goods, Pr.Assets, Pr.Services]
         return $ productTypes
 
-instance Arbitrary (ErEr.ErpM Pr.UOM) where
+instance Arbitrary (Pr.UOM) where
     arbitrary = do
         name <- arbitrary
         symbol <- arbitrary
@@ -151,9 +153,9 @@ instance Arbitrary (ErEr.ErpM Pr.UOM) where
         rounding <- arbitrary
         displayDigits <- arbitrary
         uActive <- arbitrary
-        return (Pr.createUOM name symbol category num denom displayDigits rounding uActive)
+        return (Pr.createUOMNM name symbol category num denom displayDigits rounding uActive)
 
-instance Arbitrary (ErEr.ErpM Pr.Product) where
+instance Arbitrary (Pr.Product) where
     arbitrary = 
         do
             productUpcCode <- arbitrary
@@ -165,24 +167,26 @@ instance Arbitrary (ErEr.ErpM Pr.Product) where
             listPriceUOM <- arbitrary
             costPrice <- arbitrary
             uom <- arbitrary
-            costPriceMethod <- arbitrary
+            costPriceMethod <- (arbitrary  :: Gen CostPriceMethod)
             attributes <- arbitrary
             dimensions <- arbitrary
             dimensionValues <- orderedList
             dimensionKeys <- orderedList
             active <- arbitrary
-            return $ Pr.createProduct productUpcCode
+            return $ Pr.createProductNM productUpcCode
                     productDescription
                     productName
                     productType
                     productCategory
-                    (ErEr.runErp (listPrice, listPriceUOM)) costPrice costPriceMethod
+                    listPrice
+                    listPriceUOM
+                    costPrice
                     uom
                     (S.fromList attributes)
                     active
                     dimensions 
-                    (return $ Map.fromList $ zip dimensionKeys dimensionValues)
-                    
+                    (Map.fromList $ zip dimensionKeys dimensionValues)
+                    []
 
 
 
@@ -190,22 +194,22 @@ instance Arbitrary (ErEr.ErpM Pr.Product) where
 --maniuplate a company to adding products rather
 --than having us to handle more error cases.
 --TODO: Fix this
-instance Arbitrary (ErEr.ErpM Co.Company) where
+instance Arbitrary (Co.Company) where
      arbitrary = do
         party <- arbitrary
         currency <- arbitrary
         alternateCurrencies <- orderedList
-        return (Co.createCompany party currency
+        return (Co.createCompanyNM party currency
             (S.fromList alternateCurrencies) (S.empty))
 
-instance Arbitrary (ErEr.ErpM Co.CompanyWorkTime) where
+instance Arbitrary (Co.CompanyWorkTime) where
     arbitrary = do
         company <- arbitrary
         hoursPerDay <- arbitrary
         daysPerWeek <- arbitrary
         weeksPerMonth <- arbitrary
         monthsPerYear <- arbitrary
-        return (Co.createCompanyWorkTime company
+        return (Co.createCompanyWorkTimeNM company
             hoursPerDay (0, 8)
             daysPerWeek (0, 5)
             weeksPerMonth (0, 5)
@@ -219,7 +223,7 @@ instance Arbitrary Ac.Batch where
         id <- arbitrary
         return $ Ac.createBatch time id
 
-instance Arbitrary (ErEr.ErpM Ac.Account) where
+instance Arbitrary (Ac.Account) where
     arbitrary = do
         name <- arbitrary
         code <- arbitrary
@@ -231,13 +235,13 @@ instance Arbitrary (ErEr.ErpM Ac.Account) where
         deferral <- arbitrary
         reconcile <- arbitrary
         note <- arbitrary
-        return (Ac.createAccount name code 
+        return (Ac.createAccountNM name code 
                     company currency
                     acKind acType
                     deferral altCurrency 
                     reconcile note)
 
-instance Arbitrary (ErEr.ErpM Ac.Journal) where
+instance Arbitrary (Ac.Journal) where
     arbitrary = do
         name <- arbitrary
         code <- arbitrary
@@ -247,16 +251,16 @@ instance Arbitrary (ErEr.ErpM Ac.Journal) where
         journalType <- elements [Ac.General, Ac.Revenue, Ac.Situation, Ac.Expense, Ac.Cash]
         defaultDebitAccount <- arbitrary
         defaultCreditAccount <- arbitrary
-        return $ Ac.createJournal name code active view updatePosted Nothing journalType defaultDebitAccount defaultCreditAccount
+        return $ Ac.createJournalNM name code active view updatePosted Nothing journalType defaultDebitAccount defaultCreditAccount
 
-instance Arbitrary (ErEr.ErpM Ac.TaxCode) where
+instance Arbitrary (Ac.TaxCode) where
     arbitrary = do
         tcName <- arbitrary
         tcCode <- arbitrary
         tcActive <- arbitrary
         tcCompany <- arbitrary
         sum <- arbitrary
-        return $ Ac.createTaxCode tcName tcCode tcActive tcCompany sum
+        return $ Ac.createTaxCodeNM tcName tcCode tcActive tcCompany sum
 
 instance Arbitrary (Ac.Sign) where
     arbitrary = oneof [return Ac.Positive,

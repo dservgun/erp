@@ -1,7 +1,8 @@
 module Company (createCompany, validCurrencies,
-    Company,
-    Employee,
-    Category(..),
+    Company
+    , createCompanyNM
+    , Employee
+    , Category(..),
     SupplierReference,
     InternalReference,
     CompanyNotFound(..),
@@ -14,17 +15,25 @@ module Company (createCompany, validCurrencies,
     Degrees, Minutes, Seconds,
     LatDirection(..),
     LongDirection(..),
-    Latitude, createLatitude,
-    Longitude, createLongitude,
-    Coordinate, createCoordinate,
-    GeoLocation, createGeoLocation,
+    Latitude, createLatitude, createLatitudeNM,
+    Longitude, createLongitude, createLongitudeNM,
+    Coordinate, createCoordinate, createCoordinateNM, 
+    GeoLocation, createGeoLocation, createGeoLocationNM,
     VCard,
     Address,
-    Party, createParty, validContacts, validCategories,findParty,
+    Party
+    , createParty
+    , createPartyNM
+    , validContacts
+    , validCategories
+    ,findParty,
     PartyNotFound,
     Contact(..),
     ContactType(..),
-    CompanyWorkTime, createCompanyWorkTime, validHours,
+    CompanyWorkTime
+    , createCompanyWorkTime
+    , createCompanyWorkTimeNM 
+    , validHours,
     invalidHoursPerDay, invalidDaysPerWeek, invalidWeeksPerMonth, invalidMonthsPerYear
     ) where
 import Control.Monad.State
@@ -90,15 +99,14 @@ data Company = Company {party :: Party,
 instance Eq Company where
     a == b = party a == party b
 
-createCompany :: ErpM Party -> Cu.Currency ->
+createCompany :: Party -> Cu.Currency ->
     S.Set Cu.Currency -> S.Set Pr.Product
     -> ErpM Company
 createCompany aParty aCurrency alternateCurrencies products =
-    Company <$> aParty 
-            <*> pure aCurrency
-            <*> pure alternateCurrencies
-            <*> pure products
-            <*> pure (M.empty)
+    pure $ createCompanyNM aParty aCurrency alternateCurrencies products
+
+createCompanyNM aParty aCurrency alternateCurrencies products =
+    Company aParty aCurrency alternateCurrencies products M.empty
 
 setPrimaryCurrency aCurrency aCompany =
         if currencyExists aCurrency aCompany then
@@ -177,33 +185,42 @@ invalid :: Degrees -> Bool
 invalid a = a < 0 || a > 60
 
 
+
+createLatitudeNM :: Degrees -> Minutes -> Seconds -> LatDirection -> Latitude
+createLatitudeNM d m s dir = Latitude (CoordinateUnit d m s) dir
+
 createLatitude :: Degrees -> Minutes -> Seconds -> LatDirection -> ErpM Latitude
-createLatitude d m s dir = 
-    Latitude <$> pure (CoordinateUnit d m s )
-            <*>  pure dir
+createLatitude d m s dir = pure $ createLatitudeNM d m s dir
 
 
 data Longitude = Longitude { longitude :: CoordinateUnit,
                             longDirection :: LongDirection}
     deriving (Show, Data, Typeable, Generic, Eq, Ord)
 
+createLongitudeNM :: Degrees -> Minutes -> Seconds -> LongDirection -> Longitude
+createLongitudeNM d m s dir = Longitude (CoordinateUnit d m s) dir
+
 createLongitude :: Degrees -> Minutes -> Seconds -> LongDirection ->
        ErpM Longitude
-createLongitude d m s dir = Longitude <$> pure (CoordinateUnit d m s )
-                        <*> pure dir
-
+createLongitude d m s dir = pure $ createLongitudeNM d m s dir
 data Coordinate = Coordinate { x :: Latitude, y :: Longitude}
     deriving (Show, Typeable, Data, Generic, Eq, Ord)
-createCoordinate :: ErpM Latitude ->
-                    ErpM Longitude ->
+createCoordinate :: Latitude ->
+                    Longitude ->
                     ErpM Coordinate
-createCoordinate la lo = Coordinate <$> la <*> lo
+createCoordinate la lo = pure $ createCoordinateNM la lo
 
+
+createCoordinateNM :: Latitude -> Longitude -> Coordinate
+createCoordinateNM la lo = Coordinate la lo
 data GeoLocation = GeoLocation{ uri :: URI,
                                 position :: Coordinate}
                         deriving (Show, Data, Typeable, Generic, Eq, Ord)
-createGeoLocation :: URI -> (ErpM Coordinate) -> ErpM GeoLocation
-createGeoLocation a b = GeoLocation <$> pure a <*> b
+createGeoLocation :: URI -> Coordinate -> ErpM GeoLocation
+createGeoLocation a b = pure $ createGeoLocationNM a b 
+
+createGeoLocationNM :: URI -> Coordinate -> GeoLocation
+createGeoLocationNM a b = GeoLocation a b
 
 type VCard = String
 type Address = String
@@ -234,18 +251,14 @@ data QueryParty = QueryParty {
 
 
 
-createParty :: Name -> Address -> ErpM GeoLocation -> Contact -> Category
+createParty :: Name -> Address -> GeoLocation -> Contact -> Category
                     -> VCard -> S.Set Category -> S.Set Contact ->
                     ErpM Party
-createParty name address loc contact cat vc categories contacts =
-    Party <$> pure name 
-            <*> pure address
-            <*> loc
-            <*> pure contact
-            <*> pure cat
-            <*> pure vc
-            <*> pure categories
-            <*> pure contacts
+createParty name address loc contact cat vc categories contacts = pure $ 
+        createPartyNM name address loc contact cat vc categories contacts
+createPartyNM :: Name -> Address -> GeoLocation -> Contact -> Category
+        -> VCard -> S.Set Category -> S.Set Contact -> Party
+createPartyNM  = Party
 
 
 findParty :: (Name, GeoLocation) -> S.Set Party -> ErpError [ModuleError] Party
@@ -379,7 +392,17 @@ createCompanyWorkTime aCompany hpd (minHpd, maxHpd)
 
 
 
-
+createCompanyWorkTimeNM ::Company 
+    -> HoursPerDay -> (HoursPerDay, HoursPerDay)
+    -> DaysPerWeek -> (DaysPerWeek, DaysPerWeek)
+    -> WeeksPerMonth -> (WeeksPerMonth, WeeksPerMonth)
+    -> MonthsPerYear -> (MonthsPerYear, MonthsPerYear) 
+    -> CompanyWorkTime
+createCompanyWorkTimeNM aCompany hpd (minHpd, maxHpd)
+    dpw (minDpw, maxDpw)
+    wpm (minWpm, maxWpm)
+    mpy (minMpy, maxMpy) = 
+        CompanyWorkTime aCompany hpd dpw wpm mpy
 
 invalidHoursPerDay :: Int -> (Int, Int) -> Bool
 invalidHoursPerDay aNumber (min, max) = aNumber < min || aNumber > max

@@ -37,9 +37,6 @@ import Control.Monad.IO.Class
 
 data ErpError a b = Error a | Success b deriving (Show, Eq, Ord, Typeable,Generic,Data)
 
--- newtype ErpErrorT m a b = ErpErrorT {
---     runMaybeT :: m (ErpError a b)
--- }
 
 data Erp a m b= Erp{runErp :: m (ErpError a b)}
 

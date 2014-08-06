@@ -1,6 +1,7 @@
 module Currency (
     Currency(..),
     createCurrency,
+    createCurrencyNM,
     usd,
     eur,
     cad
@@ -44,10 +45,15 @@ type Amount = R.Ratio Integer
 
 
 createCurrency :: String -> ErpM Currency
-createCurrency aString = Currency <$> pure aString
+-- createCurrency aString = Currency <$> pure aString
+createCurrency aString = pure $ createCurrencyNM aString
 usd = Currency "USD"
 eur = Currency "EUR"
 cad = Currency "CAD"
+
+createCurrencyNM :: String -> Currency
+createCurrencyNM = Currency
+
 
 
 convert :: (Currency, Amount) -> Exchange -> (Currency, Amount)

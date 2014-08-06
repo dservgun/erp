@@ -1,23 +1,28 @@
 module Account (
-    Name, Code,
-    Lot,
-    TimeSpent,
-    DaysOfWeek,
-    Account,
-    createAccount,
-    CreditAccount,
-    DebitAccount,
-    JournalType(..),
-    Journal, createJournal,validJournal,
-    DisplayView,
-    Move,
-    MoveLine,
-    MoveState,
-    MoveLineState,
+    Name, Code
+    , Lot
+    , TimeSpent
+    , DaysOfWeek
+    , Account
+    , createAccount
+    , createAccountNM
+    , CreditAccount
+    , DebitAccount
+    , JournalType(..)
+    , Journal, createJournal
+    , createJournalNM
+    , validJournal
+    , DisplayView
+    , Move
+    , MoveLine
+    , MoveState
+    , MoveLineState,
     Sign(..),
     Tax, createTax, validAccount,
-    TaxCode, createTaxCode,
-    TaxType(..),
+    TaxCode
+    , createTaxCode
+    , createTaxCodeNM
+    ,TaxType(..),
     TaxAmount(..),
     Quantity,
     Amount,
@@ -94,32 +99,43 @@ data Account = Account {
         }
         deriving(Show,Typeable, Data, Generic, Eq, Ord)
 
-type DebitAccount = ErpM Account
-type CreditAccount = ErpM Account
+type DebitAccount = Account
+type CreditAccount = Account
 type DisplayView = String
 
 
 createAccount :: Name -> Code 
-            -> ErpM Co.Company -> Cu.Currency -> AccountKind
+            -> Co.Company -> Cu.Currency -> AccountKind
             -> AccountType -> Boolean -> Cu.Currency
             -> Boolean -> String -> ErpM Account
 
 createAccount aName aCode aCompany aCurrency aKind
     aType deferral altCurrency
-    reconcile note = 
-        Account <$> (pure aName)
-        <*> pure aCode
-        <*> aCompany
-        <*> pure aCurrency
-        <*> pure aKind
-        <*> pure aType
-        <*> pure deferral
-        <*> pure altCurrency
-        <*> pure reconcile
-        <*> pure note
-        --  <*> pure (S.empty)
+    reconcile note = pure $ 
+        createAccountNM aName aCode aCompany aCurrency
+            aKind
+            aType
+            deferral
+            altCurrency
+            reconcile
+            note
 
-
+createAccountNM :: Name -> Code -> Co.Company 
+            -> Cu.Currency -> AccountKind 
+            -> AccountType -> Boolean
+            -> Cu.Currency
+            -> Boolean 
+            -> String -> Account
+createAccountNM aName aCode aCompany aCurrency aKind 
+    aType deferral altCurrency reconcile note = Account aName aCode 
+        aCompany
+        aCurrency
+        aKind
+        aType
+        deferral
+        altCurrency
+        reconcile
+        note
 
 isDebit :: Account -> Bool
 isDebit anAccount =
@@ -184,17 +200,28 @@ createJournal :: Name -> Code -> Bool -> DisplayView -> Bool ->
     Maybe (Tr.Tree Tax) -> JournalType -> DebitAccount -> CreditAccount ->
         ErpM Journal
 createJournal aName aCode active view updatePosted taxes jType 
-        defaultDebitAccount defaultCreditAccount =
-            Journal <$> pure aName
-                <*> pure aCode
-                <*> pure active
-                <*> pure view
-                <*> pure updatePosted
-                <*> pure taxes
-                <*> pure jType
-                <*> defaultDebitAccount
-                <*> defaultCreditAccount
-                <*> pure S.empty
+        defaultDebitAccount defaultCreditAccount = pure $ 
+            createJournalNM aName aCode 
+            active
+            view
+            updatePosted
+            taxes
+            jType
+            defaultDebitAccount
+            defaultCreditAccount
+            
+createJournalNM :: Name -> Code -> Bool -> DisplayView -> Bool
+    -> Maybe(Tr.Tree Tax) -> JournalType -> DebitAccount -> CreditAccount
+    -> Journal
+createJournalNM aName aCode active view updatePosted taxes
+        jType defaultDebitAccount defaultCreditAccount = 
+            Journal aName aCode active view
+                updatePosted 
+                taxes
+                jType
+                defaultDebitAccount
+                defaultCreditAccount
+                S.empty
 
 validJournal :: Journal -> Bool
 validJournal aJournal =
@@ -282,16 +309,13 @@ data TaxCode = TaxCode {
     tcCompany :: Co.Company,
     sum :: Amount} deriving (Show, Typeable, Generic, Eq, Ord, Data)
 
-createTaxCode :: Name -> Code -> Boolean ->
-    ErpM Co.Company -> Amount ->
-    ErpM TaxCode
-createTaxCode n c a com s = 
-    TaxCode <$> pure n
-            <*> pure c 
-            <*> pure a
-            <*> com
-            <*> pure s
 
+createTaxCode :: Name -> Code -> Boolean ->
+    Co.Company -> Amount ->
+    ErpM TaxCode
+createTaxCode n c a com s =  pure $ createTaxCodeNM n c a com s
+createTaxCodeNM :: Name -> Code -> Boolean -> Co.Company -> Amount -> TaxCode
+createTaxCodeNM n c a com s = TaxCode n c a com s
 
 {-- | Add the child to a parent. If the child exists in the tree,
         return. --}

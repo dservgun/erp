@@ -71,9 +71,9 @@ createLoginRequest anID login aPayload  =
 
 -- instance Arbitrary (ErpError.ErpError ErpError.ModuleError Pr.UOM) where
 -- We just exploded the cases.
-createInsertUOM :: SSeq.ID -> String -> ErpM Pr.UOM -> 
-    ErpM Co.Company -> M.Request
-createInsertUOM anID login (ErpError.Success a) (ErpError.Success b) = 
+createInsertUOM :: SSeq.ID -> String -> Pr.UOM -> 
+    Co.Company -> M.Request
+createInsertUOM anID login a b= 
     M.Request 
         anID
         M.Create
@@ -81,17 +81,10 @@ createInsertUOM anID login (ErpError.Success a) (ErpError.Success b) =
         (show InsertUOM)
         login $ En.decodeUtf8 $ encode $ toJSON (a, b)
 
-createInsertUOM anID login (ErpError.Error b) (ErpError.Error c) =
-    M.Request
-        anID
-        M.Create
-        M.protocolVersion
-        (show QueryDatabase)
-        login $ En.decodeUtf8 $ encode $ toJSON $ show b
 
 
-createInsertParty :: SSeq.ID -> String -> ErpM Co.Party -> M.Request
-createInsertParty anID login (ErpError.Success a) = 
+createInsertParty :: SSeq.ID -> String -> Co.Party -> M.Request
+createInsertParty anID login a = 
             M.Request 
                 anID
                 M.Create
@@ -99,33 +92,16 @@ createInsertParty anID login (ErpError.Success a) =
                 (show InsertParty)
                 login $ En.decodeUtf8 $ encode $ toJSON $ a
 
-createInsertParty anID login (ErpError.Error b) = 
-        -- Error cases should generate some no-op requests.
-                M.Request 
-                    anID
-                    M.Create
-                    M.protocolVersion
-                    (show QueryDatabase) 
-                    login $ En.decodeUtf8 $ encode $ toJSON $ (show b)
 
 
-createInsertCompany :: SSeq.ID -> String -> ErpM Co.Company -> M.Request
-createInsertCompany anID login (ErpError.Success a) = 
+createInsertCompany :: SSeq.ID -> String -> Co.Company -> M.Request
+createInsertCompany anID login a = 
             M.Request 
                 anID
                 M.Create
                 M.protocolVersion
                 (show InsertCompany)
                 login $ En.decodeUtf8 $ encode $ toJSON $ a
-
-createInsertCompany anID login (ErpError.Error b) = 
-        -- Error cases should generate some no-op requests.
-                M.Request 
-                    anID
-                    M.Create
-                    M.protocolVersion
-                    (show QueryDatabase) 
-                    login $ En.decodeUtf8 $ encode $ toJSON $ (show b)
 
 
 
@@ -216,27 +192,17 @@ sampleCategoryMessages = do
 
 
 sampleInsertPartyMessages ::  IO[M.Request]
-sampleInsertPartyMessages = do
-    s <- (sample' $ (suchThat arbitrary (\a -> 
-            case a of 
-                ErpError.Success b -> True
-                ErpError.Error c -> False
-        ))):: IO [ErpM Co.Party]
-    mapM (\x -> return $ createInsertParty 1 testEmail x) s
+sampleInsertPartyMessages = do 
+        parties <- (sample' arbitrary :: IO[Co.Party])
+        mapM (\x -> return $ createInsertParty 1 testEmail x) parties
 
-sampleInsertUOMMessages :: ErpM Co.Company -> IO[M.Request]
+sampleInsertUOMMessages :: Co.Company -> IO[M.Request]
 sampleInsertUOMMessages company = do
-    s <- (sample' $ (suchThat arbitrary ( \a ->
-                case a of 
-                    ErpError.Success b -> True
-                    ErpError.Error _ -> False))) :: IO[ErpM Pr.UOM]
-    mapM (\x -> return $ createInsertUOM 1 testEmail x company) s 
+    uoms <- (sample' arbitrary :: IO[Pr.UOM])
+    mapM (\x -> return $ createInsertUOM 1 testEmail x company) uoms
 
 
-genSampleCompanyInstances = (sample' $ (suchThat arbitrary ( \a ->
-                case a of 
-                    ErpError.Success b -> True
-                    ErpError.Error _ -> False))) :: IO[ErpM Co.Company]
+genSampleCompanyInstances = (sample' arbitrary) :: IO[Co.Company]
 
 sampleInsertCompanyMessages  :: IO[M.Request]
 sampleInsertCompanyMessages = do
