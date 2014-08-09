@@ -1,0 +1,41 @@
+-- To show how the Erp [String] IO  monad+ applicative behaves, using ghci. (it is necessary to remove the THaskell code and add DeriveDataTypeable and DeriveGeneric to ErpError.hs to load in GHCi.
+
+-- This applicative expression generates a 2-tuple: 
+
+*ErpError> runErp ((,) <$> return 1 <*> return 2) >>= print
+Success (1,2)
+
+-- return== pure   and by definition: return x= Erp $ return $ Success x
+
+-- create a procedure that generate a String error:
+
+*ErpError> let erperror err = Erp $ return $ Error [err] :: Erp [String] IO Int
+
+-- Do the tuple with two errors
+*ErpError> runErp ((,) <$> erperror "error1" <*> erperror "error2") >>= print
+Error ["error1","error2"]
+
+
+-- With one error on the left:
+*ErpError> runErp ((,) <$> erperror "error1" <*> return 2) >>= print
+Error ["error1"]
+
+-- On the rigth:
+*ErpError> runErp ((,) <$> return 1 <*> erperror "error2") >>= print
+Error ["error2"]
+
+-- How to perform IO and then monadically compose something with error
+*ErpError> runErp (liftIO (print "IO in Erp") >> erperror "error2") >>= print
+"IO in Erp"
+Error ["error2"]
+
+-- note above that the IO proc is executed, and then the error is produced afterwards
+
+-- But if the error is produced before the IO procedure, the computatio is stopped at the error and the rest of the computation is not executed (like in the EitherT monad)
+*ErpError> runErp (erperror "error1" >> liftIO (print "IO in Erp")) >>= print
+Error ["error1"]
+
+-- Therefore errors are not accumulated when in the Erp monad:
+*ErpError> runErp (erperror "error1" >> erperror "error2") >>= print
+Error ["error1"]
+

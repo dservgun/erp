@@ -5,15 +5,11 @@ erp
 
  ## Technical architecture
   * Haskell encapsulates most of the architecture as part of the type system for the application. 
-  * The overall needs of the application need to be a fast responsive time and use of a database as way to 
-  copy state periodically.
-  * The erp application will be deployed on cloud haskell supporting for distributed chats when users span
-  groups across the enterprise. 
+  * Use a database as way to copy state periodically.
   * Needs to be configurable: currently we support acid state, but the model needs to be scalable to support different databases and configurations. 
-  * Support for different ecommerce platform for managing products and requests for quotes.
   * Internationalization of requirements and language strings: including company, tax code definitions etc.
   * A [cloud haskell](http://www.haskell.org/haskellwiki/Cloud_Haskell) based implementation to handle distributed processes.
-  * Internet enabled devices running on [Arduino](http://www.haskell.org/haskellwiki/Arduino) or similar devices will be first-class members of the enterprise to help manage realtime changes to the process.
+  * Internet enabled devices running on [Arduino](http://www.haskell.org/haskellwiki/Arduino) or similar devices need to be treated as first-class members of the enterprise to help manage realtime changes to the process.
 
 ## General running installation guide
  * cabal clean
