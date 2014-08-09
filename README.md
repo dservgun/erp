@@ -1,7 +1,7 @@
 erp
 ===
 ## Objective
- * To model a small to medium enterprise using erp (enterprise resource planning) and mrp (manufacturing resaurces planning) body of knowledge. 
+ * To enable small to medium businesses manage their business.
 
  ## Technical architecture
   * Haskell encapsulates most of the architecture as part of the type system for the application. 
