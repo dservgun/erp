@@ -1,7 +1,7 @@
 erp
 ===
 ## Objective
- * Enterprise resource planning encompasses one of the challenging business applications to model and of the implementations available Tryton seems to be a good model that encapsulates the general needs of a small to medium enterprise. 
+ * To model a small to medium enterprise using erp (enterprise resource planning) and mrp (manufacturing resaurces planning) body of knowledge. 
 
  ## Technical architecture
   * Haskell encapsulates most of the architecture as part of the type system for the application. 
@@ -12,6 +12,8 @@ erp
   * Needs to be configurable: currently we support acid state, but the model needs to be scalable to support different databases and configurations. 
   * Support for different ecommerce platform for managing products and requests for quotes.
   * Internationalization of requirements and language strings: including company, tax code definitions etc.
+  * A [cloud haskell](http://www.haskell.org/haskellwiki/Cloud_Haskell) based implementation to handle distributed processes.
+  * Internet enabled devices running on [Arduino](http://www.haskell.org/haskellwiki/Arduino) or similar devices will be first-class members of the enterprise to help manage realtime changes to the process.
 
 ## General running installation guide
  * cabal clean
