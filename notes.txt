@@ -1,0 +1,18 @@
+Hi. Here is where the monad comes into scene.
+each <*> can contain a monadic expression with type ErpM a
+this is the creaation of CompanyWorkTime with some parameter error checking
+CompanyWorkTime <$> aCompany
+        <*> checkHpd
+        <*> pure dpw 
+        <*> (if wpm < some then erpError....)
+        <*> pure mpy 
+
+   where
+   checkHpd hpd= if hpd > somevalue then erpError module code message else return hpd
+
+
+erpError module code message= Erp . return $ Error [ModuleError module code message]
+Alberto Gómez Corona
+4:55
+checkHpd can be a monadic expression arbitrarily complicated, you can invoque IO operations etc.
+The applicative will return the result or will aggregate the errors produced
