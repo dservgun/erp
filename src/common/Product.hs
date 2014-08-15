@@ -227,6 +227,7 @@ createProduct :: UPCCode -> String -> String -> ProductType
         -> ErpM Dimensions 
         -> ErpM (M.Map String ( Dimensions, Image))
         -> ErpM Product  
+
 createProduct upcCode desc name productType
     productCategory
     calcLPriceProc calcCPriceProc costPriceMethod

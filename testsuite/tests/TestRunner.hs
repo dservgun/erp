@@ -139,7 +139,7 @@ endSession aResponse conn =
                 testEmail $ 
                 encode $ toJSON testLogin
         msg <- (WS.receiveData conn :: IO T.Text)
-        WS.sendClose conn ("Ending session" :: T.Text)
+        WS.sendClose conn (T.pack "Ending session")
 
 
 

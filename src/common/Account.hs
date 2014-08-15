@@ -39,6 +39,7 @@ import Data.Acid.Remote
 import Data.SafeCopy
 import Data.Typeable
 import Data.Data
+import Data.Monoid
 import qualified Data.Set as S
 import qualified Data.Map as M
 import qualified Data.Tree as Tr
@@ -69,6 +70,7 @@ data Lot = Lot { lotNotes :: String
                 , lotSize :: LotSize
                 , dimensionKey :: String
                 , product :: Pr.Product} deriving (Show, Typeable, Generic, Data, Eq, Ord)
+
 
 computeLotWeight :: Pr.Product -> Lot -> Pr.Weight
 computeLotWeight a l = (lotSize l R.% 1)  * (Pr.productWeight a $ dimensionKey l)

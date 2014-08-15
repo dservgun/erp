@@ -9,7 +9,7 @@ erp
   * Needs to be configurable: currently we support acid state, but the model needs to be scalable to support different databases and configurations. 
   * Internationalization of requirements and language strings: including company, tax code definitions etc.
   * A [cloud haskell](http://www.haskell.org/haskellwiki/Cloud_Haskell) based implementation to handle distributed processes.
-  * Internet enabled devices running on [Arduino](http://www.haskell.org/haskellwiki/Arduino) or similar devices need to be treated as first-class members of the enterprise to help manage realtime changes to the process.
+  * Internet enabled devices running on [Arduino](http://www.haskell.org/haskellwiki/Arduino) or similar devices need to be treated as first-class members of the enterprise to help manage realtime changes to the process. For example, 
 
 ## General running installation guide
  * cabal clean

@@ -11,6 +11,7 @@ import Control.Monad (forever)
 import Control.Exception(bracket, handle, fromException)
 import Control.Concurrent
 import Control.Concurrent.Async(async, wait)
+import Data.Monoid( (<>) )
 import qualified Data.Text as T
 import qualified Data.Text.IO as TIO
 import Data.Acid as A
@@ -91,9 +92,14 @@ handleConnection acid pending = do
 
 serverModuleName = "ErpServer"
 
+class Processable a where
+  process :: a -> ErEr.ErpM()
+
+instance Processable M.Request where
+  process (M.Request a) = undefined
+
 processMessages conn acid =
      handle catchDisconnect  $ forever $ do
-
      msg <- WS.receiveData conn
      infoM serverModuleName $ "Process messages " ++ (show msg)
      updateDatabase conn acid msg
@@ -120,7 +126,7 @@ updateDatabase connection acid aMessage =
                 errorM serverModuleName (show r)
                 M.sendError connection Nothing "Error"
                 return $ ErEr.erpErrorNM "ErpServer" "ES002" $ 
-                  L.pack $ "Invalid message " ++ (show aMessage)
+                  L.pack $ "Invalid message " <> (show aMessage)
 
 updateRequests acid r = A.update acid(M.InsertRequest r)
 
@@ -149,7 +155,7 @@ routeRequest connection acid IR.QueryNextSequence r =
     case response of
       Just res -> return $ ErEr.createSuccess res
       Nothing -> return $ ErEr.erpErrorNM "ErpServer" "ES013" 
-        $ L.pack $ "Command failed " ++ show IR.QueryNextSequence
+        $ L.pack $ "Command failed " <> show IR.QueryNextSequence
 
 routeRequest connection acid IR.Login  r            = 
     do
@@ -211,7 +217,7 @@ routeRequest connection acid IR.CloseConnection  r = do
 
 checkProtocol :: String -> ErEr.ErpError [ErEr.ModuleError] String
 checkProtocol iProtocolVersion = -- Returns a ErpError if wrong protocol
-    if iProtocolVersion == M.protocolVersion then ErEr.createSuccess "Protocol supported" -- TODO : ErpError
+    if iProtocolVersion == M.protocolVersion then ErEr.createSuccess "Protocol supported"
     else ErEr.erpErrorNM "ErpServer" "ES003" "Unsupported protocol"
 
 
