@@ -34,6 +34,7 @@ import Data.Acid.Remote
 import Data.SafeCopy
 import Data.Typeable
 import Data.Data
+import qualified Data.Monoid as Mon
 import Data.Tree as Tr
 import Data.Map as M
 import qualified Data.HashMap.Strict as H

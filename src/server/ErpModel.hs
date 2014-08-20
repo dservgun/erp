@@ -413,8 +413,10 @@ $(A.makeAcidic ''Database [
             , 'queryCompany
             , 'insertCompany ])
 
-
+initializeDatabase :: FilePath -> IO (A.AcidState Database)
 initializeDatabase  dbLocation = A.openLocalStateFrom dbLocation $ Database M.empty
+
+disconnect :: A.AcidState Database -> IO()
 disconnect acid  = do
         infoM modelModuleName "Closing acid state"
         A.closeAcidState acid

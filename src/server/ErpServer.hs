@@ -96,7 +96,7 @@ class Processable a where
   process :: a -> ErEr.ErpM()
 
 instance Processable M.Request where
-  process (M.Request a) = undefined
+  process (M.Request a b c d e f) = undefined
 
 processMessages conn acid =
      handle catchDisconnect  $ forever $ do
@@ -128,6 +128,9 @@ updateDatabase connection acid aMessage =
                 return $ ErEr.erpErrorNM "ErpServer" "ES002" $ 
                   L.pack $ "Invalid message " <> (show aMessage)
 
+
+updateRequests :: AcidState(EventState M.InsertRequest)
+      -> M.Request -> IO(EventResult M.InsertRequest)
 updateRequests acid r = A.update acid(M.InsertRequest r)
 
 
