@@ -235,7 +235,7 @@ instance Arbitrary (Ac.Account) where
         deferral <- arbitrary
         reconcile <- arbitrary
         note <- arbitrary
-        return (Ac.createAccountNM name code 
+        return (Ac.Account name code 
                     company currency
                     acKind acType
                     deferral altCurrency 
@@ -251,7 +251,10 @@ instance Arbitrary (Ac.Journal) where
         journalType <- elements [Ac.General, Ac.Revenue, Ac.Situation, Ac.Expense, Ac.Cash]
         defaultDebitAccount <- arbitrary
         defaultCreditAccount <- arbitrary
-        return $ Ac.createJournalNM name code active view updatePosted Nothing journalType defaultDebitAccount defaultCreditAccount
+        return $ Ac.Journal name code active view 
+            updatePosted Nothing journalType 
+            defaultDebitAccount defaultCreditAccount
+            S.empty
 
 instance Arbitrary (Ac.TaxCode) where
     arbitrary = do
@@ -260,7 +263,7 @@ instance Arbitrary (Ac.TaxCode) where
         tcActive <- arbitrary
         tcCompany <- arbitrary
         sum <- arbitrary
-        return $ Ac.createTaxCodeNM tcName tcCode tcActive tcCompany sum
+        return $ Ac.TaxCode tcName tcCode tcActive tcCompany sum
 
 instance Arbitrary (Ac.Sign) where
     arbitrary = oneof [return Ac.Positive,

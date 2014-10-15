@@ -2,7 +2,7 @@
 --
 -- Module      :  ErpError
 -- Copyright   :
--- License     :  GPL Nothing
+-- License     :  See license at the root.
 --
 -- Maintainer  :  dinkar.ganti@gmail.com
 -- Stability   :

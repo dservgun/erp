@@ -77,10 +77,11 @@ serverMain dbLocation =
     infoM serverModuleName $ "Listening on " ++ show portNumber
     WS.runServer "127.0.0.1" portNumber $ handleConnection acid)
 
+portNumber :: Num a => a
 portNumber = 8082
 
 instance Show WS.Connection where
-    show _  = "Connection info...TBD"
+    show _  = "Connection info..."
 
 handleConnection acid pending = do
   conn <- WS.acceptRequest pending
@@ -98,6 +99,7 @@ class Processable a where
 instance Processable M.Request where
   process (M.Request a b c d e f) = undefined
 
+processMessages :: WS.Connection -> AcidState (EventState M.GetDatabase) -> IO()
 processMessages conn acid =
      handle catchDisconnect  $ forever $ do
      msg <- WS.receiveData conn
@@ -114,6 +116,7 @@ processMessages conn acid =
               errorM serverModuleName $ serverModuleName ++ " catchDisconnect:: Unknown exception " ++ show e
               return ()
 
+updateDatabase :: WS.Connection -> AcidState(EventState M.GetDatabase) -> T.Text -> IO (ErEr.ErpError [ErEr.ModuleError] M.Response)
 updateDatabase connection acid aMessage = 
     do
         r <- return $ pJSON aMessage
@@ -218,36 +221,38 @@ routeRequest connection acid IR.CloseConnection  r = do
           Nothing -> return $ ErEr.erpErrorNM "ErpServer" "ES013" "Close connection failed"
         
 
-checkProtocol :: String -> ErEr.ErpError [ErEr.ModuleError] String
+checkProtocol :: String -> IO (ErEr.ErpError [ErEr.ModuleError] String)
 checkProtocol iProtocolVersion = -- Returns a ErpError if wrong protocol
-    if iProtocolVersion == M.protocolVersion then ErEr.createSuccess "Protocol supported"
-    else ErEr.erpErrorNM "ErpServer" "ES003" "Unsupported protocol"
+    if iProtocolVersion == M.protocolVersion then return $ ErEr.createSuccess "Protocol supported"
+    else return $ ErEr.erpErrorNM "ErpServer" "ES003" "Unsupported protocol"
 
 
 processRequest :: WS.Connection -> AcidState (EventState M.GetDatabase) -> M.Request -> 
   IO (ErEr.ErpError [ErEr.ModuleError] M.Response)
 processRequest connection acid r@(M.Request iRequestID requestType iProtocolVersion entity 
-  emailId payload) =
-    --TODO: get the process entity so we are inside our own monad instead of IO
-    case (checkProtocol iProtocolVersion) of
-        ErEr.Error aString -> return $ ErEr.erpErrorNM "ErpServer" "ES001" "Check protocol failed"
-        ErEr.Success aString -> 
-                do
-                  entityType <- return $ read entity
-                  debugM M.modelModuleName $ "Incoming request " ++ (show r)
-                  currentRequest <- checkRequest acid r  --TODO: Need to decode type better than a bool
-                  if currentRequest then
-                      do
-                        response <- routeRequest connection acid entityType r
-                        infoM serverModuleName ("Entity type " ++ (show entityType))
-                        infoM serverModuleName ("Sending response--erperror" ++ (show response))
-                        return response
-                  else
+  emailId payload) = 
+    do
+        --TODO: get the process entity so we are inside our own monad instead of IO
+        chk <- checkProtocol iProtocolVersion
+        case chk of
+            ErEr.Error aString -> return $ ErEr.erpErrorNM "ErpServer" "ES001" "Check protocol failed"
+            ErEr.Success aString -> 
                     do
-                      moduleError@(ErEr.Error errors) <- return $ 
-                          ErEr.erpErrorNM "ErpServer" "ES002" $ 
-                          L.pack $ "Stale message " ++ show r
-                      return moduleError
+                      entityType <- return $ read entity
+                      debugM M.modelModuleName $ "Incoming request " ++ (show r)
+                      currentRequest <- checkRequest acid r  --TODO: Need to decode type better than a bool
+                      if currentRequest then
+                          do
+                            response <- routeRequest connection acid entityType r
+                            infoM serverModuleName ("Entity type " ++ (show entityType))
+                            infoM serverModuleName ("Sending response--erperror" ++ (show response))
+                            return response
+                      else
+                        do
+                          moduleError@(ErEr.Error errors) <- return $ 
+                              ErEr.erpErrorNM "ErpServer" "ES002" $ 
+                              L.pack $ "Stale message " ++ show r
+                          return moduleError
 
 
 deleteLoginA acid anEmailId = A.update acid (M.DeleteLogin anEmailId)
@@ -262,7 +267,7 @@ getEmail payload = do
 -- The return should be more than a boolean.
 -- When no model is found, we would like the caller
 -- to create an empty model.
--- Returning true doesnt capture  this.
+-- Returning true doesnt capture this.
 
 checkRequest acid r@(M.Request iRequestID requestType
     iProtocolVersion entity emailId payload) =
@@ -345,8 +350,8 @@ updateCategory acid emailId payload =
         case pObject of
             Just c@(Co.Category aCat) -> do
                -- infoM "ErpModel" "Processing update category"
-                lookup <- A.query acid (M.QueryCategory emailId c)
-                if lookup == False then
+                found <- A.query acid (M.QueryCategory emailId c)
+                if not found  then
                     do
                       A.update acid (M.InsertCategory emailId c)
                       return $ ErEr.createSuccess $ "Category added: " ++ aCat

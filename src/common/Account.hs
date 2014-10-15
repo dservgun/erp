@@ -3,14 +3,12 @@ module Account (
     , Lot
     , TimeSpent
     , DaysOfWeek
-    , Account
+    , Account(..)
     , createAccount
-    , createAccountNM
     , CreditAccount
     , DebitAccount
     , JournalType(..)
-    , Journal, createJournal
-    , createJournalNM
+    , Journal(..), createJournal
     , validJournal
     , DisplayView
     , Move
@@ -19,9 +17,8 @@ module Account (
     , MoveLineState,
     Sign(..),
     Tax, createTax, validAccount,
-    TaxCode
+    TaxCode(..)
     , createTaxCode
-    , createTaxCodeNM
     ,TaxType(..),
     TaxAmount(..),
     Quantity,
@@ -93,11 +90,6 @@ data Account = Account {
         altCurrency :: Cu.Currency,
         reconcile :: Boolean,
         note :: String
-        -- The dunning sets for the account.
-        -- presumably we can have multiple
-        -- dunning procedures per account?
-        -- Dunning aka payment reminders
-        -- ,dunningSet :: S.Set Dunning
         }
         deriving(Show,Typeable, Data, Generic, Eq, Ord)
 
@@ -113,31 +105,14 @@ createAccount :: Name -> Code
 
 createAccount aName aCode aCompany aCurrency aKind
     aType deferral altCurrency
-    reconcile note = pure $ 
-        createAccountNM aName aCode aCompany aCurrency
+    reconcile note = return $ 
+            Account aName aCode aCompany aCurrency
             aKind
             aType
             deferral
             altCurrency
             reconcile
             note
-
-createAccountNM :: Name -> Code -> Co.Company 
-            -> Cu.Currency -> AccountKind 
-            -> AccountType -> Boolean
-            -> Cu.Currency
-            -> Boolean 
-            -> String -> Account
-createAccountNM aName aCode aCompany aCurrency aKind 
-    aType deferral altCurrency reconcile note = Account aName aCode 
-        aCompany
-        aCurrency
-        aKind
-        aType
-        deferral
-        altCurrency
-        reconcile
-        note
 
 isDebit :: Account -> Bool
 isDebit anAccount =
@@ -202,8 +177,7 @@ createJournal :: Name -> Code -> Bool -> DisplayView -> Bool ->
     Maybe (Tr.Tree Tax) -> JournalType -> DebitAccount -> CreditAccount ->
         ErpM Journal
 createJournal aName aCode active view updatePosted taxes jType 
-        defaultDebitAccount defaultCreditAccount = pure $ 
-            createJournalNM aName aCode 
+        defaultDebitAccount defaultCreditAccount = return $ Journal aName aCode 
             active
             view
             updatePosted
@@ -211,20 +185,8 @@ createJournal aName aCode active view updatePosted taxes jType
             jType
             defaultDebitAccount
             defaultCreditAccount
+            S.empty
             
-createJournalNM :: Name -> Code -> Bool -> DisplayView -> Bool
-    -> Maybe(Tr.Tree Tax) -> JournalType -> DebitAccount -> CreditAccount
-    -> Journal
-createJournalNM aName aCode active view updatePosted taxes
-        jType defaultDebitAccount defaultCreditAccount = 
-            Journal aName aCode active view
-                updatePosted 
-                taxes
-                jType
-                defaultDebitAccount
-                defaultCreditAccount
-                S.empty
-
 validJournal :: Journal -> Bool
 validJournal aJournal =
         case journalType aJournal of
@@ -235,6 +197,7 @@ validJournal aJournal =
 type ReferenceNumber = String
 data MoveState  = Draft | Posted
     deriving (Show, Typeable, Generic, Eq, Ord, Data)
+
 data Move = Move {
     mName :: Name,
     mReference :: String,
@@ -262,6 +225,7 @@ creditMoves aMove aDate =
         datedLines = S.filter (\y -> moveLineEffectiveDate y <= aDate) lines
     in
         S.filter (\x -> isCredit $ account x) datedLines
+
 debitMoves :: Move -> UTCTime -> S.Set MoveLine
 debitMoves aMove aDate =
     let
@@ -315,18 +279,10 @@ data TaxCode = TaxCode {
 createTaxCode :: Name -> Code -> Boolean ->
     Co.Company -> Amount ->
     ErpM TaxCode
-createTaxCode n c a com s =  pure $ createTaxCodeNM n c a com s
-createTaxCodeNM :: Name -> Code -> Boolean -> Co.Company -> Amount -> TaxCode
-createTaxCodeNM n c a com s = TaxCode n c a com s
+createTaxCode n c a com s =  return $ TaxCode n c a com s
 
 {-- | Add the child to a parent. If the child exists in the tree,
         return. --}
-addChild :: (Tr.Tree TaxCode) -> TaxCode -> TaxCode -> Tr.Tree TaxCode
-addChild aTree child parent = undefined
-
-removeChild :: (Tr.Tree TaxCode) -> TaxCode -> TaxCode -> Tr.Tree TaxCode
-removeChild aTree child parent = undefined
-
 type Sequence = String
 data TaxType = PercentTaxType Float | FixedTaxType Float
     deriving (Show, Typeable, Generic, Eq, Ord, Data)
