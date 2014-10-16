@@ -12,6 +12,9 @@ import qualified Data.Aeson as J
 import qualified Data.Text.Lazy.Encoding as E
 import qualified Data.Text.Lazy as L
 import Data.Time.Clock
+import Data.Time.Clock.POSIX
+import Data.Time
+
 import GHC.Generics
 import qualified Currency as Cu
 import Entity(EntityState)
@@ -21,6 +24,16 @@ import qualified Product as Pr
 import qualified Stock as St
 import qualified Account as Ac
 import qualified Project as Prj
+
+type TimeInterval = Integer
+data ReminderState = NotDue | OverDue (TimeInterval, InterestRate)
+type Days = Integer
+type InterestRate = Integer 
+type InvoiceTerms = (Days, InterestRate)
+
+class Reminder a where
+    -- Compute the number of days for type a
+    reminder :: a -> IO ReminderState
 
 data InvoiceType = ManualInvoice | OnEffort | OnTimeSheet
     deriving(Show, Generic, Typeable, Eq, Ord, Data)
@@ -32,8 +45,31 @@ data InvoiceState = Draft | Waiting | Assigned | Done | Cancel
 data Invoice = Invoice {
         project :: Prj.Project,
         invoiceType :: InvoiceType,
+        invoiceDate :: UTCTime,
+        invoiceTerms :: InvoiceTerms,
         invoiceAmount :: Ac.Amount}
     deriving (Show, Generic, Typeable, Eq, Ord, Data)
+
+numSecs :: Integer -> Integer
+numSecs d = 24 * 60 * 60 * d
+iDiffTime :: UTCTime -> UTCTime -> Integer 
+iDiffTime a b = diffDays (utctDay a) (utctDay b)
+computeReminderState :: UTCTime -> UTCTime -> 
+                (Days, InterestRate) -> ReminderState
+computeReminderState a b (d, r) =
+    if (iDiffTime a b) > (numSecs d) 
+    then 
+        OverDue ((numSecs d), r)
+    else 
+        NotDue
+
+instance Reminder Invoice where
+    reminder a = 
+        do
+            curTime <- getCurrentTime
+            invoiceTime <- return $ invoiceDate a
+            return $ computeReminderState curTime invoiceTime 
+                        (invoiceTerms a)            
 
 data InvoiceMethod = BasedOnOrder | BasedOnShipment | Manual
     deriving(Show, Generic, Typeable, Eq, Ord, Data)

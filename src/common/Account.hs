@@ -1,8 +1,6 @@
 module Account (
     Name, Code
     , Lot
-    , TimeSpent
-    , DaysOfWeek
     , Account(..)
     , createAccount
     , CreditAccount
@@ -52,6 +50,7 @@ import qualified FiscalYear as Fy
 import qualified Company as Co
 import qualified Data.Ratio as R
 import qualified Product as Pr
+import Util.Calendar as Cal
 data InvalidAccountException = InvalidAccountException
     deriving (Show, Typeable, Generic, Data, Eq, Ord)
 type Name = String
@@ -73,8 +72,6 @@ computeLotWeight :: Pr.Product -> Lot -> Pr.Weight
 computeLotWeight a l = (lotSize l R.% 1)  * (Pr.productWeight a $ dimensionKey l)
 
 type TimeSpent = Float
-data DaysOfWeek = Sunday | Monday | Tuesday | Wednesday | Thursday | Friday | Saturday
-    deriving (Show, Enum, Bounded, Data, Typeable, Generic, Eq, Ord)
 data AccountType = IncomeStatement | BalanceSheet | DisplayBalance
     deriving(Show, Enum, Bounded, Data, Typeable, Generic, Eq, Ord)
 data AccountKind = Payable | Receivable | AkExpense | AkRevenue | View | Other

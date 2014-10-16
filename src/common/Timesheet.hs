@@ -18,6 +18,7 @@ import qualified FiscalYear as Fy
 import qualified Company as Co
 import qualified Product as Pr
 import qualified Account as Ac
+import qualified Util.Calendar as Cal
 import qualified Stock as St
 
 data Work = Work {
@@ -31,7 +32,7 @@ data Work = Work {
 data Timesheet = Timesheet {
         work :: Work,
         employee :: Co.Employee,
-        timeSpent :: Ac.TimeSpent,
+        timeSpent :: Cal.TimeSpent,
         date :: UTCTime,
         description :: String}
         deriving (Show, Eq, Ord, Typeable, Generic)

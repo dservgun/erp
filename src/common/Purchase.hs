@@ -21,9 +21,8 @@ import qualified Stock as St
 import qualified Account as Ac
 import qualified Invoice as In
 import qualified Shipment as Sh
+import qualified Util.Calendar as Cal
 
-{-- These values seem to be more for the display/report and customization purposes --}
-{-- XXX: Review this --}
 data PurchaseLineType = Line | Comment | Subtotal | Title
     deriving(Show, Ord, Eq, Typeable, Generic)
 data PurchaseState = Draft | Quotation | Confirmed | Canceled
@@ -39,6 +38,7 @@ data PurchaseLine = PurchaseLine {
     unitPrice :: Ac.Amount,
     taxes :: [Ac.Tax]        
     } deriving (Show, Eq, Ord, Typeable, Generic)
+
 data Purchase = Purchase {
     supplier :: Co.Party,
     invoiceAddress :: Co.Address,
@@ -70,7 +70,7 @@ data StockPurchaseState = SpDraft | SpPurchased | SpDone | SpCancel
 data StockAvailableDays = StockAvailableDays {
         saProduct :: Pr.Product,
         saSupplier :: Co.Party,
-        availableDays :: [Ac.DaysOfWeek]
+        availableDays :: [Cal.DaysOfWeek]
         } deriving(Show, Eq, Ord, Typeable, Generic)
 data StockPurchaseRequest = StockPurchaseRequest {
     stockPurchase :: Purchase,
