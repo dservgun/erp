@@ -8,6 +8,7 @@ import Control.Concurrent.Async(async, wait, cancel)
 import Control.Exception
 import Control.Monad(forever, unless, liftM)
 
+
 import Control.Monad.Trans (liftIO)
 import Data.Aeson
 import Data.DateTime
@@ -249,4 +250,5 @@ serverTest = do
                             , sampleInsertCompanyMessages
                         ]
 
-main = serverTest
+main = do
+    serverTest

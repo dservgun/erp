@@ -14,7 +14,7 @@ import qualified Data.Text.Lazy as L
 import Data.Time.Clock
 import Data.Time.Clock.POSIX
 import Data.Time
-
+import qualified Util.Reminder as Rem
 import GHC.Generics
 import qualified Currency as Cu
 import Entity(EntityState)
@@ -30,10 +30,7 @@ data ReminderState = NotDue | OverDue (TimeInterval, InterestRate)
 type Days = Integer
 type InterestRate = Integer 
 type InvoiceTerms = (Days, InterestRate)
-
-class Reminder a where
-    -- Compute the number of days for type a
-    reminder :: a -> IO ReminderState
+type Amount = Float
 
 data InvoiceType = ManualInvoice | OnEffort | OnTimeSheet
     deriving(Show, Generic, Typeable, Eq, Ord, Data)
@@ -59,17 +56,25 @@ computeReminderState :: UTCTime -> UTCTime ->
 computeReminderState a b (d, r) =
     if (iDiffTime a b) > (numSecs d) 
     then 
-        OverDue ((numSecs d), r)
+        OverDue ((numSecs (iDiffTime a b)), r)
     else 
         NotDue
 
-instance Reminder Invoice where
+monthConstant :: Float
+monthConstant = 31 -- Give the guy a break??
+computePenalty :: Amount -> ReminderState -> Amount
+computePenalty _ NotDue = 0
+computePenalty a (OverDue (days, rate)) = a * 
+                ((fromIntegral  days) * 
+                    (fromIntegral rate) / monthConstant)
+
+instance Rem.Reminder Invoice ReminderState where
     reminder a = 
         do
             curTime <- getCurrentTime
             invoiceTime <- return $ invoiceDate a
             return $ computeReminderState curTime invoiceTime 
-                        (invoiceTerms a)            
+                        (invoiceTerms a) 
 
 data InvoiceMethod = BasedOnOrder | BasedOnShipment | Manual
     deriving(Show, Generic, Typeable, Eq, Ord, Data)

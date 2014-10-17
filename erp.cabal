@@ -40,6 +40,8 @@ library
                         TypeFamilies TemplateHaskell TypeSynonymInstances FlexibleInstances
                         DataKinds DeriveGeneric NoMonomorphismRestriction
                         OverlappingInstances
+                        MultiParamTypeClasses
+
     hs-source-dirs: . src/server testsuite/tests src/common src/client
     other-modules: TestSpec ProductSpec SpecHelper
     ghc-options: -DDEBUG
