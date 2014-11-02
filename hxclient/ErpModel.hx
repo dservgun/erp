@@ -1,4 +1,3 @@
-package;
 
 import haxe.ui.toolkit.core.Macros;
 import haxe.ui.toolkit.core.Toolkit;
@@ -7,7 +6,7 @@ import haxe.ui.toolkit.controls.Button;
 import haxe.ui.toolkit.events.UIEvent;
 
 class Main {
-	package static function main () : void {
+	static function main () : void {
 		Macros.addStylesheet("styles/gradient/gradient.css")
 		Toolkit.init()
 		Toolkit.openFullScreen (

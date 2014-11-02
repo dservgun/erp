@@ -51,6 +51,8 @@ numSecs :: Integer -> Integer
 numSecs d = 24 * 60 * 60 * d
 iDiffTime :: UTCTime -> UTCTime -> Integer 
 iDiffTime a b = diffDays (utctDay a) (utctDay b)
+
+
 computeReminderState :: UTCTime -> UTCTime -> 
                 (Days, InterestRate) -> ReminderState
 computeReminderState a b (d, r) =
@@ -62,6 +64,7 @@ computeReminderState a b (d, r) =
 
 monthConstant :: Float
 monthConstant = 31 -- Give the guy a break??
+
 computePenalty :: Amount -> ReminderState -> Amount
 computePenalty _ NotDue = 0
 computePenalty a (OverDue (days, rate)) = a * 

@@ -23,7 +23,7 @@ module Account (
     Amount,
     AccountKind(..),
     AccountType(..),
-    Batch, createBatch
+    Batch, createNewBatch
 )where
 import Control.Applicative
 import Control.Monad.State
@@ -371,13 +371,11 @@ data Batch = Batch {
                 batchID :: BatchID }
                 deriving (Show, Typeable, Generic, Eq, Ord, Data)
 
-createBatch :: UTCTime -> BatchID -> Batch
-createBatch = Batch
 
-createNewBatch :: BatchID => IO Batch
+createNewBatch :: BatchID -> IO Batch
 createNewBatch anId = do
     c <- getCurrentTime
-    return $ createBatch c anId
+    return $ Batch c anId
 
 data DunningState = DDraft | DDone deriving
     (Show, Typeable, Generic, Eq, Ord, Enum, Bounded, Data)

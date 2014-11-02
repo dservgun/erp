@@ -125,8 +125,10 @@ delete anErpModel = anErpModel {deleted = True}
  though a given model can be associated with multiple email ids--}
 data Database = Database ! (M.Map String ErpModel)
      deriving (Show, Generic, Typeable, Eq, Ord)
-{-- Query and retrieve are similar, but the distinction that we are trying to make 
-here is that one is a database operation, while the other is a query in general??--}
+{-- Query and retrieve are similar, but the distinction 
+that we are trying to make 
+here is that one is a database operation, 
+while the other is a query in general??--}
 data RequestType = Create | Retrieve | Update | Delete | Query | Command 
     deriving (Show, Generic, Typeable, Eq, Ord)
 type RequestEntity = String
@@ -140,8 +142,7 @@ data Request = Request {
     emailId :: String,
     requestPayload :: L.Text} deriving(Show, Generic, Typeable, Eq, Ord)
 
-createRequest anID aVersion entity aType  emailId aPayload = 
-    Request anID aVersion entity aType emailId aPayload
+createRequest = Request 
 
 data Response = Response {
     responseID :: ID,
@@ -150,8 +151,7 @@ data Response = Response {
     incomingRequest :: Maybe Request,
     responsePayload :: L.Text } deriving (Show, Generic, Typeable, Eq, Ord)
 
-createResponse anID nextIDToUse responseVersion request payload =
-    Response anID nextIDToUse responseVersion request payload
+createResponse = Response
 
 
 updateSequenceNumber :: Response -> Request -> Request
@@ -177,13 +177,15 @@ unwrapRequest :: Response -> Maybe Request
 unwrapRequest = incomingRequest 
 
 
-createCloseConnectionResponse r = Response (requestID r) (requestID r)
-                                                            protocolVersion
-                                                            (Just r) 
-                                                            $ L.pack $ show r
+createCloseConnectionResponse r = Response (requestID r) 
+                                            (requestID r)
+                                            protocolVersion
+                                            (Just r) 
+                                            $ L.pack $ show r
 -- Create a new response with the next id.
-createNextSequenceResponse emailId c anID = Response anID  anID protocolVersion c 
-            $ L.pack $ show anID
+createNextSequenceResponse emailId c anID = Response anID  anID 
+                                                protocolVersion c 
+                                                $ L.pack $ show anID
 
 getSequenceNumber aResponse = requestIDToUse aResponse
 getRequestEmail aRequest = emailId aRequest
@@ -197,16 +199,10 @@ getRequestEntity aRequest = requestEntity aRequest
 -- Version naming protocol should be similar to
 -- what most systems do today, so basic
 -- increments will still compare.
--- We need to maintain some amount
--- of backward compatibility, though,
--- that is probably debatable?
 protocolVersion :: ProtocolVersion
 protocolVersion = "0.0.0.1"
 
 -- ID is a string read and written from an integer
-
-
-
 emptyModel = ErpModel {
                 partySet = S.empty,
                 categorySet = S.empty,

@@ -58,6 +58,7 @@ totalEffort aProject = 0
 
 taskLeveling :: Task -> Task
 taskLeveling = id
+
 instance J.ToJSON Project
 instance J.FromJSON Project
 instance J.ToJSON ProjectState

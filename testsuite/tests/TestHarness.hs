@@ -215,13 +215,6 @@ instance Arbitrary (Co.CompanyWorkTime) where
             weeksPerMonth (0, 5)
             monthsPerYear (0, 12) )
 
--- Why is this computation not under the
--- ErpError monad?
-instance Arbitrary Ac.Batch where
-    arbitrary = do
-        time <- arbitrary
-        id <- arbitrary
-        return $ Ac.createBatch time id
 
 instance Arbitrary (Ac.Account) where
     arbitrary = do
