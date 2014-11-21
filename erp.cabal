@@ -24,7 +24,6 @@ library
                    , transformers >= 0.3.0.0
                    , http-streams >= 0.7.2.2
                    , io-streams >= 1.1.4.6
-                   , haste-compiler >= 0.4.3
 
     exposed-modules: ErpError ErpServer ErpModel Login Account Company Country
                      Currency FiscalYear Entity AccountAsset Bank Product Carrier
